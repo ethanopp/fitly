@@ -1,0 +1,58 @@
+[logger]
+level = DEBUG
+
+[database]
+host = 192.168.1.11
+port = 3306
+db_name = Fitness
+user =
+password =
+
+[settings]
+password =
+
+[SPOTIFY]
+client_id =
+client_secret =
+
+[peloton]
+username =
+password =
+
+[stryd]
+username =
+password =
+
+[strava]
+activities_after_date = 2018-01-01T00:00:00Z
+client_id =
+client_secret =
+redirect_uri =
+
+[oura]
+redirect_uri =
+client_id =
+client_secret =
+days_back = 7
+white = rgb(220, 220, 220)
+teal = rgb(100, 217, 236)
+light_blue = rgb(56, 128, 139)
+dark_blue = rgb(39, 77, 86)
+orange = rgb(217,100,43)
+
+[withings]
+redirect_uri =
+client_id =
+client_secret =
+
+[nextcloud]
+url =
+username =
+password =
+
+[timezone]
+timezone = America/New_York
+
+[fitbod]
+path =
+

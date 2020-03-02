@@ -1,0 +1,15 @@
+APScheduler
+configparser
+dash
+dash-daq
+dash-bootstrap-components
+nokia
+numpy
+oura
+pandas
+PyMySQL
+pyocclient
+SQLAlchemy
+stravalib
+sweat
+requests-oauthlib
