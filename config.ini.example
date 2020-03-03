@@ -44,7 +44,7 @@ dark_blue = rgb(39, 77, 86)
 orange = rgb(217,100,43)
 
 [withings]
-redirect_uri = localhost:8050/pages/authorize/withings
+redirect_uri = http://127.0.0.1:8050/pages/authorize/withings
 client_id =
 client_secret =
 
