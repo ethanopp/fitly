@@ -50,8 +50,8 @@ class FitlyActivity(stravalib.model.Activity):
         dash_app.server.logger.debug('Activity id "{}": Pulling ftp'.format(self.id))
         self.get_ftp()
         # Get most recent resting heart rate
-        self.get_rest_hr()
         dash_app.server.logger.debug('Activity id "{}": Pulling resting hr'.format(self.id))
+        self.get_rest_hr()
         # Get most recent weight
         dash_app.server.logger.debug('Activity id "{}": Pulling weight'.format(self.id))
         self.get_weight()
@@ -70,6 +70,7 @@ class FitlyActivity(stravalib.model.Activity):
         # Write strava_best_samples
         dash_app.server.logger.debug('Activity id "{}": Writing mean max power to DB'.format(self.id))
         self.compute_mean_max_power(dbinsert=True)
+
         # Write df_summary and df_samples to db
         dash_app.server.logger.debug('Activity id "{}": Writing df_summary and df_samples to DB'.format(self.id))
         self.write_dfs_to_db()
@@ -119,37 +120,48 @@ class FitlyActivity(stravalib.model.Activity):
             client.update_activity(activity_id=self.id, name=self.peloton_title)
 
     def get_rest_hr(self):
+        # TODO: Build this out so hearrate data can be pulled from other data sources, and resort to athlete table if no source is connected that contains weight data
         # Assign rhr to activities by their start date
         session, engine = db_connect()
-        try:
-            hr_lowest = session.query(ouraSleepSummary.hr_lowest).filter(
-                ouraSleepSummary.report_date <= self.start_date.date()).order_by(
-                ouraSleepSummary.report_date.desc()).first()[0]
-        except TypeError:
-            # If activity is prior to first oura data record, use first oura data record
-            hr_lowest = \
-                session.query(ouraSleepSummary.hr_lowest).order_by(ouraSleepSummary.report_date.asc()).first()[0]
+        # Try grabbing last resting heartrate from oura
+        hr_lowest = session.query(ouraSleepSummary.hr_lowest).filter(
+            ouraSleepSummary.report_date <= self.start_date.date()).order_by(
+            ouraSleepSummary.report_date.desc()).first()
+
+        # If activity is prior to first oura data record, use first oura data record
+        if not hr_lowest:
+            hr_lowest = session.query(ouraSleepSummary.hr_lowest).order_by(ouraSleepSummary.report_date.asc()).first()
+
+        # Resort to manaully entered static athlete resting heartrate if no data source to pull from
+        if not hr_lowest:
+            hr_lowest = session.query(athlete.resting_hr).filter(athlete.athlete_id == self.athlete_id).first()
+
         engine.dispose()
         session.close()
-        self.hr_lowest = hr_lowest
+        self.hr_lowest = hr_lowest[0]
 
     def get_weight(self):
-        # Assign rhr to activities by their start date
+        # TODO: Build this out so weight data can be pulled from other data sources, and resort to athlete table if no source is connected that contains weight data
         session, engine = db_connect()
-        try:
-            weight = float(session.query(withings.weight).filter(withings.date_utc <= self.start_date).order_by(
-                withings.date_utc.desc()).first()[0])
-        except TypeError:
-            # If activity is prior to first withings data record, use first withings weight
-            weight = float(session.query(withings.weight).order_by(withings.date_utc.asc()).first()[0])
 
+        # Try grabbing last weight in withings before current workout
+        weight = session.query(withings.weight).filter(withings.date_utc <= self.start_date).order_by(
+            withings.date_utc.desc()).first()
+        # Else try getting most recent weight from withings
+        if not weight:
+            weight = session.query(withings.weight).order_by(withings.date_utc.asc()).first()
+        # If no weights in withings, resort to manually entered static weight from athlete table
+        if not weight:
+            weight = session.query(athlete.weight_lbs).filter(athlete.athlete_id == self.athlete_id).first()
         engine.dispose()
         session.close()
+
+        weight = float(weight[0])
         self.weight = weight
         self.kg = weight * 0.453592
 
     def get_ftp(self):
-        # TODO: Update with dynamic initial ftp scores if expanding for more users
+        # TODO: Update with auto calculated critical power so users do not have to flag (or take) FTP tests
         if 'run' in self.type.lower():
             stryd_df = get_stryd_df_summary()
             stryd_df = stryd_df[stryd_df.index <= self.start_date_local]
