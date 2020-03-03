@@ -1,6 +1,12 @@
 # fitly
-Self hosted web analytics for endurance athletes
+Self hosted web analytics for endurance athletes. This project started out as an app to serve my own personal fitness needs, and after several friends ask that I share the code, it is now in the process of being cleaned up for public use. Please contribute!
 
+Screenshots of the current state dashboards:
+![Image description](https://i.imgur.com/CENhmnq.png)
+![Image description](https://i.imgur.com/sWtC3aJ.png)
+![Image description](https://i.imgur.com/fox1PBV.png)
+![Image description](https://i.imgur.com/4Td0RuG.png)
+![Image description](https://i.imgur.com/8HsX8KQ.png)
 **This repo is still currently under development. Not all functionality will work for everyone yet as we are still cleaning base code.**
 
 # Strava
