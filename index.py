@@ -191,14 +191,15 @@ def display_page(pathname):
     return layout
 
 
-# Set cron job to pull data every hour
-# try:
-#     scheduler = BackgroundScheduler()
-#     scheduler.add_job(func=refresh_database, trigger="cron", hour='*')
-#     dash_app.server.logger.info('Starting cron jobs')
-#     scheduler.start()
-# except BaseException as e:
-#     dash_app.server.logger.error('Error starting cron jobs: {}'.format(e))
+if config.get('cron', 'hourly_pull') == 'True':
+    # Set cron job to pull data every hour
+    try:
+        scheduler = BackgroundScheduler()
+        scheduler.add_job(func=refresh_database, trigger="cron", hour='*')
+        dash_app.server.logger.info('Starting cron jobs')
+        scheduler.start()
+    except BaseException as e:
+        dash_app.server.logger.error('Error starting cron jobs: {}'.format(e))
 
 if __name__ == '__main__':
     dash_app.run_server(host='0.0.0.0', debug=True, port=8050)
