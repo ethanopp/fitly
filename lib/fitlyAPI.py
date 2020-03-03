@@ -44,8 +44,8 @@ class FitlyActivity(stravalib.model.Activity):
         dash_app.server.logger.debug('Activity id "{}": Building df_summary'.format(self.id))
         self.build_df_summary()
         # Update strava names of peloton workouts
-        # dash_app.server.logger.debug('Activity id "{}": Pulling peloton title'.format(self.id))
-        # self.write_peloton_title_to_strava()
+        dash_app.server.logger.debug('Activity id "{}": Pulling peloton title'.format(self.id))
+        self.write_peloton_title_to_strava()
         # Get FTP
         dash_app.server.logger.debug('Activity id "{}": Pulling ftp'.format(self.id))
         self.get_ftp()
@@ -70,7 +70,6 @@ class FitlyActivity(stravalib.model.Activity):
         # Write strava_best_samples
         dash_app.server.logger.debug('Activity id "{}": Writing mean max power to DB'.format(self.id))
         self.compute_mean_max_power(dbinsert=True)
-
         # Write df_summary and df_samples to db
         dash_app.server.logger.debug('Activity id "{}": Writing df_summary and df_samples to DB'.format(self.id))
         self.write_dfs_to_db()
