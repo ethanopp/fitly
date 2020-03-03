@@ -8,6 +8,9 @@ db_name = Fitness
 user =
 password =
 
+[cron]
+hourly_pull = False
+
 [settings]
 password =
 
@@ -27,10 +30,10 @@ password =
 activities_after_date = 2018-01-01T00:00:00Z
 client_id =
 client_secret =
-redirect_uri = localhost:8050/pages/authorize/strava
+redirect_uri = http://127.0.0.1:8050/pages/authorize/strava
 
 [oura]
-redirect_uri = localhost:8050/pages/authorize/oura
+redirect_uri = http://127.0.0.1:8050/pages/authorize/oura
 client_id =
 client_secret =
 days_back = 7
