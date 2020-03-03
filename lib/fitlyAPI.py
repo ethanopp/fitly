@@ -44,8 +44,8 @@ class FitlyActivity(stravalib.model.Activity):
         dash_app.server.logger.debug('Activity id "{}": Building df_summary'.format(self.id))
         self.build_df_summary()
         # Update strava names of peloton workouts
-        dash_app.server.logger.debug('Activity id "{}": Pulling peloton title'.format(self.id))
-        self.write_peloton_title_to_strava()
+        # dash_app.server.logger.debug('Activity id "{}": Pulling peloton title'.format(self.id))
+        # self.write_peloton_title_to_strava()
         # Get FTP
         dash_app.server.logger.debug('Activity id "{}": Pulling ftp'.format(self.id))
         self.get_ftp()
@@ -218,90 +218,96 @@ class FitlyActivity(stravalib.model.Activity):
         engine.dispose()
         session.close()
 
-        df['Volume'] = df['Reps'].replace(0, 1) * df['Weight'].replace(0, 1) * df['Duration'].replace(0, 1)
-        # Get 'Best' sets on all exercises in the 6 weeks preceeding current workout being analyzed
-        df_1rm = df.copy()
-        # Dont include current workout to get 1RMs to compare against
-        df_1rm = df_1rm[df_1rm['date_UTC'].dt.date != date]
-        df_1rm = df_1rm.loc[df_1rm.groupby('Exercise')['Volume'].agg(pd.Series.idxmax)].reset_index()
-        # Calculate Brzycki 1RM based off last 6 weeks of workouts
-        df_1rm['one_rep_max'] = (df_1rm['Weight'] * (36 / (37 - df_1rm['Reps'])))
+        # If no workout data found, return None as a WSS score can not be generated
+        if len(df) == 0:
+            return None, None
 
-        # TODO: Update from just adding 30% to max to a more accurate 1 'rep' max formula
-        # Calculate max weight_duration for intensity on timed exercises that could use weights (i.e. planks) (+30% on max weight_duratopm)
-        df_1rm.at[df_1rm['Reps'] == 0, 'weight_duration_max'] = (df_1rm['Weight'].replace(0, 1) * df_1rm[
-            'Duration'].replace(0, 1)) * 1.3
-        # Calculate max reps (for bodyweight exercises) (+30% on max reps)
-        df_1rm.at[df_1rm['Weight'] == 0, 'max_reps'] = df_1rm['Volume'] * 1.3
+        else:
+            df['Volume'] = df['Reps'].replace(0, 1) * df['Weight'].replace(0, 1) * df['Duration'].replace(0, 1)
+            # Get 'Best' sets on all exercises in the 6 weeks preceeding current workout being analyzed
+            df_1rm = df.copy()
+            # Dont include current workout to get 1RMs to compare against
+            df_1rm = df_1rm[df_1rm['date_UTC'] != date]
+            df_1rm = df_1rm.loc[df_1rm.groupby('Exercise')['Volume'].agg(pd.Series.idxmax)].reset_index()
+            # Calculate Brzycki 1RM based off last 6 weeks of workouts
+            df_1rm['one_rep_max'] = (df_1rm['Weight'] * (36 / (37 - df_1rm['Reps'])))
 
-        # Filter main df back to current workout which we are assigning 1rms to
+            # TODO: Update from just adding 30% to max to a more accurate 1 'rep' max formula
+            # Calculate max weight_duration for intensity on timed exercises that could use weights (i.e. planks) (+30% on max weight_duratopm)
+            df_1rm.at[df_1rm['Reps'] == 0, 'weight_duration_max'] = (df_1rm['Weight'].replace(0, 1) * df_1rm[
+                'Duration'].replace(0, 1)) * 1.3
+            # Calculate max reps (for bodyweight exercises) (+30% on max reps)
+            df_1rm.at[df_1rm['Weight'] == 0, 'max_reps'] = df_1rm['Volume'] * 1.3
 
-        df = df[df['date_UTC'].dt.date == date]
-        # Merge in 1rms
-        df = df.merge(df_1rm[['Exercise', 'one_rep_max', 'weight_duration_max']], how='left',
-                      left_on='Exercise',
-                      right_on='Exercise')
+            # Filter main df back to current workout which we are assigning 1rms to
 
-        # Replace table placeholders with max values
-        df['one_rep_max'] = df['one_rep_max_y'].fillna(0.0)
-        df['weight_duration_max'] = df['weight_duration_max_y'].fillna(0)
+            df = df[df['date_UTC'] == date]
+            # Merge in 1rms
+            df = df.merge(df_1rm[['Exercise', 'one_rep_max', 'weight_duration_max']], how='left',
+                          left_on='Exercise',
+                          right_on='Exercise')
 
-        # Save 1rms to fitbod table
-        session, engine = db_connect()
-        for exercise in df[~np.isnan(df['one_rep_max'])]['Exercise'].drop_duplicates():
-            records = session.query(fitbod).filter(cast(fitbod.date_utc, Date) == date,
-                                                   fitbod.exercise == exercise).all()
-            for record in records:
-                record.one_rep_max = float(df.loc[df['Exercise'] == exercise]['one_rep_max'].values[0])
-                record.weight_duration_max = int(df.loc[df['Exercise'] == exercise]['weight_duration_max'].values[0])
-                session.commit()
-        engine.dispose()
-        session.close()
+            # Replace table placeholders with max values
+            df['one_rep_max'] = df['one_rep_max_y'].fillna(0.0)
+            df['weight_duration_max'] = df['weight_duration_max_y'].fillna(0)
 
-        df['set_intensity'] = df['Weight'] / df['one_rep_max']
-        # Restrict max intensity from being 1 or greater for INOL calc
-        df.at[df['set_intensity'] >= 1, 'set_intensity'] = .99
+            # Save 1rms to fitbod table
+            session, engine = db_connect()
+            for exercise in df[~np.isnan(df['one_rep_max'])]['Exercise'].drop_duplicates():
+                records = session.query(fitbod).filter(cast(fitbod.date_utc, Date) == date,
+                                                       fitbod.exercise == exercise).all()
+                for record in records:
+                    record.one_rep_max = float(df.loc[df['Exercise'] == exercise]['one_rep_max'].values[0])
+                    record.weight_duration_max = int(
+                        df.loc[df['Exercise'] == exercise]['weight_duration_max'].values[0])
+                    session.commit()
+            engine.dispose()
+            session.close()
 
-        # Set all inol to base INOLs so score gets applied to bodyweight exercises
-        df['inol'] = base_inol
-        # Calculate INOL where one_rep_max's exist in last 6 weeks
-        df.at[((df['Weight'] != 0) & (df['one_rep_max'] != 0)), 'inol'] = df['Reps'] / (
-                (1 - (df['set_intensity'])) * 100)
+            df['set_intensity'] = df['Weight'] / df['one_rep_max']
+            # Restrict max intensity from being 1 or greater for INOL calc
+            df.at[df['set_intensity'] >= 1, 'set_intensity'] = .99
 
-        # If one rep max was hit, set the exercise inol to max inol per exercise
-        df = df.groupby(['date_UTC', 'Exercise']).sum().reset_index()
-        df.at[(df['inol'] > max_inol_per_exercise), 'inol'] = max_inol_per_exercise
+            # Set all inol to base INOLs so score gets applied to bodyweight exercises
+            df['inol'] = base_inol
+            # Calculate INOL where one_rep_max's exist in last 6 weeks
+            df.at[((df['Weight'] != 0) & (df['one_rep_max'] != 0)), 'inol'] = df['Reps'] / (
+                    (1 - (df['set_intensity'])) * 100)
 
-        # ## Doesn't Work well with INOL Formula since both reps and weight are really required for it to work
-        # # For bodyweight exercise, there is no weight, so use reps/max reps for intensity
-        # df.at[df['Weight'] == 0, 'inol'] = df['Reps'] / ((1 - (df['Reps'] / df['max_reps'])) * 100)
-        # # For timed exercises i.e. plank, there are no reps, use max duration * weight for intensity, and '1' for the numerator
-        # df['weight_duration'] = (df['Duration'].replace(0, 1) * df['Weight'].replace(0, 1))
-        # df.at[((df['Reps'] == 0) & (df['Duration'] != 0)), 'inol'] = 1 / ((1 - (df['weight_duration'] / df['weight_duration_max'])) * 100)
-        # ####
+            # If one rep max was hit, set the exercise inol to max inol per exercise
+            df = df.groupby(['date_UTC', 'Exercise']).sum().reset_index()
+            df.at[(df['inol'] > max_inol_per_exercise), 'inol'] = max_inol_per_exercise
 
-        # Convert INOLs to WSS
-        # Get max amount of possible INOL from workout at a rate of 2 INOL per exercise
-        max_inol_possible = df['Exercise'].nunique() * max_inol_per_exercise
-        # Calculate intensity factor (how hard you worked out of the hardest that could have been worked expressed in inol)
-        ri = df['inol'].sum() / max_inol_possible
-        # Estimate TSS Based on Intensity Factor and Duration
-        # https://www.trainingpeaks.com/blog/how-to-plan-your-season-with-training-stress-score/
-        workout_tss = ri * ri * (self.df_samples['time'].max() / 3600) * 100
+            # ## Doesn't Work well with INOL Formula since both reps and weight are really required for it to work
+            # # For bodyweight exercise, there is no weight, so use reps/max reps for intensity
+            # df.at[df['Weight'] == 0, 'inol'] = df['Reps'] / ((1 - (df['Reps'] / df['max_reps'])) * 100)
+            # # For timed exercises i.e. plank, there are no reps, use max duration * weight for intensity, and '1' for the numerator
+            # df['weight_duration'] = (df['Duration'].replace(0, 1) * df['Weight'].replace(0, 1))
+            # df.at[((df['Reps'] == 0) & (df['Duration'] != 0)), 'inol'] = 1 / ((1 - (df['weight_duration'] / df['weight_duration_max'])) * 100)
+            # ####
 
-        # Get max amount of possible TSS based on TSS per sec
-        # max_tss_per_sec = (100 / 60 / 60)
+            # Convert INOLs to WSS
+            # Get max amount of possible INOL from workout at a rate of 2 INOL per exercise
+            max_inol_possible = df['Exercise'].nunique() * max_inol_per_exercise
+            # Calculate intensity factor (how hard you worked out of the hardest that could have been worked expressed in inol)
+            ri = df['inol'].sum() / max_inol_possible
+            # Estimate TSS Based on Intensity Factor and Duration
+            # https://www.trainingpeaks.com/blog/how-to-plan-your-season-with-training-stress-score/
+            workout_tss = ri * ri * (self.df_samples['time'].max() / 3600) * 100
 
-        # TODO: Update seconds with datediff once set timestamps are added to dataset, for now use entire length of workout
-        # max_tss_possible = workout_seconds * max_tss_per_sec
-        # workout_tss = max_tss_possible * relative_intensity
-        # df['seconds'] = 60
-        # max_tss_possible = df['seconds'].sum() * max_tss_per_sec
+            # Get max amount of possible TSS based on TSS per sec
+            # max_tss_per_sec = (100 / 60 / 60)
 
-        # Calculate WSS
-        # df['wSS'] = (max_tss_per_sec * df['seconds']) * (df['inol'] / max_inol_possible)
-        # return df['wSS'].sum()
-        return workout_tss, ri
+            # TODO: Update seconds with datediff once set timestamps are added to dataset, for now use entire length of workout
+            # max_tss_possible = workout_seconds * max_tss_per_sec
+            # workout_tss = max_tss_possible * relative_intensity
+            # df['seconds'] = 60
+            # max_tss_possible = df['seconds'].sum() * max_tss_per_sec
+
+            # Calculate WSS
+            # df['wSS'] = (max_tss_per_sec * df['seconds']) * (df['inol'] / max_inol_possible)
+            # return df['wSS'].sum()
+            return workout_tss, ri
 
     def get_summary_analytics(self):
         self.trimp, self.hrss, self.wap, self.tss, self.ri, self.variability_index, self.efficiency_factor = None, None, None, None, None, None, None
