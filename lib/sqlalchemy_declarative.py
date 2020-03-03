@@ -1,6 +1,5 @@
 import sys
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Date, Float, create_engine
-from sqlalchemy.dialects.mysql import DOUBLE, BIGINT
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Date, Float, create_engine, BigInteger
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, scoped_session
 import configparser
@@ -10,20 +9,21 @@ config.read('./config.ini')
 
 Base = declarative_base()
 
-db = "mysql+pymysql://{}:{}@{}/{}?host={}?port={}".format(config.get("database", 'user'),
-                                                          config.get("database", 'password'),
-                                                          config.get("database", 'host'),
-                                                          config.get("database", 'db_name'),
-                                                          config.get("database", 'host'),
-                                                          config.get("database", 'port')
-                                                          )
+# db = "mysql+pymysql://{}:{}@{}/{}?host={}?port={}".format(config.get("database", 'user'),
+#                                                           config.get("database", 'password'),
+#                                                           config.get("database", 'host'),
+#                                                           config.get("database", 'db_name'),
+#                                                           config.get("database", 'host'),
+#                                                           config.get("database", 'port')
+#                                                           )
+
+db = 'sqlite:///fitness.db'
 
 
-
-def db_connect(db=db, timeout=300):
+def db_connect(db=db):
     try:
         # Engine needs to be set to exact location for automation to work
-        engine = create_engine(db, connect_args={'connect_timeout': timeout})
+        engine = create_engine(db)
         session_factory = sessionmaker(bind=engine)
         Session = scoped_session(session_factory)
         session = Session()
@@ -51,31 +51,35 @@ class athlete(Base):
     name = Column('name', String(255))
     birthday = Column('birthday', Date())
     sex = Column('sex', String(1))
-    min_non_warmup_workout_time = Column('min_non_warmup_workout_time', Integer())
+    min_non_warmup_workout_time = Column('min_non_warmup_workout_time',
+                                         Integer())  # threshold in seconds for when we start counting workouts towards stress scores (don't want to include warm-ups)
     weekly_tss_goal = Column('weekly_tss_goal', Integer())
-    rr_max_goal = Column('rr_max_goal', Integer())
-    rr_min_goal = Column('rr_min_goal', Integer())
-    weekly_workout_goal = Column('weekly_workout_goal', Integer())
-    weekly_yoga_goal = Column('weekly_yoga_goal', Integer())
-    weekly_sleep_score_goal = Column('weekly_sleep_score_goal', Integer())
-    weekly_readiness_score_goal = Column('weekly_readiness_score_goal', Integer())
-    weekly_activity_score_goal = Column('weekly_activity_score_goal', Integer())
-    daily_sleep_hr_target = Column('daily_sleep_hr_target', Integer())
-    ftp_test_notification_week_threshold = Column('ftp_test_notification_week_threshold', Integer())
-    cycle_power_zone_threshold_1 = Column('cycle_power_zone_threshold_1', DOUBLE())
-    cycle_power_zone_threshold_2 = Column('cycle_power_zone_threshold_2', DOUBLE())
-    cycle_power_zone_threshold_3 = Column('cycle_power_zone_threshold_3', DOUBLE())
-    cycle_power_zone_threshold_4 = Column('cycle_power_zone_threshold_4', DOUBLE())
-    cycle_power_zone_threshold_5 = Column('cycle_power_zone_threshold_5', DOUBLE())
-    cycle_power_zone_threshold_6 = Column('cycle_power_zone_threshold_6', DOUBLE())
-    run_power_zone_threshold_1 = Column('run_power_zone_threshold_1', DOUBLE())
-    run_power_zone_threshold_2 = Column('run_power_zone_threshold_2', DOUBLE())
-    run_power_zone_threshold_3 = Column('run_power_zone_threshold_3', DOUBLE())
-    run_power_zone_threshold_4 = Column('run_power_zone_threshold_4', DOUBLE())
-    hr_zone_threshold_1 = Column('hr_zone_threshold_1', DOUBLE())
-    hr_zone_threshold_2 = Column('hr_zone_threshold_2', DOUBLE())
-    hr_zone_threshold_3 = Column('hr_zone_threshold_3', DOUBLE())
-    hr_zone_threshold_4 = Column('hr_zone_threshold_4', DOUBLE())
+    rr_max_goal = Column('rr_max_goal', Integer())  # Max ramp rate threshold used for calculating injury risk
+    rr_min_goal = Column('rr_min_goal', Integer())  # Min ramp rate threshold used for calculating injury risk
+    weekly_workout_goal = Column('weekly_workout_goal', Integer())  # weekly workout minute goal
+    weekly_yoga_goal = Column('weekly_yoga_goal', Integer())  # weekly yoga minute goal
+    weekly_sleep_score_goal = Column('weekly_sleep_score_goal', Integer())  # Oura sleep scores >= 85 to achieve weekly
+    weekly_readiness_score_goal = Column('weekly_readiness_score_goal',
+                                         Integer())  # Oura readiness scores >= 85 to achieve weekly
+    weekly_activity_score_goal = Column('weekly_activity_score_goal',
+                                        Integer())  # Oura activity scores >= 85 to achieve weekly
+    daily_sleep_hr_target = Column('daily_sleep_hr_target', Integer())  # Daily sleep hour target
+    ftp_test_notification_week_threshold = Column('ftp_test_notification_week_threshold',
+                                                  Integer())  # Num weeks to retest ftp
+    cycle_power_zone_threshold_1 = Column('cycle_power_zone_threshold_1', Float())
+    cycle_power_zone_threshold_2 = Column('cycle_power_zone_threshold_2', Float())
+    cycle_power_zone_threshold_3 = Column('cycle_power_zone_threshold_3', Float())
+    cycle_power_zone_threshold_4 = Column('cycle_power_zone_threshold_4', Float())
+    cycle_power_zone_threshold_5 = Column('cycle_power_zone_threshold_5', Float())
+    cycle_power_zone_threshold_6 = Column('cycle_power_zone_threshold_6', Float())
+    run_power_zone_threshold_1 = Column('run_power_zone_threshold_1', Float())
+    run_power_zone_threshold_2 = Column('run_power_zone_threshold_2', Float())
+    run_power_zone_threshold_3 = Column('run_power_zone_threshold_3', Float())
+    run_power_zone_threshold_4 = Column('run_power_zone_threshold_4', Float())
+    hr_zone_threshold_1 = Column('hr_zone_threshold_1', Float())
+    hr_zone_threshold_2 = Column('hr_zone_threshold_2', Float())
+    hr_zone_threshold_3 = Column('hr_zone_threshold_3', Float())
+    hr_zone_threshold_4 = Column('hr_zone_threshold_4', Float())
 
 
 class hrvWorkoutStepLog(Base):
@@ -103,23 +107,23 @@ class stravaSamples(Base):
     __tablename__ = 'strava_samples'
     timestamp_local = Column('timestamp_local', DateTime(), index=True, primary_key=True)
     time_interval = Column('time_interval', DateTime())
-    activity_id = Column('activity_id', BIGINT())
+    activity_id = Column('activity_id', BigInteger())
     date = Column('date', Date())
     type = Column('type', String(255))
     act_name = Column('act_name', String(255))
-    athlete_id = Column('athlete_id', BIGINT())
-    distance = Column('distance', DOUBLE())
-    velocity_smooth = Column('velocity_smooth', DOUBLE())
-    temp = Column('temp', DOUBLE())
-    altitude = Column('altitude', DOUBLE())
-    latitude = Column('latitude', DOUBLE())
-    longitude = Column('longitude', DOUBLE())
+    athlete_id = Column('athlete_id', BigInteger())
+    distance = Column('distance', Float())
+    velocity_smooth = Column('velocity_smooth', Float())
+    temp = Column('temp', Float())
+    altitude = Column('altitude', Float())
+    latitude = Column('latitude', Float())
+    longitude = Column('longitude', Float())
     heartrate = Column('heartrate', Integer())
     cadence = Column('cadence', Integer())
     watts = Column('watts', Integer())
     moving = Column('moving', Integer())
-    grade_smooth = Column('grade_smooth', DOUBLE())
-    ftp = Column('ftp', DOUBLE())
+    grade_smooth = Column('grade_smooth', Float())
+    ftp = Column('ftp', Float())
     time = Column('time', Integer())
     power_zone = Column('power_zone', Integer())
     hr_zone = Column('hr_zone', Integer())
@@ -128,27 +132,27 @@ class stravaSamples(Base):
 
 class stravaBestSamples(Base):
     __tablename__ = 'strava_best_samples'
-    activity_id = Column('activity_id', BIGINT(), index=True, primary_key=True)
+    activity_id = Column('activity_id', BigInteger(), index=True, primary_key=True)
     interval = Column('interval', Integer, index=True, primary_key=True)
-    mmp = Column('mmp', DOUBLE())
-    watts_per_kg = Column('watts_per_kg', DOUBLE())
+    mmp = Column('mmp', Float())
+    watts_per_kg = Column('watts_per_kg', Float())
     timestamp_local = Column('timestamp_local', DateTime())
     time_interval = Column('time_interval', DateTime())
     type = Column('type', String(255))
     date = Column('date', Date())
     act_name = Column('act_name', String(255))
-    athlete_id = Column('athlete_id', BIGINT())
+    athlete_id = Column('athlete_id', BigInteger())
 
 
 class stravaSummary(Base):
     __tablename__ = 'strava_summary'
     start_date_utc = Column('start_date_utc', DateTime(), index=True, primary_key=True)
-    activity_id = Column('activity_id', BIGINT())
-    athlete_id = Column('athlete_id', BIGINT())
+    activity_id = Column('activity_id', BigInteger())
+    athlete_id = Column('athlete_id', BigInteger())
     name = Column('name', String(255))
-    distance = Column('distance', DOUBLE())
-    moving_time = Column('moving_time', BIGINT())
-    elapsed_time = Column('elapsed_time', BIGINT())
+    distance = Column('distance', Float())
+    moving_time = Column('moving_time', BigInteger())
+    elapsed_time = Column('elapsed_time', BigInteger())
     total_elevation_gain = Column('total_elevation_gain', Integer())
     type = Column('type', String(255))
     start_date_local = Column('start_date_local', DateTime())
@@ -161,33 +165,33 @@ class stravaSummary(Base):
     location_city = Column('location_city', String(255))
     location_state = Column('location_state', String(255))
     location_country = Column('location_country', String(255))
-    average_speed = Column('average_speed', DOUBLE())
-    max_speed = Column('max_speed', DOUBLE())
-    average_watts = Column('average_watts', DOUBLE())
-    max_watts = Column('max_watts', DOUBLE())
-    average_heartrate = Column('average_heartrate', DOUBLE())
-    max_heartrate = Column('max_heartrate', DOUBLE())
-    kilojoules = Column('kilojoules', DOUBLE())
+    average_speed = Column('average_speed', Float())
+    max_speed = Column('max_speed', Float())
+    average_watts = Column('average_watts', Float())
+    max_watts = Column('max_watts', Float())
+    average_heartrate = Column('average_heartrate', Float())
+    max_heartrate = Column('max_heartrate', Float())
+    kilojoules = Column('kilojoules', Float())
     device_name = Column('device_name', String(255))
-    calories = Column('calories', DOUBLE())
+    calories = Column('calories', Float())
     description = Column('description', String(255))
     pr_count = Column('pr_count', Integer())
     achievement_count = Column('achievement_count', Integer())
     commute = Column('commute', Integer())
     trainer = Column('trainer', Integer())
     gear_id = Column('gear_id', String(255))
-    ftp = Column('ftp', DOUBLE())
-    weighted_average_power = Column('weighted_average_power', DOUBLE())
-    relative_intensity = Column('relative_intensity', DOUBLE())
-    efficiency_factor = Column('efficiency_factor', DOUBLE())
-    tss = Column('tss', DOUBLE())
-    hrss = Column('hrss', DOUBLE())
-    variability_index = Column('variability_index', DOUBLE())
-    trimp = Column('trimp', DOUBLE())
+    ftp = Column('ftp', Float())
+    weighted_average_power = Column('weighted_average_power', Float())
+    relative_intensity = Column('relative_intensity', Float())
+    efficiency_factor = Column('efficiency_factor', Float())
+    tss = Column('tss', Float())
+    hrss = Column('hrss', Float())
+    variability_index = Column('variability_index', Float())
+    trimp = Column('trimp', Float())
     low_intensity_seconds = Column('low_intensity_seconds', Integer())
     med_intensity_seconds = Column('med_intensity_seconds', Integer())
     high_intensity_seconds = Column('high_intensity_seconds', Integer())
-    weight = Column('weight', DOUBLE())
+    weight = Column('weight', Float())
 
 
 ##### Oura Tables #####
@@ -210,7 +214,7 @@ class ouraReadinessSummary(Base):
 class ouraActivitySummary(Base):
     __tablename__ = 'oura_activity_summary'
     summary_date = Column('summary_date', Date(), index=True, primary_key=True)
-    average_met = Column('average_met', DOUBLE())
+    average_met = Column('average_met', Float())
     cal_active = Column('cal_active', Integer())
     cal_total = Column('cal_total', Integer())
     class_5min = Column('class_5min', String(300))
@@ -238,10 +242,10 @@ class ouraActivitySummary(Base):
     steps = Column('steps', Integer())
     target_calories = Column('target_calories', Integer())
     timezone = Column('timezone', Integer())
-    target_km = Column('target_km', DOUBLE())
-    target_miles = Column('target_miles', DOUBLE())
-    to_target_km = Column('to_target_km', DOUBLE())
-    to_target_miles = Column('to_target_miles', DOUBLE())
+    target_km = Column('target_km', Float())
+    target_miles = Column('target_miles', Float())
+    to_target_km = Column('to_target_km', Float())
+    to_target_miles = Column('to_target_miles', Float())
     total = Column('total', Integer())
 
 
@@ -249,7 +253,7 @@ class ouraActivitySamples(Base):
     __tablename__ = 'oura_activity_samples'
     timestamp_local = Column('timestamp_local', DateTime(), index=True, primary_key=True)
     summary_date = Column('summary_date', Date())
-    met_1min = Column('met_1min', DOUBLE())
+    met_1min = Column('met_1min', Float())
     class_5min = Column('class_5min', Integer())
     class_5min_desc = Column('class_5min_desc', String(10))
 
@@ -263,11 +267,11 @@ class ouraSleepSummary(Base):
     bedtime_end_delta = Column('bedtime_end_delta', Integer())
     bedtime_start_local = Column('bedtime_start_local', DateTime())
     bedtime_start_delta = Column('bedtime_start_delta', Integer())
-    breath_average = Column('breath_average', DOUBLE())
+    breath_average = Column('breath_average', Float())
     deep = Column('deep', Integer())
     duration = Column('duration', Integer())
     efficiency = Column('efficiency', Integer())
-    hr_average = Column('hr_average', DOUBLE())
+    hr_average = Column('hr_average', Float())
     hr_lowest = Column('hr_lowest', Integer())
     hypnogram_5min = Column('hypnogram_5min', String(255))
     is_longest = Column('is_longest', Integer())
@@ -287,9 +291,9 @@ class ouraSleepSummary(Base):
     score_latency = Column('score_latency', Integer())
     score_rem = Column('score_rem', Integer())
     score_total = Column('score_total', Integer())
-    temperature_delta = Column('temperature_delta', DOUBLE())
-    temperature_deviation = Column('temperature_deviation', DOUBLE())
-    temperature_trend_deviation = Column('temperature_trend_deviation', DOUBLE())
+    temperature_delta = Column('temperature_delta', Float())
+    temperature_deviation = Column('temperature_deviation', Float())
+    temperature_trend_deviation = Column('temperature_trend_deviation', Float())
     timezone = Column('timezone', Integer())
     total = Column('total', Integer())
 
@@ -326,9 +330,9 @@ class dbRefreshStatus(Base):
 class withings(Base):
     __tablename__ = 'withings'
     date_utc = Column('date_utc', DateTime(), index=True, primary_key=True)
-    weight = Column('weight', DOUBLE())
-    fat_ratio = Column('fat_ratio', DOUBLE())
-    hydration = Column('hydration', DOUBLE())
+    weight = Column('weight', Float())
+    fat_ratio = Column('fat_ratio', Float())
+    hydration = Column('hydration', Float())
 
 
 class fitbod(Base):
@@ -341,8 +345,8 @@ class fitbod(Base):
     duration = Column('Duration', Integer())
     iswarmup = Column('isWarmup', Boolean())
     note = Column('Note', String(255))
-    one_rep_max = Column('one_rep_max', DOUBLE())
-    weight_duration_max = Column('weight_duration_max', DOUBLE())
+    one_rep_max = Column('one_rep_max', Float())
+    weight_duration_max = Column('weight_duration_max', Float())
 
 
 class fitbod_muscles(Base):
@@ -353,5 +357,57 @@ class fitbod_muscles(Base):
 
 session, engine = db_connect()
 Base.metadata.create_all(engine)
+athlete_exists = True if len(session.query(athlete).all()) > 0 else False
+# If no athlete created in db, create one
+if not athlete_exists:
+    from datetime import datetime
+
+    dummy_athlete = athlete(
+        name='Athelte Name',
+        birthday=datetime.now(),
+        sex='M',
+        min_non_warmup_workout_time=900,
+        weekly_tss_goal=150,
+        rr_max_goal=8,
+        rr_min_goal=5,
+        weekly_workout_goal=100,
+        weekly_yoga_goal=100,
+        weekly_sleep_score_goal=3,
+        weekly_readiness_score_goal=3,
+        weekly_activity_score_goal=3,
+        daily_sleep_hr_target=8,
+        ftp_test_notification_week_threshold=6,
+        cycle_power_zone_threshold_1=.55,
+        cycle_power_zone_threshold_2=.75,
+        cycle_power_zone_threshold_3=.9,
+        cycle_power_zone_threshold_4=1.05,
+        cycle_power_zone_threshold_5=1.2,
+        cycle_power_zone_threshold_6=1.5,
+        run_power_zone_threshold_1=0.8,
+        run_power_zone_threshold_2=0.9,
+        run_power_zone_threshold_3=1,
+        run_power_zone_threshold_4=1.15,
+        hr_zone_threshold_1=.6,
+        hr_zone_threshold_2=.7,
+        hr_zone_threshold_3=.8,
+        hr_zone_threshold_4=.9)
+    session.add(dummy_athlete)
+    session.commit()
+
+db_refresh_record = True if len(session.query(dbRefreshStatus).all()) > 0 else False
+# Insert initial system load refresh record
+if not db_refresh_record:
+    from datetime import datetime
+
+    dummy_db_refresh_record = dbRefreshStatus(
+        timestamp_utc=datetime.utcnow(),
+        process='system',
+        oura_status='System Startup',
+        strava_status='System Startup',
+        withings_status='System Startup',
+        fitbod_status='System Startup')
+    session.add(dummy_db_refresh_record)
+    session.commit()
+
 engine.dispose()
 session.close()
