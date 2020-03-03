@@ -1,7 +1,7 @@
 [logger]
 level = DEBUG
 
-[database]
+[database] # currently not being used
 host = 192.168.1.11
 port = 3306
 db_name = Fitness
@@ -14,7 +14,7 @@ hourly_pull = False
 [settings]
 password =
 
-[SPOTIFY]
+[SPOTIFY] # currently not being used
 client_id =
 client_secret =
 
