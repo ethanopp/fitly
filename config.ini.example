@@ -59,3 +59,5 @@ timezone = America/New_York
 [fitbod]
 path =
 
+[dashboard]
+transition=2000

@@ -3,6 +3,7 @@ configparser
 dash
 dash-daq
 dash-bootstrap-components
+configparser
 nokia
 numpy
 oura
@@ -12,4 +13,4 @@ pyocclient
 SQLAlchemy
 stravalib
 sweat
-requests-oauthlib
+click
