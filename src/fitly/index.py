@@ -13,9 +13,9 @@ urls = (
     ("", character_counter.get_layout),
     ("character-counter", character_counter.get_layout),
     ("home", home.get_layout),
-    ("lifting", lifting.get_layout),
     ("performance", performance.get_layout),
     ("power", power.get_layout),
+    ("lifting", lifting.get_layout),
     ("settings", settings.get_layout),
 
 )
@@ -26,11 +26,11 @@ urls = (
 # keyword argument for a Dash component (ie a Dash Component or a string).
 nav_items = (
     ("character-counter", html.Div([fa("fas fa-keyboard"), "Character Counter"])),
-    ("home", html.Div([fa("fas fa-chart-area"), "Home"])),
-    ("lifting", html.Div([fa("fas fa-chart-line"), "Lifting"])),
-    ("performance", html.Div([fa("fas fa-chart-line"), "Performance"])),
-    ("power", html.Div([fa("fas fa-chart-line"), "Power"])),
-    ("settings", html.Div([fa("fas fa-chart-line"), "Settings"])),
+    ("home", html.Div([fa("fas fa-heart"), "Home"])),
+    ("performance", html.Div([fa("fas fa-seedling"), "Performance"])),
+    ("power", html.Div([fa("fas fa-bolt"), "Power"])),
+    ("lifting", html.Div([fa("fas fa-dumbbell"), "Lifting"])),
+    ("settings", html.Div([fa("fa fa-sliders-h"), "Settings"])),
 )
 
 router = DashRouter(app, urls)
