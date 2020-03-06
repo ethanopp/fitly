@@ -94,3 +94,20 @@ a:hover {color: #014c8c !important}
 .eMfdXL {
     width: 0 !important;
 }
+
+/* Webkit /
+–––––––––––––––––––––––––––––––––––––––––––––––––– */
+::-webkit-scrollbar{
+    -webkit-appearance: none;
+    width: .4rem;
+    height: .4rem;
+}
+::-webkit-scrollbar-track
+{
+	background-color: rgba(0,0,0,0);
+}
+::-webkit-scrollbar-thumb {
+    border-radius: 0.3rem;
+    background-color: rgba(0,0,0,.5);
+    -webkit-box-shadow: 0 0 1px rgba(255,255,255,.5);
+}
