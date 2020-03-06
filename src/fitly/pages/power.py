@@ -10,7 +10,7 @@ from ..app import app
 from datetime import datetime, timedelta
 import operator
 import configparser
-from sqlalchemy import or_, func
+from sqlalchemy import func
 import math
 
 # pre_style = {"backgroundColor": "#ddd", "fontSize": 20, "padding": "10px", "margin": "10px"}
@@ -40,7 +40,7 @@ def create_power_curve_kpis(interval, all, L90D, l6w, last, pr):
             ]),
             ### All KPI ###
             html.Div(id='all-kpi', className='col-auto', children=[
-                html.H4('All Time {}'.format(all),
+                html.H6('All Time {}'.format(all),
                         style={'display': 'inline-block',  # 'fontWeight': 'bold',
                                'color': white, 'backgroundColor': dark_blue, 'marginTop': '0',
                                'marginBottom': '0',
@@ -48,7 +48,7 @@ def create_power_curve_kpis(interval, all, L90D, l6w, last, pr):
             ]),
             ### L90D KPI ###
             html.Div(id='L90D-kpi', className='col-auto', children=[
-                html.H4('L90D {}'.format(L90D if pr == '' else pr),
+                html.H6('L90D {}'.format(L90D if pr == '' else pr),
                         style={'display': 'inline-block',  # 'fontWeight': 'bold',
                                'color': white, 'backgroundColor': light_blue if pr == '' else orange,
                                'marginTop': '0',
@@ -57,7 +57,7 @@ def create_power_curve_kpis(interval, all, L90D, l6w, last, pr):
             ]),
             ### L6W KPI ###
             html.Div(id='l6w-kpi', className='col-auto', children=[
-                html.H4('L6W {}'.format(l6w),
+                html.H6('L6W {}'.format(l6w),
                         style={'display': 'inline-block',  # 'fontWeight': 'bold',
                                'color': 'rgb(46,46,46)', 'backgroundColor': white, 'marginTop': '0',
                                'marginBottom': '0',
@@ -65,7 +65,7 @@ def create_power_curve_kpis(interval, all, L90D, l6w, last, pr):
             ]),
             ### Last KPI ###
             html.Div(id='last-kpi', className='col-auto', children=[
-                html.H4('Workout {}'.format(last),
+                html.H6('Workout {}'.format(last),
                         style={'display': 'inline-block',  # 'fontWeight': 'bold',
                                'color': 'rgb(46,46,46)', 'backgroundColor': teal, 'marginTop': '0',
                                'marginBottom': '0',
@@ -934,7 +934,7 @@ def get_layout(**kwargs):
                  ]),
         html.Div(id='power-profile-header',
                  className='row text-center mt-2 mb-2', children=[
-                html.Div(className='col-lg-12', children=[
+                html.Div(className='col', children=[
                     html.H6('Power Profiles by'),
                     html.Div(id='power-profile-buttons', className='twelve columns nospace', children=[
                         html.Button('Day', id='day-button', className='btn btn-primary'),
