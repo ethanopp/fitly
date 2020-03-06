@@ -1,4 +1,4 @@
-from lib.sqlalchemy_declarative import db_connect, withings, stravaSummary, athlete
+from ..api.sqlalchemy_declarative import db_connect, withings, stravaSummary, athlete
 from sqlalchemy import func
 from datetime import datetime, timedelta
 import dash_bootstrap_components as dbc
