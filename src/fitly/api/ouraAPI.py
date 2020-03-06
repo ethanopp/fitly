@@ -25,7 +25,7 @@ def current_token_dict():
         engine.dispose()
         session.close()
     except BaseException as e:
-        dash_app.server.logger.error(e)
+        app.server.logger.error(e)
         token_dict = {}
 
     return token_dict
@@ -55,11 +55,11 @@ def oura_connected():
         if token_dict:
             oura = OuraClient(client_id=client_id, client_secret=client_secret, access_token=token_dict['access_token'],
                               refresh_token=token_dict['refresh_token'], refresh_callback=save_oura_token)
-            dash_app.server.logger.debug('Oura Connected')
+            app.server.logger.debug('Oura Connected')
             return True
     except BaseException as e:
-        dash_app.server.logger.error('Oura not connected')
-        dash_app.server.logger.error(e)
+        app.server.logger.error('Oura not connected')
+        app.server.logger.error(e)
         return False
 
 
@@ -94,7 +94,7 @@ def pull_readiness_data(oura, days_back=7):
     start = '1999-01-01' if start[0][0] is None else datetime.strftime(start[0][0] - timedelta(days=days_back),
                                                                        '%Y-%m-%d')
 
-    dash_app.server.logger.debug('Pulling readiness from max date in oura_readiness_summary {}'.format(start))
+    app.server.logger.debug('Pulling readiness from max date in oura_readiness_summary {}'.format(start))
     oura_data = oura.readiness_summary(start=start)['readiness']
 
     if len(oura_data) > 0:
@@ -116,16 +116,16 @@ def insert_readiness_data(df_readiness_summary, days_back=7):
                                                                        '%Y-%m-%d')
     # Delete latest dates records from db to ensure values are being overridden from api pull
     try:
-        dash_app.server.logger.debug('Deleting >= {} records from oura_readiness_summary'.format(start))
+        app.server.logger.debug('Deleting >= {} records from oura_readiness_summary'.format(start))
         session.execute(delete(ouraReadinessSummary).where(ouraReadinessSummary.summary_date >= start))
         session.commit()
     except BaseException as e:
-        dash_app.server.logger.error(e)
+        app.server.logger.error(e)
 
     engine.dispose()
     session.close()
 
-    dash_app.server.logger.debug('Inserting oura readiness summary')
+    app.server.logger.debug('Inserting oura readiness summary')
     db_insert(df_readiness_summary, 'oura_readiness_summary')
 
 
@@ -140,7 +140,7 @@ def pull_activity_data(oura, days_back=7):
 
     start = '1999-01-01' if start is None else datetime.strftime(start - timedelta(days=days_back), '%Y-%m-%d')
 
-    dash_app.server.logger.debug('Pulling activity from max date in oura_activity_summary {}'.format(start))
+    app.server.logger.debug('Pulling activity from max date in oura_activity_summary {}'.format(start))
     oura_data = oura.activity_summary(start=start)['activity']
 
     if len(oura_data) > 0:
@@ -194,30 +194,30 @@ def insert_activity_data(df_activity_summary, df_activity_samples, days_back=7):
 
     # Delete latest dates records from db to ensure values are being overridden from api pull
     try:
-        dash_app.server.logger.debug('Deleting >= {} records from oura_activity_summary'.format(start))
+        app.server.logger.debug('Deleting >= {} records from oura_activity_summary'.format(start))
         session.execute(delete(ouraActivitySummary).where(ouraActivitySummary.summary_date >= start))
-        dash_app.server.logger.debug('Deleting >= {} records from oura_activity_samples'.format(start))
+        app.server.logger.debug('Deleting >= {} records from oura_activity_samples'.format(start))
         session.execute(delete(ouraActivitySamples).where(ouraActivitySamples.timestamp_local >= start))
         session.commit()
     except BaseException as e:
-        dash_app.server.logger.error(e)
+        app.server.logger.error(e)
 
     engine.dispose()
     session.close()
 
     # Insert Activity Summary
-    dash_app.server.logger.debug('Inserting oura activity summary')
+    app.server.logger.debug('Inserting oura activity summary')
     try:
         db_insert(df_activity_summary, 'oura_activity_summary')
     except BaseException as e:
-        dash_app.server.logger.error(e)
+        app.server.logger.error(e)
 
     # Insert Activity Samples
-    dash_app.server.logger.debug('Inserting oura activity samples')
+    app.server.logger.debug('Inserting oura activity samples')
     try:
         db_insert(df_activity_samples, 'oura_activity_samples')
     except BaseException as e:
-        dash_app.server.logger.error(e)
+        app.server.logger.error(e)
 
 
 def pull_sleep_data(oura, days_back=7):
@@ -228,7 +228,7 @@ def pull_sleep_data(oura, days_back=7):
     session.close()
     start = '1999-01-01' if start is None else datetime.strftime(start - timedelta(days=days_back), '%Y-%m-%d')
 
-    dash_app.server.logger.debug('Pulling sleep from max date in oura_sleep_summary {}'.format(start))
+    app.server.logger.debug('Pulling sleep from max date in oura_sleep_summary {}'.format(start))
     oura_data = oura.sleep_summary(start=start)['sleep']
 
     if len(oura_data) > 0:
@@ -277,33 +277,30 @@ def insert_sleep_data(df_sleep_summary, df_sleep_samples, days_back=7):
 
     # Delete latest dates records from db to ensure values are being overridden from api pull
     try:
-        dash_app.server.logger.debug('Deleting >= {} records from oura_sleep_summary'.format(start))
+        app.server.logger.debug('Deleting >= {} records from oura_sleep_summary'.format(start))
         session.execute(delete(ouraSleepSummary).where(ouraSleepSummary.summary_date >= start))
-        dash_app.server.logger.debug('Deleting >= {} records from oura_sleep_samples'.format(start))
+        app.server.logger.debug('Deleting >= {} records from oura_sleep_samples'.format(start))
         session.execute(delete(ouraSleepSamples).where(ouraSleepSamples.summary_date >= start))
         session.commit()
     except BaseException as e:
-        dash_app.server.logger.error(e)
+        app.server.logger.error(e)
 
     engine.dispose()
     session.close()
 
-    # print(df_sleep_samples.index)
-    # print(df_sleep_summary.index)
-
     # Insert Sleep Summary
-    dash_app.server.logger.debug('Inserting oura sleep summary')
+    app.server.logger.debug('Inserting oura sleep summary')
     try:
         db_insert(df_sleep_summary, 'oura_sleep_summary')
     except BaseException as e:
-        dash_app.server.logger.error(e)
+        app.server.logger.error(e)
 
     # Insert Sleep Samples
-    # dash_app.server.logger.debug('Inserting oura sleep samples')
+    # app.server.logger.debug('Inserting oura sleep samples')
     try:
         db_insert(df_sleep_samples, 'oura_sleep_samples')
     except BaseException as e:
-        dash_app.server.logger.error(e)
+        app.server.logger.error(e)
 
 
 def pull_oura_data():
