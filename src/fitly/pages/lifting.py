@@ -17,9 +17,9 @@ def get_layout(**kwargs):
         html.Div(className='row', children=[
             html.Div(className='col-lg-12 text-center mt-2 mb-2', children=[
                 html.Div(id='lifting-date-buttons', children=[
-                    html.Button('All', id='all-button', className='btn btn-primary'),
-                    html.Button('YTD', id='ytd-button', className='btn btn-primary'),
-                    html.Button('L6W', id='l6w-button', className='btn btn-primary'),
+                    dbc.Button('All Time', id='all-button', color='primary'),
+                    dbc.Button('Year to Date', id='ytd-button', color='primary'),
+                    dbc.Button('Last 6 Weeks', id='l6w-button', color='primary'),
                 ]),
             ]),
         ]),
@@ -77,7 +77,7 @@ def generate_exercise_charts(timeframe, muscle_options):
     # Filter on selected msucles
     df = df[df['Muscle'].isin(muscle_options)]
 
-    if len(df)>0:
+    if len(df) > 0:
         # Calculate Volume and aggregate to the daily (workout) level
         df['Volume'] = df['Reps'].replace(0, 1) * df['Weight'].replace(0, 1) * df['Duration'].replace(0, 1)
         # TODO: Change this to sum all volume at workout level instead of taking max of 1 set
