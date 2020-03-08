@@ -12,18 +12,310 @@ import plotly.graph_objs as go
 from dash.dependencies import Input, Output, State
 from sqlalchemy import or_, delete
 from ..app import app
-from ..api.sqlalchemy_declarative import db_insert, db_connect, athlete, stravaSummary, stravaSamples, hrvWorkoutStepLog, \
+from ..api.sqlalchemy_declarative import db_insert, db_connect, athlete, stravaSummary, stravaSamples, \
+    hrvWorkoutStepLog, \
     ouraSleepSummary, ouraReadinessSummary, annotations
 from ..utils import utc_to_local
 from ..pages.power import power_curve, zone_chart
 
+config = configparser.ConfigParser()
+config.read('./config.ini')
+
+transition = int(config.get('dashboard', 'transition'))
 
 
 def get_layout(**kwargs):
-    return html.Div(id='performance-canvas', children=[
-        html.Div(id='performance-layout'),
+    return html.Div([
+
+        dbc.Modal(id="annotation-modal", centered=True, autoFocus=True, fade=False, backdrop='static', size='l',
+                  children=[
+                      dbc.ModalHeader(id='annotation-modal-header', children=['Annotations']),
+                      dbc.ModalBody(id='annotation-modal-body',
+                                    children=[
+                                        html.Div(className='text-center mb-2', children=[
+                                            html.Div(id='annotation-table-container', className='col mb-2'),
+                                            dbc.Button('Add Row', id='annotation-add-rows-button',
+                                                       color='primary', size='sm', n_clicks=0)
+                                        ]),
+                                        html.Div(id='annotation-save-container', className='col',
+                                                 children=[
+                                                     html.H6('Enter admin password to save changes',
+                                                             className='col',
+                                                             style={'display': 'inline-block'}),
+
+                                                     html.Div(className='col text-center mb-2', children=[
+                                                         dcc.Input(id='annotation-password',
+                                                                   type='password', placeholder='Password', value=''),
+                                                     ]),
+
+                                                     html.Div(className='col text-center mb-2', children=[
+                                                         dbc.Button("Save",
+                                                                    id="save-close-annotation-modal-button",
+                                                                    color='primary', size='sm', n_clicks=0),
+                                                         html.Div(id='annotation-save-status')
+                                                     ])
+                                                 ])]),
+
+                      dbc.ModalFooter(
+                          dbc.Button("Close", id="close-annotation-modal-button", className="ml-auto", color='primary',
+                                     size='sm',
+                                     n_clicks=0)
+                      ),
+                  ]),
+        dbc.Modal(id="activity-modal", centered=True, autoFocus=True, fade=False, backdrop='static', size='l',
+                  children=[
+                      dbc.ModalHeader(id='activity-modal-header'),
+                      dbc.ModalBody(children=[
+                          dcc.Loading(
+                              html.Div(id='activity-modal-body', className='twelve columns maincontainer',
+                                       style={'height': '40vh'}, children=[
+                                      html.Div(id='modal-workout-summary', className='two columns height-100'),
+                                      html.Div(id='modal-workout-trends', className='eight columns height-100'),
+                                      html.Div(id='modal-workout-stats', className='two columns height-100'),
+                                  ]),
+                          ),
+
+                          html.Div(className='twelve columns',
+                                   style={'backgroundColor': 'rgb(48, 48, 48)', 'paddingBottom': '1vh'}),
+
+                          dcc.Loading(
+                              html.Div(id="activity-modal-body-2", className='twelve columns', style={'height': '40vh'},
+                                       children=[
+                                           html.Div(id='modal-power-zone-container',
+                                                    className='six columns maincontainer',
+                                                    style={'height': '100%'},
+                                                    children=[
+                                                        html.H6('Power Zones', id='modal-zone-title',
+                                                                style={'height': '10%', 'verticalAlign': 'middle'},
+                                                                className='twelve columns nospace'),
+                                                        html.Div(id='modal-power-zones',
+                                                                 className='twelve columns height-90'),
+                                                    ]),
+
+                                           html.Div(id='modal-power-curve-container',
+                                                    className='six columns maincontainer height-100',
+                                                    children=[
+                                                        # Uncomment for adding hover kpis back
+                                                        # html.Div(id='modal-power-curve-kpis', className='twelve columns',
+                                                        #          style={'height': '15%'}),
+                                                        html.H6('Power Curve',
+                                                                style={'height': '10%', 'verticalAlign': 'middle'},
+                                                                className='twelve columns nospace'),
+                                                        html.Div(id='modal-power-curve',
+                                                                 className='twelve columns height-90'),
+                                                    ]),
+
+                                       ])
+                          ),
+                      ]),
+
+                      dbc.ModalFooter(
+                          html.Button("Close", id="close-activity-modal-button", className="ml-auto",
+                                      n_clicks=0)
+                      ),
+                  ]),
+        html.Div(className='row mt-2 mb-2', children=[
+            html.Div(id='pmd-header-and-chart', className='col-lg-8',
+                     children=[
+                         dbc.Card([
+                             dbc.CardBody([
+                                 # generates from hoverData callback
+
+                                 html.Div(id='pmd-kpi'),
+                                 html.Div(id='pmc-controls', className='row text-center ', children=[
+                                     html.Div(className='col-lg-4 offset-lg-3', children=[
+                                         html.Div(className='row', children=[
+
+                                             html.Div(id='ride-pmc', className='col-lg-3', children=[
+                                                 daq.BooleanSwitch(
+                                                     id='ride-pmc-switch',
+                                                     on=True,
+                                                     style={'display': 'inline-block', 'vertical-align': 'middle'}
+                                                 ),
+                                                 html.I(id='ride-pmc-icon', className='fa fa-bicycle',
+                                                        style={'fontSize': '2.0rem', 'display': 'inline-block',
+                                                               'vertical-align': 'middle'}),
+                                             ]),
+                                             dbc.Tooltip(
+                                                 'Include cycling workouts in Fitness trend.',
+                                                 target="ride-pmc"),
+
+                                             html.Div(id='run-pmc', className='col-lg-3',
+                                                      style={'display': 'inline-block'},
+                                                      children=[
+                                                          daq.BooleanSwitch(
+                                                              id='run-pmc-switch',
+                                                              on=True,
+                                                              style={'display': 'inline-block',
+                                                                     'vertical-align': 'middle'}
+                                                          ),
+                                                          html.I(id='ride-pmc-icon', className='fa fa-running',
+                                                                 style={'fontSize': '2.0rem', 'display': 'inline-block',
+                                                                        'vertical-align': 'middle'}),
+                                                      ]),
+                                             dbc.Tooltip(
+                                                 'Include running workouts in Fitness trend.',
+                                                 target="run-pmc"),
+
+                                             html.Div(id='all-pmc', className='col-lg-3',
+                                                      style={'display': 'inline-block'},
+                                                      children=[
+                                                          daq.BooleanSwitch(
+                                                              id='all-pmc-switch',
+                                                              on=True,
+                                                              style={'display': 'inline-block',
+                                                                     'vertical-align': 'middle'}
+                                                          ),
+                                                          html.I(id='all-pmc-icon', className='fa fa-stream',
+                                                                 style={'fontSize': '2.0rem', 'display': 'inline-block',
+                                                                        'vertical-align': 'middle'}),
+                                                      ]),
+                                             dbc.Tooltip(
+                                                 'Include all other workouts in Fitness trend.',
+                                                 target="all-pmc"),
+
+                                             html.Div(className='col-lg-3', children=[
+                                                 html.Button(id="open-annotation-modal-button",
+                                                             className='fa fa-comment-alt',
+                                                             n_clicks=0,
+                                                             style={'fontSize': '2.0rem', 'display': 'inline-block',
+                                                                    'vertical-align': 'middle', 'color': '#aaaaaa',
+                                                                    'backgroundColor': 'rgba(0,0,0,0)',
+                                                                    'border': '0'}),
+                                             ]),
+                                             dbc.Tooltip(
+                                                 'Chart Annotations',
+                                                 target="open-annotation-modal-button"),
+                                         ]),
+                                     ]),
+                                 ]),
+
+                                 ### Start Graph ###
+                                 # Populated by callback
+                                 html.Div(className='row', children=[
+                                     # html.Div([
+                                     dcc.Graph(id='pm-chart', className='col-lg-10 mr-0 ml-0',
+                                               style={'height': '100%'},
+                                               config={'displayModeBar': False}),
+                                     # ]),
+
+                                     html.Div(id='workout-distribution-table', className='col-lg-2', children=[
+                                         dash_table.DataTable(
+                                             id='workout-type-distributions',
+                                             columns=[{'name': 'Activity', 'id': 'workout'},
+                                                      {'name': '%', 'id': 'Percent of Total'}],
+                                             style_as_list_view=True,
+                                             fixed_rows={'headers': True, 'data': 0},
+                                             style_header={'backgroundColor': 'rgba(0,0,0,0)',
+                                                           'borderBottom': '1px solid rgb(220, 220, 220)',
+                                                           'borderTop': '0px',
+                                                           # 'textAlign': 'center',
+                                                           'fontWeight': 'bold',
+                                                           'fontFamily': '"Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif',
+                                                           },
+                                             style_cell={
+                                                 'backgroundColor': 'rgba(0,0,0,0)',
+                                                 'color': 'rgb(220, 220, 220)',
+                                                 'borderBottom': '1px solid rgb(73, 73, 73)',
+                                                 'textOverflow': 'ellipsis',
+                                                 'maxWidth': 25,
+                                                 'fontFamily': '"Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif',
+                                             },
+                                             style_cell_conditional=[
+                                                 {
+                                                     'if': {'column_id': c},
+                                                     'textAlign': 'center'
+                                                 } for c in ['workout', 'Percent of Total']
+                                             ],
+
+                                             page_action="none",
+                                         )
+
+                                     ]),
+
+                                 ]),
+                             ]),
+                         ]),
+                     ]),
+            html.Div(id='growth-container', className='col-lg-4',
+                     children=[
+                         dbc.Card([
+                             dbc.CardHeader(html.Div(id='growth-header')),
+                             dbc.CardBody([
+                                 dcc.Graph(id='growth-chart', config={'displayModeBar': False},
+                                           style={'height': '100%'}, )
+                             ])
+                         ]),
+                     ]),
+        ]),
+
+        html.Div(className='row', children=[
+            html.Div(className='col-lg-12', children=[
+                dbc.Card([
+                    dbc.CardBody([
+                        html.Div(id='activity-table', className='col-lg-12', style={'overflow': 'hidden'},
+                                 children=dash_table.DataTable(
+                                     columns=[
+                                         {'name': 'Date', 'id': 'date'},
+                                         {'name': 'Name', 'id': 'name'},
+                                         {'name': 'Type', 'id': 'type'},
+                                         {'name': 'Time', 'id': 'time'},
+                                         {'name': 'Mileage', 'id': 'distance'},
+                                         {'name': 'PSS', 'id': 'tss'},
+                                         {'name': 'HRSS', 'id': 'hrss'},
+                                         {'name': 'TRIMP', 'id': 'trimp'},
+                                         {'name': 'NP', 'id': 'weighted_average_power'},
+                                         {'name': 'IF', 'id': 'relative_intensity'},
+                                         {'name': 'EF', 'id': 'efficiency_factor'},
+                                         {'name': 'VI', 'id': 'variability_index'},
+                                         {'name': 'FTP', 'id': 'ftp'},
+                                         {'name': 'activity_id', 'id': 'activity_id'}
+                                     ],
+                                     style_as_list_view=True,
+                                     fixed_rows={'headers': True, 'data': 0},
+                                     style_table={'height': '100%'},
+                                     style_header={'backgroundColor': 'rgba(0,0,0,0)',
+                                                   'borderBottom': '1px solid rgb(220, 220, 220)',
+                                                   'borderTop': '0px',
+                                                   # 'textAlign': 'left',
+                                                   'fontWeight': 'bold',
+                                                   'fontFamily': '"Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif',
+                                                   # 'fontSize': '1.2rem'
+                                                   },
+                                     style_cell={
+                                         'backgroundColor': 'rgba(0,0,0,0)',
+                                         'color': 'rgb(220, 220, 220)',
+                                         'borderBottom': '1px solid rgb(73, 73, 73)',
+                                         'textAlign': 'center',
+                                         # 'whiteSpace': 'no-wrap',
+                                         # 'overflow': 'hidden',
+                                         'textOverflow': 'ellipsis',
+                                         'maxWidth': 175,
+                                         'minWidth': 50,
+                                         # 'padding': '0px',
+                                         'fontFamily': '"Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif',
+                                         # 'fontSize': '1.2rem'
+                                     },
+                                     style_cell_conditional=[
+                                         {
+                                             'if': {'column_id': 'activity_id'},
+                                             'display': 'none'
+                                         }
+                                     ],
+                                     filter_action="native",
+                                     page_action="none",
+                                     # page_current=0,
+                                     # page_size=10,
+                                 )
+
+                                 ),
+                    ]), ]),
+            ]),
+        ]),
+
         html.Div(id='modal-activity-id-type-metric-metric', style={'display': 'none'}),
     ])
+
 
 config = configparser.ConfigParser()
 config.read('./config.ini')
@@ -95,9 +387,10 @@ def create_fitness_kpis(date, ctl, ramp, rr_min_threshold, rr_max_threshold, atl
     readiness_score = round(readiness_score) if readiness_score else 'N/A'
     injury_risk = 'High' if ramp >= rr_max_threshold else 'Medium' if ramp >= rr_min_threshold else 'Low'
 
-    return html.Div(className='twelve columns', children=[
+    return [html.Div(className='row text-center', children=[
+
         ### Date KPI ###
-        html.Div(className='two columns', children=[
+        html.Div(className='col-lg-2', children=[
             html.Div(children=[
                 html.H6('{}'.format(datetime.strptime(date, '%Y-%m-%d').strftime("%b %d, %Y")),
                         # html.H3('{}'.format(date),
@@ -106,7 +399,7 @@ def create_fitness_kpis(date, ctl, ramp, rr_min_threshold, rr_max_threshold, atl
             ]),
         ]),
         ### CTL KPI ###
-        html.Div(id='ctl-kpi', className='two columns', children=[
+        html.Div(id='ctl-kpi', className='col-lg-2', children=[
             html.Div(children=[
                 html.H6('Fitness {}'.format(ctl),
                         style={'display': 'inline-block',  # 'fontWeight': 'bold',
@@ -115,10 +408,10 @@ def create_fitness_kpis(date, ctl, ramp, rr_min_threshold, rr_max_threshold, atl
         ]),
         dbc.Tooltip(
             'Fitness (CTL) is an exponentially weighted average of your last 42 days of training stress scores (TSS) and reflects the training you have done over the last 6 weeks. Fatigue is sport specific.',
-            target="ctl-kpi", className='tooltip'),
+            target="ctl-kpi"),
 
         ### ATL KPI ###
-        html.Div(id='atl-kpi', className='two columns', children=[
+        html.Div(id='atl-kpi', className='col-lg-2', children=[
             html.Div(children=[
                 html.H6('Fatigue {:.1f}'.format(atl),
                         style={'display': 'inline-block',  # 'fontWeight': 'bold',
@@ -127,10 +420,10 @@ def create_fitness_kpis(date, ctl, ramp, rr_min_threshold, rr_max_threshold, atl
         ]),
         dbc.Tooltip(
             'Fatigue (ATL) is an exponentially weighted average of your last 7 days of training stress scores which provides an estimate of your fatigue accounting for the workouts you have done recently. Fatigue is not sport specific.',
-            target="atl-kpi", className='tooltip'),
+            target="atl-kpi"),
 
         ### TSB KPI ###
-        html.Div(id='tsb-kpi', className='two columns', children=[
+        html.Div(id='tsb-kpi', className='col-lg-2', children=[
             html.Div(children=[
                 html.H6('{} {}'.format('Form' if type(tsb) == type(str()) else training_zone(tsb), tsb),
                         style={'display': 'inline-block',  # 'fontWeight': 'bold',
@@ -139,10 +432,10 @@ def create_fitness_kpis(date, ctl, ramp, rr_min_threshold, rr_max_threshold, atl
         ]),
         dbc.Tooltip(
             "Training Stress Balance (TSB) or Form represents the balance of training stress. A positive TSB number means that you would have a good chance of performing well during those 'positive' days, and would suggest that you are both fit and fresh.",
-            target="tsb-kpi", className='tooltip'),
+            target="tsb-kpi", ),
 
         ### HRV KPI ###
-        html.Div(id='hrv-kpi', className='two columns', children=[
+        html.Div(id='hrv-kpi', className='col-lg-2', children=[
             html.Div(children=[
                 html.H6('7 Day HRV {}'.format(hrv),
                         style={'display': 'inline-block',  # 'fontWeight': 'bold',
@@ -151,42 +444,44 @@ def create_fitness_kpis(date, ctl, ramp, rr_min_threshold, rr_max_threshold, atl
         ]),
         dbc.Tooltip(
             "Rolling 7 Day HRV Average. Falling below the baseline threshold indicates you are not recovered and should hold back on intense training. Staying within the thresholds indicates you should stay on course, and exceeding the thresholds indicates a positive adaptation and workout intensity can be increased.",
-            target="hrv-kpi", className='tooltip'),
+            target="hrv-kpi", ),
 
         ### HRV Plan Recommended Workout ###
-        html.Div(id='oura-readiness', className='two columns', children=[
+        html.Div(id='oura-readiness', className='col-lg-2', children=[
             html.Div(children=[
                 html.H6('Oura: {}'.format(readiness_score),
                         style={'display': 'inline-block',  # 'fontWeight': 'bold',
                                'color': white, 'marginTop': '0', 'marginBottom': '0'})
             ]),
         ]),
+
         dbc.Tooltip('Oura Readiness Score',
-                    target="oura-readiness", className='tooltip'),
+                    target="oura-readiness", ),
+    ]),
 
-        html.Div(id='workout-recommendation', className='twelve columns', children=[
-            html.Div(className='four columns nospace',
-                     children=[
-                         html.H6('HRV Recommendation: {}'.format(plan_recommendation), id='hrv-rationale',
-                                 className='nospace')]),
-            dbc.Tooltip(None if plan_recommendation == 'N/A' else plan_rationale,
-                        target="hrv-rationale", className='tooltip'),
-            html.Div(className='four columns nospace',
-                     children=[
-                         html.H6('Oura Recommendation: {}'.format(oura_recommendation), id='oura-rationale',
-                                 className='nospace')]),
-            dbc.Tooltip(oura_rationale,
-                        target="oura-rationale", className='tooltip'),
-            html.Div(className='four columns nospace',
-                     children=[
-                         html.H6('Injury Risk: {}'.format(injury_risk), id='injury-rationale',
-                                 className='nospace')]),
-            dbc.Tooltip('7 day CTL △ = {:.1f}'.format(ramp),
-                        target="injury-rationale", className='tooltip'),
+            html.Div(id='workout-recommendation', className='row text-center', children=[
+                html.Div(className='col-lg-4',
+                         children=[
+                             html.H6('HRV Recommendation: {}'.format(plan_recommendation), id='hrv-rationale',
+                                     className='nospace')]),
+                dbc.Tooltip(None if plan_recommendation == 'N/A' else plan_rationale,
+                            target="hrv-rationale", ),
+                html.Div(className='col-lg-4',
+                         children=[
+                             html.H6('Oura Recommendation: {}'.format(oura_recommendation), id='oura-rationale',
+                                     className='nospace')]),
+                dbc.Tooltip(oura_rationale,
+                            target="oura-rationale", ),
+                html.Div(className='col-lg-4',
+                         children=[
+                             html.H6('Injury Risk: {}'.format(injury_risk), id='injury-rationale',
+                                     className='nospace')]),
+                dbc.Tooltip('7 day CTL △ = {:.1f}'.format(ramp),
+                            target="injury-rationale", ),
 
-        ]),
+            ])
 
-    ])
+            ]
 
 
 def create_activity_table(date=None):
@@ -232,46 +527,8 @@ def create_activity_table(date=None):
         round_2_cols = ['distance', 'relative_intensity', 'efficiency_factor', 'variability_index']
         df_table[round_2_cols] = df_table[round_2_cols].round(2)
 
-        return dash_table.DataTable(
-            columns=[{"name": x, "id": y} for (x, y) in
-                     zip(col_names, df_summary_table_columns)],
-            data=df_table[df_summary_table_columns].sort_index(ascending=False).to_dict('records'),
-            style_as_list_view=True,
-            fixed_rows={'headers': True, 'data': 0},
-            style_table={'height': '100%'},
-            style_header={'backgroundColor': 'rgb(66, 66, 66)',
-                          'borderBottom': '1px solid rgb(220, 220, 220)',
-                          'borderTop': '0px',
-                          'textAlign': 'left',
-                          'fontWeight': 'bold',
-                          'fontFamily': '"Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif',
-                          # 'fontSize': '1.2rem'
-                          },
-            style_cell={
-                'backgroundColor': 'rgb(66, 66, 66)',
-                'color': 'rgb(220, 220, 220)',
-                'borderBottom': '1px solid rgb(73, 73, 73)',
-                'textAlign': 'center',
-                # 'whiteSpace': 'no-wrap',
-                # 'overflow': 'hidden',
-                'textOverflow': 'ellipsis',
-                'maxWidth': 175,
-                'minWidth': 50,
-                # 'padding': '0px',
-                'fontFamily': '"Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif',
-                # 'fontSize': '1.2rem'
-            },
-            style_cell_conditional=[
-                {
-                    'if': {'column_id': 'activity_id'},
-                    'display': 'none'
-                }
-            ],
-            filter_action="native",
-            page_action="none",
-            # page_current=0,
-            # page_size=10,
-        )
+        return df_table[df_summary_table_columns].sort_index(ascending=False).to_dict('records')
+
     else:
         return html.H3('No workouts found for {}'.format(date.strftime("%b %d, %Y")), style={'textAlign': 'center'})
 
@@ -391,46 +648,42 @@ def create_growth_chart(df_summary, metric='tss'):
         )
     )
 
-    return dcc.Graph(id='growth-chart', style={'height': '100%'},
-                     config={
-                         'displayModeBar': False,
-                     },
-                     hoverData={'points': [{'x': current_date, 'y': curr_tss, 'customdata': 'cy'},
-                                           {'x': current_date, 'y': ly_tss, 'customdata': 'ly'},
-                                           {'x': current_date, 'y': target, 'customdata': 'target'}]
-                                },
+    hoverData = {'points': [{'x': current_date, 'y': curr_tss, 'customdata': 'cy'},
+                            {'x': current_date, 'y': ly_tss, 'customdata': 'ly'},
+                            {'x': current_date, 'y': target, 'customdata': 'target'}]
+                 },
 
-                     figure={
-                         'data': data,
-                         'layout': go.Layout(
-                             plot_bgcolor='rgb(66, 66, 66)',  # plot bg color
-                             paper_bgcolor='rgb(66, 66, 66)',  # margin bg color
-                             font=dict(
-                                 color='rgb(220,220,220)'
-                             ),
-                             xaxis=dict(
-                                 showgrid=False,
-                                 showticklabels=True,
-                                 tickformat='%b %d',
-                             ),
-                             yaxis=dict(
-                                 showgrid=True,
-                                 gridcolor='rgb(73, 73, 73)',
-                                 gridwidth=.5,
-                             ),
-                             # Set margins to 0, style div sets padding
-                             margin={'l': 40, 'b': 25, 't': 10, 'r': 20},
-                             showlegend=True,
-                             legend=dict(
-                                 x=.5,
-                                 y=1,
-                                 xanchor='center',
-                                 orientation="h",
-                             ),
-                             autosize=True,
-                             hovermode='x'
-                         )
-                     })
+    figure = {
+        'data': data,
+        'layout': go.Layout(
+            # transition=dict(duration=transition),
+            font=dict(
+                color='rgb(220,220,220)'
+            ),
+            xaxis=dict(
+                showgrid=False,
+                showticklabels=True,
+                tickformat='%b %d',
+            ),
+            yaxis=dict(
+                showgrid=True,
+                gridcolor='rgb(73, 73, 73)',
+                gridwidth=.5,
+            ),
+            # Set margins to 0, style div sets padding
+            margin={'l': 40, 'b': 25, 't': 10, 'r': 20},
+            showlegend=True,
+            legend=dict(
+                x=.5,
+                y=1,
+                xanchor='center',
+                orientation="h",
+            ),
+            autosize=True,
+            hovermode='x'
+        )
+    }
+    return figure, hoverData
 
 
 def get_workout_types(df_summary, run_status, ride_status, all_status):
@@ -629,361 +882,352 @@ def create_fitness_chart(run_status, ride_status, all_status):
     hover_rec = actual['workout_plan'].tail(1).values[0]
 
     ### Start Graph ###
-    return dcc.Graph(id='pmd-chart', style={'height': '100%'},
-                     # Start hoverData with most recent data point for callback to run off of
-                     hoverData={'points': [{'x': actual.index.max().date(),
-                                            'y': latest['CTL'].max(),
-                                            'text': 'Fitness'},
-                                           {'y': latest['Ramp_Rate'].max(), 'text': 'Ramp'},
-                                           {'y': rr_max_threshold, 'text': 'RR High'},
-                                           {'y': rr_min_threshold, 'text': 'RR Low'},
-                                           {'y': latest['ATL'].max(), 'text': 'Fatigue'},
-                                           {'y': latest['TSB'].max(), 'text': 'Form'},
-                                           {'text': hover_rec},
-                                           {'y': hrv_df.tail(1)['rmssd_7'].values[0], 'text': '7 Day'},
-                                           ],
-                                },
-                     config={
-                         'displayModeBar': False,
-                         # 'showLink': True  # to edit in studio
-                     },
-                     figure={
-                         'data': [
-                             go.Scatter(
-                                 name='Fitness (CTL)',
-                                 x=actual.index,
-                                 y=round(actual['CTL'], 1),
-                                 mode='lines',
-                                 text=actual['ctl_tooltip'],
-                                 hoverinfo='text',
-                                 opacity=0.7,
-                                 line={'shape': 'spline', 'color': ctl_color},
-                             ),
-                             go.Scatter(
-                                 name='Fitness (CTL) Forecast',
-                                 x=forecast.index,
-                                 y=round(forecast['CTL'], 1),
-                                 mode='lines',
-                                 text=forecast['ctl_tooltip'],
-                                 hoverinfo='text',
-                                 opacity=0.7,
-                                 line={'shape': 'spline', 'color': ctl_color, 'dash': 'dot'},
-                                 showlegend=False,
-                             ),
-                             go.Scatter(
-                                 name='Fatigue (ATL)',
-                                 x=actual.index,
-                                 y=round(actual['ATL'], 1),
-                                 mode='lines',
-                                 text=actual['atl_tooltip'],
-                                 hoverinfo='text',
-                                 line={'color': atl_color},
-                             ),
-                             go.Scatter(
-                                 name='Fatigue (ATL) Forecast',
-                                 x=forecast.index,
-                                 y=round(forecast['ATL'], 1),
-                                 mode='lines',
-                                 text=forecast['atl_tooltip'],
-                                 hoverinfo='text',
-                                 line={'color': atl_color, 'dash': 'dot'},
-                                 showlegend=False,
-                             ),
-                             go.Scatter(
-                                 name='Form (TSB)',
-                                 x=actual.index,
-                                 y=round(actual['TSB'], 1),
-                                 mode='lines',
-                                 text=actual['tsb_tooltip'],
-                                 hoverinfo='text',
-                                 opacity=0.7,
-                                 line={'color': tsb_color},
-                                 fill='tozeroy',
-                                 fillcolor=tsb_fill_color,
-                             ),
-                             go.Scatter(
-                                 name='Form (TSB) Forecast',
-                                 x=forecast.index,
-                                 y=round(forecast['TSB'], 1),
-                                 mode='lines',
-                                 text=forecast['tsb_tooltip'],
-                                 hoverinfo='text',
-                                 opacity=0.7,
-                                 line={'color': tsb_color, 'dash': 'dot'},
-                                 showlegend=False,
-                             ),
-                             go.Scatter(
-                                 name='HRV SWC (Upper)',
-                                 x=actual.index,
-                                 y=actual['swc_upper'],
-                                 text='swc upper',
-                                 yaxis='y3',
-                                 mode='lines',
-                                 hoverinfo='none',
-                                 line={'color': dark_blue},
-                             ),
-                             go.Scatter(
-                                 name='HRV SWC (Lower)',
-                                 x=actual.index,
-                                 y=actual['swc_lower'],
-                                 text='swc lower',
-                                 yaxis='y3',
-                                 mode='lines',
-                                 hoverinfo='none',
-                                 fill='tonexty',
-                                 line={'color': dark_blue},
-                             ),
-                             go.Scatter(
-                                 name='HRV Baseline',
-                                 x=actual.index,
-                                 y=actual['rmssd_7'],
-                                 yaxis='y3',
-                                 mode='lines',
-                                 text=['7 Day HRV Avg: <b>{:.0f} ({}{:.1f})'.format(x, '+' if x - y > 0 else '', x - y)
-                                       for (x, y) in zip(actual['rmssd_7'], actual['rmssd_7'].shift(1))],
-                                 hoverinfo='text',
-                                 line={'color': teal},
-                             ),
-                             # Dummy scatter to store hrv plan recommendation so hovering data can be stored in hoverdata
-                             go.Scatter(
-                                 name='Workout Plan Recommendation',
-                                 x=actual.index,
-                                 y=[0 for x in actual.index],
-                                 text=actual['workout_plan'],
-                                 hoverinfo='none',
-                                 marker={'color': 'rgba(0, 0, 0, 0)'}
-                             ),
-                             go.Bar(
-                                 name='Stress',
-                                 x=actual.index,
-                                 y=actual['stress_score'],
-                                 # mode='markers',
-                                 yaxis='y2',
-                                 text=actual['stress_tooltip'],
-                                 hoverinfo='text',
-                                 marker={
-                                     'color': ['green' if actual.at[i, 'tss_flag'] == 1 else 'red' if actual.at[
-                                                                                                          i, 'tss_flag'] == -1 else 'rgba(127, 127, 127, 1)'
-                                               for i
-                                               in actual.index]}
-                             ),
+    hoverData = {'points': [{'x': actual.index.max().date(),
+                             'y': latest['CTL'].max(),
+                             'text': 'Fitness'},
+                            {'y': latest['Ramp_Rate'].max(), 'text': 'Ramp'},
+                            {'y': rr_max_threshold, 'text': 'RR High'},
+                            {'y': rr_min_threshold, 'text': 'RR Low'},
+                            {'y': latest['ATL'].max(), 'text': 'Fatigue'},
+                            {'y': latest['TSB'].max(), 'text': 'Form'},
+                            {'text': hover_rec},
+                            {'y': hrv_df.tail(1)['rmssd_7'].values[0], 'text': '7 Day'},
+                            ]
+                 }
 
-                             go.Scatter(
-                                 name='High Intensity',
-                                 x=actual.index,
-                                 y=actual['l6w_percent_high_intensity'],
-                                 mode='markers',
-                                 yaxis='y4',
-                                 text=['L6W % High Intensity:<b> {:.0f}%'.format(x * 100) for x in
-                                       actual['l6w_percent_high_intensity']],
-                                 hoverinfo='text',
-                                 marker=dict(
-                                     color=['rgba(250, 47, 76,.7)' if actual.at[
-                                                                          i, 'l6w_percent_high_intensity'] > .2 else light_blue
-                                            for i in actual.index],
-                                     # size=10,
-                                     # line=dict(
-                                     #     color=white,
-                                     #     width=.5
-                                     # ),
-                                 )
+    figure = {
+        'data': [
+            go.Scatter(
+                name='Fitness (CTL)',
+                x=actual.index,
+                y=round(actual['CTL'], 1),
+                mode='lines',
+                text=actual['ctl_tooltip'],
+                hoverinfo='text',
+                opacity=0.7,
+                line={'shape': 'spline', 'color': ctl_color},
+            ),
+            go.Scatter(
+                name='Fitness (CTL) Forecast',
+                x=forecast.index,
+                y=round(forecast['CTL'], 1),
+                mode='lines',
+                text=forecast['ctl_tooltip'],
+                hoverinfo='text',
+                opacity=0.7,
+                line={'shape': 'spline', 'color': ctl_color, 'dash': 'dot'},
+                showlegend=False,
+            ),
+            go.Scatter(
+                name='Fatigue (ATL)',
+                x=actual.index,
+                y=round(actual['ATL'], 1),
+                mode='lines',
+                text=actual['atl_tooltip'],
+                hoverinfo='text',
+                line={'color': atl_color},
+            ),
+            go.Scatter(
+                name='Fatigue (ATL) Forecast',
+                x=forecast.index,
+                y=round(forecast['ATL'], 1),
+                mode='lines',
+                text=forecast['atl_tooltip'],
+                hoverinfo='text',
+                line={'color': atl_color, 'dash': 'dot'},
+                showlegend=False,
+            ),
+            go.Scatter(
+                name='Form (TSB)',
+                x=actual.index,
+                y=round(actual['TSB'], 1),
+                mode='lines',
+                text=actual['tsb_tooltip'],
+                hoverinfo='text',
+                opacity=0.7,
+                line={'color': tsb_color},
+                fill='tozeroy',
+                fillcolor=tsb_fill_color,
+            ),
+            go.Scatter(
+                name='Form (TSB) Forecast',
+                x=forecast.index,
+                y=round(forecast['TSB'], 1),
+                mode='lines',
+                text=forecast['tsb_tooltip'],
+                hoverinfo='text',
+                opacity=0.7,
+                line={'color': tsb_color, 'dash': 'dot'},
+                showlegend=False,
+            ),
+            go.Scatter(
+                name='HRV SWC (Upper)',
+                x=actual.index,
+                y=actual['swc_upper'],
+                text='swc upper',
+                yaxis='y3',
+                mode='lines',
+                hoverinfo='none',
+                line={'color': dark_blue},
+            ),
+            go.Scatter(
+                name='HRV SWC (Lower)',
+                x=actual.index,
+                y=actual['swc_lower'],
+                text='swc lower',
+                yaxis='y3',
+                mode='lines',
+                hoverinfo='none',
+                fill='tonexty',
+                line={'color': dark_blue},
+            ),
+            go.Scatter(
+                name='HRV Baseline',
+                x=actual.index,
+                y=actual['rmssd_7'],
+                yaxis='y3',
+                mode='lines',
+                text=['7 Day HRV Avg: <b>{:.0f} ({}{:.1f})'.format(x, '+' if x - y > 0 else '', x - y)
+                      for (x, y) in zip(actual['rmssd_7'], actual['rmssd_7'].shift(1))],
+                hoverinfo='text',
+                line={'color': teal},
+            ),
+            # Dummy scatter to store hrv plan recommendation so hovering data can be stored in hoverdata
+            go.Scatter(
+                name='Workout Plan Recommendation',
+                x=actual.index,
+                y=[0 for x in actual.index],
+                text=actual['workout_plan'],
+                hoverinfo='none',
+                marker={'color': 'rgba(0, 0, 0, 0)'}
+            ),
+            go.Bar(
+                name='Stress',
+                x=actual.index,
+                y=actual['stress_score'],
+                # mode='markers',
+                yaxis='y2',
+                text=actual['stress_tooltip'],
+                hoverinfo='text',
+                marker={
+                    'color': ['green' if actual.at[i, 'tss_flag'] == 1 else 'red' if actual.at[
+                                                                                         i, 'tss_flag'] == -1 else 'rgba(127, 127, 127, 1)'
+                              for i
+                              in actual.index]}
+            ),
 
-                             ),
+            go.Scatter(
+                name='High Intensity',
+                x=actual.index,
+                y=actual['l6w_percent_high_intensity'],
+                mode='markers',
+                yaxis='y4',
+                text=['L6W % High Intensity:<b> {:.0f}%'.format(x * 100) for x in
+                      actual['l6w_percent_high_intensity']],
+                hoverinfo='text',
+                marker=dict(
+                    color=['rgba(250, 47, 76,.7)' if actual.at[
+                                                         i, 'l6w_percent_high_intensity'] > .2 else light_blue
+                           for i in actual.index],
+                )
 
-                             go.Scatter(
-                                 name='80/20 Threshold',
-                                 text=['80/20 Threshold' if x == pmd.index.max() else '' for x in
-                                       pmd.index],
-                                 textposition='top left',
-                                 x=pmd.index,
-                                 y=[.2 for x in pmd.index],
-                                 yaxis='y4',
-                                 mode='lines+text',
-                                 hoverinfo='none',
-                                 line={'dash': 'dashdot',
-                                       'color': 'rgba(250, 47, 76,.5)'},
-                                 showlegend=False,
-                             ),
+            ),
 
-                             go.Scatter(
-                                 name='Ramp Rate',
-                                 x=pmd.index,
-                                 y=pmd['Ramp_Rate'],
-                                 text=['Ramp Rate: {:.1f}'.format(x) for x in pmd['Ramp_Rate']],
-                                 mode='lines',
-                                 hoverinfo='none',
-                                 line={'color': 'rgba(220,220,220,0)'},
-                                 # visible='legendonly',
-                             ),
+            go.Scatter(
+                name='80/20 Threshold',
+                text=['80/20 Threshold' if x == pmd.index.max() else '' for x in
+                      pmd.index],
+                textposition='top left',
+                x=pmd.index,
+                y=[.2 for x in pmd.index],
+                yaxis='y4',
+                mode='lines+text',
+                hoverinfo='none',
+                line={'dash': 'dashdot',
+                      'color': 'rgba(250, 47, 76,.5)'},
+                showlegend=False,
+            ),
 
-                             go.Scatter(
-                                 name='Ramp Rate (High)',
-                                 x=pmd.index,
-                                 y=[rr_max_threshold for x in pmd.index],
-                                 text=['RR High' for x in pmd['Ramp_Rate']],
-                                 mode='lines',
-                                 hoverinfo='none',
-                                 line={'color': 'rgba(220,220,220,0)'},
-                                 # visible='legendonly',
-                             ),
-                             go.Scatter(
-                                 name='Ramp Rate (Low)',
-                                 x=pmd.index,
-                                 y=[rr_min_threshold for x in pmd.index],
-                                 text=['RR Low' for x in pmd['Ramp_Rate']],
-                                 mode='lines',
-                                 hoverinfo='none',
-                                 line={'color': 'rgba(220,220,220,0)'},
-                                 # visible='legendonly',
-                             ),
+            go.Scatter(
+                name='Ramp Rate',
+                x=pmd.index,
+                y=pmd['Ramp_Rate'],
+                text=['Ramp Rate: {:.1f}'.format(x) for x in pmd['Ramp_Rate']],
+                mode='lines',
+                hoverinfo='none',
+                line={'color': 'rgba(220,220,220,0)'},
+                # visible='legendonly',
+            ),
 
-                             go.Scatter(
-                                 name='Freshness',
-                                 text=['Freshness' if x == pmd.index.max() else '' for x in
-                                       pmd.index],
-                                 textposition='top left',
-                                 x=pmd.index,
-                                 y=[25 for x in pmd.index],
-                                 mode='lines+text',
-                                 hoverinfo='none',
-                                 line={'dash': 'dashdot',
-                                       'color': 'rgba(127, 127, 127, .35)'},
-                                 showlegend=False,
-                             ),
-                             go.Scatter(
-                                 name='Neutral',
-                                 text=['Neutral' if x == pmd.index.max() else '' for x in
-                                       pmd.index],
-                                 textposition='top left',
-                                 x=pmd.index,
-                                 y=[5 for x in pmd.index],
-                                 mode='lines+text',
-                                 hoverinfo='none',
-                                 line={'dash': 'dashdot',
-                                       'color': 'rgba(127, 127, 127, .35)'},
-                                 showlegend=False,
-                             ),
-                             go.Scatter(
-                                 name='Optimal',
-                                 text=['Optimal' if x == pmd.index.max() else '' for x in
-                                       pmd.index],
-                                 textposition='top left',
-                                 x=pmd.index,
-                                 y=[-10 for x in pmd.index],
-                                 mode='lines+text',
-                                 hoverinfo='none',
-                                 line={'dash': 'dashdot',
-                                       'color': 'rgba(127, 127, 127, .35)'},
-                                 showlegend=False,
-                             ),
-                             go.Scatter(
-                                 name='Overload',
-                                 text=['Overload' if x == pmd.index.max() else '' for x in
-                                       pmd.index],
-                                 textposition='top left',
-                                 x=pmd.index,
-                                 y=[-30 for x in pmd.index],
-                                 mode='lines+text',
-                                 hoverinfo='none',
-                                 line={'dash': 'dashdot',
-                                       'color': 'rgba(127, 127, 127, .35)'},
-                                 showlegend=False,
-                             )
+            go.Scatter(
+                name='Ramp Rate (High)',
+                x=pmd.index,
+                y=[rr_max_threshold for x in pmd.index],
+                text=['RR High' for x in pmd['Ramp_Rate']],
+                mode='lines',
+                hoverinfo='none',
+                line={'color': 'rgba(220,220,220,0)'},
+                # visible='legendonly',
+            ),
+            go.Scatter(
+                name='Ramp Rate (Low)',
+                x=pmd.index,
+                y=[rr_min_threshold for x in pmd.index],
+                text=['RR Low' for x in pmd['Ramp_Rate']],
+                mode='lines',
+                hoverinfo='none',
+                line={'color': 'rgba(220,220,220,0)'},
+                # visible='legendonly',
+            ),
 
-                         ],
-                         'layout': go.Layout(
-                             plot_bgcolor='rgb(66, 66, 66)',  # plot bg color
-                             paper_bgcolor='rgb(66, 66, 66)',  # margin bg color
-                             font=dict(
-                                 color='rgb(220,220,220)'
-                             ),
-                             annotations=chart_annotations,
-                             xaxis=dict(
-                                 showgrid=False,
-                                 showticklabels=True,
-                                 tickformat='%b %d',
-                                 # Specify range to get rid of auto x-axis padding when using scatter markers
-                                 range=[pmd.index.max() - timedelta(days=41 + forecast_days),
-                                        pmd.index.max()],
-                                 # default L6W
-                                 rangeselector=dict(
-                                     bgcolor='rgb(66, 66, 66)',
-                                     bordercolor='#d4d4d4',
-                                     borderwidth=.5,
-                                     buttons=list([
-                                         # Specify row count to get rid of auto x-axis padding when using scatter markers
-                                         dict(count=(len(pmd) + 1),
-                                              label='ALL',
-                                              step='day',
-                                              stepmode='backward'),
-                                         dict(count=1,
-                                              label='YTD',
-                                              step='year',
-                                              stepmode='todate'),
-                                         dict(count=41 + forecast_days,
-                                              label='L6W',
-                                              step='day',
-                                              stepmode='backward'),
-                                         dict(count=29 + forecast_days,
-                                              label='L30D',
-                                              step='day',
-                                              stepmode='backward'),
-                                         dict(count=6 + forecast_days,
-                                              label='L7D',
-                                              step='day',
-                                              stepmode='backward')
-                                     ]),
-                                     xanchor='center',
-                                     font=dict(
-                                         size=10,
-                                     ),
-                                     x=.5,
-                                     y=1,
-                                 ),
-                             ),
-                             yaxis=dict(
-                                 # domain=[0, .85],
-                                 showticklabels=False,
-                                 range=[actual['TSB'].min() * 1.05, actual['ATL'].max() * 1.25],
-                                 showgrid=True,
-                                 gridcolor='rgb(73, 73, 73)',
-                                 gridwidth=.5,
-                             ),
-                             yaxis2=dict(
-                                 # domain=[0, .85],
-                                 showticklabels=False,
-                                 range=[0, pmd['stress_score'].max() * 4],
-                                 showgrid=False,
-                                 type='linear',
-                                 side='right',
-                                 anchor='x',
-                                 overlaying='y',
-                                 # layer='above traces'
-                             ),
-                             yaxis3=dict(
-                                 # domain=[.85, 1],
-                                 range=[actual['rmssd_7'].min() * -1.5, actual['rmssd_7'].max() * 1.05],
-                                 showgrid=False,
-                                 showticklabels=False,
-                                 anchor='x',
-                                 side='right',
-                                 overlaying='y',
-                             ),
-                             yaxis4=dict(
-                                 # domain=[.85, 1],
-                                 range=[0, 3],
-                                 showgrid=False,
-                                 showticklabels=False,
-                                 anchor='x',
-                                 side='right',
-                                 overlaying='y',
-                             ),
-                             margin={'l': 25, 'b': 25, 't': 0, 'r': 25},
-                             showlegend=False,
-                             autosize=True,
-                             bargap=.75,
-                         )
-                     })
+            go.Scatter(
+                name='Freshness',
+                text=['Freshness' if x == pmd.index.max() else '' for x in
+                      pmd.index],
+                textposition='top left',
+                x=pmd.index,
+                y=[25 for x in pmd.index],
+                mode='lines+text',
+                hoverinfo='none',
+                line={'dash': 'dashdot',
+                      'color': 'rgba(127, 127, 127, .35)'},
+                showlegend=False,
+            ),
+            go.Scatter(
+                name='Neutral',
+                text=['Neutral' if x == pmd.index.max() else '' for x in
+                      pmd.index],
+                textposition='top left',
+                x=pmd.index,
+                y=[5 for x in pmd.index],
+                mode='lines+text',
+                hoverinfo='none',
+                line={'dash': 'dashdot',
+                      'color': 'rgba(127, 127, 127, .35)'},
+                showlegend=False,
+            ),
+            go.Scatter(
+                name='Optimal',
+                text=['Optimal' if x == pmd.index.max() else '' for x in
+                      pmd.index],
+                textposition='top left',
+                x=pmd.index,
+                y=[-10 for x in pmd.index],
+                mode='lines+text',
+                hoverinfo='none',
+                line={'dash': 'dashdot',
+                      'color': 'rgba(127, 127, 127, .35)'},
+                showlegend=False,
+            ),
+            go.Scatter(
+                name='Overload',
+                text=['Overload' if x == pmd.index.max() else '' for x in
+                      pmd.index],
+                textposition='top left',
+                x=pmd.index,
+                y=[-30 for x in pmd.index],
+                mode='lines+text',
+                hoverinfo='none',
+                line={'dash': 'dashdot',
+                      'color': 'rgba(127, 127, 127, .35)'},
+                showlegend=False,
+            )
+            #
+        ],
+        'layout': go.Layout(
+            # transition=dict(duration=transition),
+            font=dict(
+                color='rgb(220,220,220)'
+            ),
+            annotations=chart_annotations,
+            xaxis=dict(
+                showgrid=False,
+                showticklabels=True,
+                tickformat='%b %d',
+                # Specify range to get rid of auto x-axis padding when using scatter markers
+                range=[pmd.index.max() - timedelta(days=41 + forecast_days),
+                       pmd.index.max()],
+                # default L6W
+                rangeselector=dict(
+                    bgcolor='rgb(66, 66, 66)',
+                    bordercolor='#d4d4d4',
+                    borderwidth=.5,
+                    buttons=list([
+                        # Specify row count to get rid of auto x-axis padding when using scatter markers
+                        dict(count=(len(pmd) + 1),
+                             label='ALL',
+                             step='day',
+                             stepmode='backward'),
+                        dict(count=1,
+                             label='YTD',
+                             step='year',
+                             stepmode='todate'),
+                        dict(count=41 + forecast_days,
+                             label='L6W',
+                             step='day',
+                             stepmode='backward'),
+                        dict(count=29 + forecast_days,
+                             label='L30D',
+                             step='day',
+                             stepmode='backward'),
+                        dict(count=6 + forecast_days,
+                             label='L7D',
+                             step='day',
+                             stepmode='backward')
+                    ]),
+                    xanchor='center',
+                    font=dict(
+                        size=10,
+                    ),
+                    x=.5,
+                    y=1,
+                ),
+            ),
+            yaxis=dict(
+                # domain=[0, .85],
+                showticklabels=False,
+                range=[actual['TSB'].min() * 1.05, actual['ATL'].max() * 1.25],
+                showgrid=True,
+                gridcolor='rgb(73, 73, 73)',
+                gridwidth=.5,
+            ),
+            yaxis2=dict(
+                # domain=[0, .85],
+                showticklabels=False,
+                range=[0, pmd['stress_score'].max() * 4],
+                showgrid=False,
+                type='linear',
+                side='right',
+                anchor='x',
+                overlaying='y',
+                # layer='above traces'
+            ),
+            yaxis3=dict(
+                # domain=[.85, 1],
+                range=[actual['rmssd_7'].min() * -1.5, actual['rmssd_7'].max() * 1.05],
+                showgrid=False,
+                showticklabels=False,
+                anchor='x',
+                side='right',
+                overlaying='y',
+            ),
+            yaxis4=dict(
+                # domain=[.85, 1],
+                range=[0, 3],
+                showgrid=False,
+                showticklabels=False,
+                anchor='x',
+                side='right',
+                overlaying='y',
+            ),
+            margin={'l': 25, 'b': 25, 't': 0, 'r': 25},
+            showlegend=False,
+            autosize=True,
+            bargap=.75,
+        )
+    }
+
+    return figure, hoverData
 
 
 def workout_distribution(run_status, ride_status, all_status):
@@ -1057,83 +1301,74 @@ def workout_distribution(run_status, ride_status, all_status):
 
     # Set up columns for table
     col_names = ['Activity', '%']  # , 'Time']
-    intensity_tables = []
+
     # for intensity in ['high_intensity_seconds', 'low_intensity_seconds']:
-    for intensity in ['total_intensity_seconds']:
-        df_temp = df_summary[df_summary['intensity'] == intensity]
-        df_temp = df_temp.groupby('workout')[[intensity, 'elapsed_time']].sum()
-        df_temp['workout'] = df_temp.index
-        # Format time (seconds) as time intervals
-        df_temp['time'] = df_temp[intensity].apply(
-            lambda x: '{}'.format(timedelta(seconds=int(x))))
+    df_temp = df_summary[df_summary['intensity'] == 'total_intensity_seconds']
+    df_temp = df_temp.groupby('workout')[['total_intensity_seconds', 'elapsed_time']].sum()
+    df_temp['workout'] = df_temp.index
+    # Format time (seconds) as time intervals
+    df_temp['time'] = df_temp['total_intensity_seconds'].apply(
+        lambda x: '{}'.format(timedelta(seconds=int(x))))
 
-        # df_temp['elapsed_time'] = df_temp['elapsed_time'].apply(
-        #     lambda x: '{}'.format(timedelta(seconds=int(x))))
+    # df_temp['elapsed_time'] = df_temp['elapsed_time'].apply(
+    #     lambda x: '{}'.format(timedelta(seconds=int(x))))
 
-        df_temp['Percent of Total'] = (df_temp[intensity] / df_temp[
-            intensity].sum()) * 100
-        df_temp['Percent of Total'] = df_temp['Percent of Total'].apply(lambda x: '{:.0f}%'.format(x))
+    df_temp['Percent of Total'] = (df_temp['total_intensity_seconds'] / df_temp[
+        'total_intensity_seconds'].sum()) * 100
+    df_temp['Percent of Total'] = df_temp['Percent of Total'].apply(lambda x: '{:.0f}%'.format(x))
 
-        intensity_tables.append(
-            html.Div(id='{}-container'.format(intensity), className='twelve columns maincontainer nospace',
-                     style={'overflow': 'hidden', 'height': '100%'},
-                     children=[
-                         html.H6(id='{}-title'.format(intensity),
-                                 # children=['{}'.format(intensity.split('_')[0].capitalize())],
-                                 children=['Workouts'],
-                                 className='twelve columns nospace',
-                                 style={'height': '10%'}),
-                         # dbc.Tooltip('{} intensity workout distribution over the last 6 weeks.'.format('High' if intensity == 'high_intensity_seconds' else 'Low'),
-                         dbc.Tooltip('Workout distribution over the last 6 weeks.',
-                                     target='{}-title'.format(intensity), className='tooltip'),
+    html.Div(id='{}-container'.format('total_intensity_seconds'), className='twelve columns maincontainer nospace',
+             style={'overflow': 'hidden', 'height': '100%'},
+             children=[
+                 html.H6(id='{}-title'.format('total_intensity_seconds'),
+                         # children=['{}'.format(intensity.split('_')[0].capitalize())],
+                         children=['Workouts'],
+                         className='twelve columns nospace',
+                         style={'height': '10%'}),
+                 # dbc.Tooltip('{} intensity workout distribution over the last 6 weeks.'.format('High' if intensity == 'high_intensity_seconds' else 'Low'),
+                 dbc.Tooltip('Workout distribution over the last 6 weeks.',
+                             target='{}-title'.format('total_intensity_seconds'), ),
 
-                         html.Div(id='{}-table'.format(intensity), className='twelve columns',
-                                  style={'overflow': 'scroll', 'height': '90%'},
-                                  children=[
-                                      dash_table.DataTable(
-                                          columns=[{"name": x, "id": y} for (x, y) in
-                                                   zip(col_names,
-                                                       ['workout', 'Percent of Total']  # , 'time' , 'elapsed_time']
-                                                       )],
-                                          data=df_temp.sort_values(ascending=False,
-                                                                   by=[intensity]).to_dict(
-                                              'records'),
-                                          style_as_list_view=True,
-                                          fixed_rows={'headers': True, 'data': 0},
-                                          style_header={'backgroundColor': 'rgb(66, 66, 66)',
-                                                        'borderBottom': '1px solid rgb(220, 220, 220)',
-                                                        'borderTop': '0px',
-                                                        'textAlign': 'left',
-                                                        'fontWeight': 'bold',
-                                                        'fontFamily': '"Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif',
-                                                        # 'fontSize': '1rem'
-                                                        },
-                                          style_cell={
-                                              'backgroundColor': 'rgb(66, 66, 66)',
-                                              'color': 'rgb(220, 220, 220)',
-                                              'borderBottom': '1px solid rgb(73, 73, 73)',
-                                              # 'textAlign': 'left',
-                                              # 'whiteSpace': 'no-wrap',
-                                              # 'overflow': 'hidden',
-                                              'textOverflow': 'ellipsis',
-                                              'maxWidth': 25,
-                                              'fontFamily': '"Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif',
-                                              # 'fontSize': '1rem',
-                                          },
-                                          style_cell_conditional=[
-                                              {
-                                                  'if': {'column_id': c},
-                                                  'textAlign': 'center'
-                                              } for c in ['workout', 'Percent of Total']
-                                          ],
+                 html.Div(id='{}-table'.format('total_intensity_seconds'), className='twelve columns',
+                          style={'overflow': 'scroll', 'height': '90%'},
+                          children=[
+                              dash_table.DataTable(
+                                  columns=[{'name': 'Activity', 'id': 'workout'},
+                                           {'name': '%', 'id': 'Percent of Total'}
+                                           ],
+                                  data=df_temp.sort_values(ascending=False,
+                                                           by=['total_intensity_seconds']).to_dict(
+                                      'records'),
+                                  style_as_list_view=True,
+                                  fixed_rows={'headers': True, 'data': 0},
+                                  style_header={'backgroundColor': 'rgb(66, 66, 66)',
+                                                'borderBottom': '1px solid rgb(220, 220, 220)',
+                                                'borderTop': '0px',
+                                                'textAlign': 'left',
+                                                'fontWeight': 'bold',
+                                                'fontFamily': '"Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif',
+                                                },
+                                  style_cell={
+                                      'backgroundColor': 'rgb(66, 66, 66)',
+                                      'color': 'rgb(220, 220, 220)',
+                                      'borderBottom': '1px solid rgb(73, 73, 73)',
+                                      'textOverflow': 'ellipsis',
+                                      'maxWidth': 25,
+                                      'fontFamily': '"Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif',
+                                  },
+                                  style_cell_conditional=[
+                                      {
+                                          'if': {'column_id': c},
+                                          'textAlign': 'center'
+                                      } for c in ['workout', 'Percent of Total']
+                                  ],
 
-                                          page_action="none",
-                                      )
-                                  ])
-                     ])
-        )
+                                  page_action="none",
+                              )
+                          ])
+             ])
 
-    return intensity_tables
+    return df_temp.sort_values(ascending=False, by=['total_intensity_seconds']).to_dict('records')
 
 
 def workout_summary_kpi(df_samples):
@@ -1265,8 +1500,7 @@ def workout_details(df_samples, start_seconds=None, end_seconds=None):
     # pprint.pprint(fig)
     #
     # fig.update_layout(
-    #     plot_bgcolor='rgb(66, 66, 66)',  # plot bg color
-    #     paper_bgcolor='rgb(66, 66, 66)',  # margin bg color
+
     #     showlegend=False,
     #     font=dict(
     #         color='rgb(220,220,220)'
@@ -1423,8 +1657,8 @@ def workout_details(df_samples, start_seconds=None, end_seconds=None):
 
                 ],
                 'layout': go.Layout(
-                    plot_bgcolor='rgb(66, 66, 66)',  # plot bg color
-                    paper_bgcolor='rgb(66, 66, 66)',  # margin bg color
+                    # transition=dict(duration=transition),
+
                     font=dict(
                         color='rgb(220,220,220)'
                     ),
@@ -1716,6 +1950,7 @@ def create_annotation_table():
     engine.dispose()
     session.close()
 
+    # TODO: Update with form for inserting instead of table to type into. User datepicker for date, input text for annotation. Still need to have a way to allow user to delete annotations
     return dash_table.DataTable(id='annotation-table',
                                 columns=[{"name": x, "id": y} for (x, y) in
                                          zip(['Date', 'Annotation'], ['date', 'annotation'])],
@@ -1724,7 +1959,7 @@ def create_annotation_table():
                                 style_as_list_view=True,
                                 fixed_rows={'headers': True, 'data': 0},
                                 style_table={'height': '100%'},
-                                style_header={'backgroundColor': 'rgb(66, 66, 66)',
+                                style_header={'backgroundColor': 'rgba(0,0,0,0)',
                                               'borderBottom': '1px solid rgb(220, 220, 220)',
                                               'borderTop': '0px',
                                               'textAlign': 'left',
@@ -1732,8 +1967,8 @@ def create_annotation_table():
                                               'fontFamily': '"Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif',
                                               },
                                 style_cell={
-                                    'backgroundColor': 'rgb(66, 66, 66)',
-                                    'color': 'rgb(220, 220, 220)',
+                                    'backgroundColor': 'rgba(0,0,0,0)',
+                                    # 'color': 'rgb(220, 220, 220)',
                                     'borderBottom': '1px solid rgb(73, 73, 73)',
                                     'textAlign': 'center',
                                     # 'maxWidth': 175,
@@ -1752,189 +1987,10 @@ def create_annotation_table():
                                 )
 
 
-def generate_fitness_dashboard(df_summary):
-    return html.Div(id='performance-dashboard', children=[
-        dbc.Modal(id="annotation-modal", centered=True, autoFocus=True, fade=False, backdrop='static', size='l',
-                  children=[
-                      dbc.ModalHeader(id='annotation-modal-header', children=['Annotations']),
-                      dbc.ModalBody(id='annotation-modal-body',
-                                    children=[html.Div(id='annotation-table-container', className='twelve columns'),
-                                              html.Div(className='twelve columns',
-                                                       style={'backgroundColor': 'rgb(48, 48, 48)',
-                                                              'paddingBottom': '1vh'}),
-                                              html.Button('Add Row', id='annotation-add-rows-button', n_clicks=0),
-                                              html.Div(id='annotation-save-container', className='twelve columns',
-                                                       children=[
-
-                                                           html.H6('Enter admin password to save changes',
-                                                                   className='twelve columns',
-                                                                   style={'display': 'inline-block'}),
-
-                                                           dcc.Input(id='annotation-password', type='password',
-                                                                     placeholder='Password', value=''),
-                                                           html.Div(className='twelve columns',
-                                                                    style={'backgroundColor': 'rgb(48, 48, 48)',
-                                                                           'paddingBottom': '1vh'}),
-                                                           html.Div(className='twelve columns', children=[
-                                                               html.Button("Save",
-                                                                           id="save-close-annotation-modal-button",
-                                                                           n_clicks=0),
-                                                               html.Div(id='annotation-save-status')
-                                                           ])
-                                                       ])]),
-
-                      dbc.ModalFooter(
-                          html.Button("Close", id="close-annotation-modal-button", className="ml-auto",
-                                      n_clicks=0)
-                      ),
-                  ]),
-        dbc.Modal(id="activity-modal", centered=True, autoFocus=True, fade=False, backdrop='static', size='l',
-                  children=[
-                      dbc.ModalHeader(id='activity-modal-header'),
-                      dbc.ModalBody(children=[
-                          dcc.Loading(
-                              html.Div(id='activity-modal-body', className='twelve columns maincontainer',
-                                       style={'height': '40vh'}, children=[
-                                      html.Div(id='modal-workout-summary', className='two columns height-100'),
-                                      html.Div(id='modal-workout-trends', className='eight columns height-100'),
-                                      html.Div(id='modal-workout-stats', className='two columns height-100'),
-                                  ]),
-                          ),
-
-                          html.Div(className='twelve columns',
-                                   style={'backgroundColor': 'rgb(48, 48, 48)', 'paddingBottom': '1vh'}),
-
-                          dcc.Loading(
-                              html.Div(id="activity-modal-body-2", className='twelve columns', style={'height': '40vh'},
-                                       children=[
-                                           html.Div(id='modal-power-zone-container',
-                                                    className='six columns maincontainer',
-                                                    style={'height': '100%'},
-                                                    children=[
-                                                        html.H6('Power Zones', id='modal-zone-title',
-                                                                style={'height': '10%', 'verticalAlign': 'middle'},
-                                                                className='twelve columns nospace'),
-                                                        html.Div(id='modal-power-zones',
-                                                                 className='twelve columns height-90'),
-                                                    ]),
-
-                                           html.Div(id='modal-power-curve-container',
-                                                    className='six columns maincontainer height-100',
-                                                    children=[
-                                                        # Uncomment for adding hover kpis back
-                                                        # html.Div(id='modal-power-curve-kpis', className='twelve columns',
-                                                        #          style={'height': '15%'}),
-                                                        html.H6('Power Curve',
-                                                                style={'height': '10%', 'verticalAlign': 'middle'},
-                                                                className='twelve columns nospace'),
-                                                        html.Div(id='modal-power-curve',
-                                                                 className='twelve columns height-90'),
-                                                    ]),
-
-                                       ])
-                          ),
-                      ]),
-
-                      dbc.ModalFooter(
-                          html.Button("Close", id="close-activity-modal-button", className="ml-auto",
-                                      n_clicks=0)
-                      ),
-                  ]),
-        html.Div(id='pmd-header-and-chart', className='eight columns maincontainer',
-                 children=[
-                     html.Div(id='hover-data', style={'display': 'none'}),
-                     html.Div(id='pmd-header', style={'paddingLeft': '0vw', 'paddingRight': '0vw', 'height': '20%'},
-                              children=[
-                                  # generates from hoverData callback
-                                  html.Div(id='pmd-kpi', className='twelve columns'),
-                                  # html.Div(className='twelve columns',
-                                  #          style={'paddingLeft': '0vw', 'paddingRight': '0vw', 'height': '5%'}),
-                                  html.Div(id='pmc-controls', className='twelve columns', children=[
-
-                                      html.Div(id='ride-pmc', style={'display': 'inline-block', 'paddingRight': '1vw'},
-                                               children=[
-                                                   daq.BooleanSwitch(
-                                                       id='ride-pmc-switch',
-                                                       on=True,
-                                                       style={'display': 'inline-block', 'vertical-align': 'middle'}
-                                                   ),
-                                                   html.I(id='ride-pmc-icon', className='fa fa-bicycle',
-                                                          style={'fontSize': '2.5rem', 'display': 'inline-block',
-                                                                 'vertical-align': 'middle'}),
-                                               ]),
-                                      dbc.Tooltip(
-                                          'Include cycling workouts in Fitness trend.',
-                                          target="ride-pmc", className='tooltip'),
-
-                                      html.Div(id='run-pmc', style={'display': 'inline-block', 'paddingRight': '1vw'},
-                                               children=[
-                                                   daq.BooleanSwitch(
-                                                       id='run-pmc-switch',
-                                                       on=True,
-                                                       style={'display': 'inline-block', 'vertical-align': 'middle'}
-                                                   ),
-                                                   html.I(id='ride-pmc-icon', className='fa fa-running',
-                                                          style={'fontSize': '2.5rem', 'display': 'inline-block',
-                                                                 'vertical-align': 'middle'}),
-                                               ]),
-                                      dbc.Tooltip(
-                                          'Include running workouts in Fitness trend.',
-                                          target="run-pmc", className='tooltip'),
-                                      html.Div(id='all-pmc', style={'display': 'inline-block', 'paddingRight': '1vw'},
-                                               children=[
-                                                   daq.BooleanSwitch(
-                                                       id='all-pmc-switch',
-                                                       on=True,
-                                                       style={'display': 'inline-block', 'vertical-align': 'middle'}
-                                                   ),
-                                                   html.I(id='all-pmc-icon', className='fa fa-stream',
-                                                          style={'fontSize': '2.5rem', 'display': 'inline-block',
-                                                                 'vertical-align': 'middle'}),
-                                               ]),
-                                      dbc.Tooltip(
-                                          'Include all other workouts in Fitness trend.',
-                                          target="all-pmc", className='tooltip'),
-
-                                      html.Button(id="open-annotation-modal-button",
-                                                  className='fa fa-comment-alt nospace',
-                                                  n_clicks=0, style={'fontSize': '2.5rem', 'display': 'inline-block',
-                                                                     'vertical-align': 'middle', 'border': '0'}),
-                                      dbc.Tooltip(
-                                          'Chart Annotations',
-                                          target="open-annotation-modal-button", className='tooltip'),
-                                  ]),
-
-                              ]),
-
-                     ### Start Graph ###
-                     # Populated by callback
-                     dcc.Loading(id='pmc-chart', className='ten columns height-80 nospace'),
-                     html.Div(id='workout-distribution-table', className='two columns height-80', children=[
-                         dcc.Loading(id='workout-type-distributions', className='twelve columns height-100 nospace',
-                                     children=workout_distribution(run_status=True, ride_status=True, all_status=True)),
-                     ]),
-
-                 ]),
-        html.Div(id='growth-container', className='four columns maincontainer',
-                 children=[
-                     html.Div(id='growth-hover-data', style={'display': 'none'}),
-                     html.Div(id='growth-header', className='twelve columns',
-                              style={'paddingLeft': '0vw', 'paddingRight': '0vw', 'height': '10%'}),
-                     dcc.Loading(className='twelve columns height-90 nospace', children=[
-                         create_growth_chart(df_summary)])
-                 ]),
-        html.Div(className='twelve columns', style={'backgroundColor': 'rgb(48, 48, 48)', 'paddingBottom': '1vh'}),
-        # dcc.Loading(id='loading-activity-table', style={'height': '35vh'}, children=[
-        html.Div(id='activity-table', className='twelve columns maincontainer', style={'overflow': 'hidden'},
-                 children=create_activity_table())
-        # ])
-    ])
-
-
 # PMC KPIs
 @app.callback(
     Output('pmd-kpi', 'children'),
-    [Input('pmd-chart', 'hoverData')])
+    [Input('pm-chart', 'hoverData')])
 def update_fitness_kpis(hoverData):
     date, fitness, ramp, fatigue, form, hrv, hrv_plan_rec = None, None, None, None, None, None, None
     if hoverData is not None:
@@ -1967,8 +2023,9 @@ def update_fitness_kpis(hoverData):
 
 # PMD Boolean Switches
 @app.callback(
-    [Output('pmc-chart', 'children'),
-     Output('workout-type-distributions', 'children')],
+    [Output('pm-chart', 'figure'),
+     Output('pm-chart', 'hoverData'),
+     Output('workout-type-distributions', 'data')],
     [Input("close-annotation-modal-button", "n_clicks"),
      Input('ride-pmc-switch', 'on'),
      Input('run-pmc-switch', 'on'),
@@ -1979,10 +2036,11 @@ def update_fitness_kpis(hoverData):
 )
 def refresh_fitness_chart(dummy_annotation_refresh, ride_switch, run_switch, all_switch, ride_status, run_status,
                           all_status):
-    return create_fitness_chart(ride_status=ride_status, run_status=run_status,
-                                all_status=all_status), workout_distribution(ride_status=ride_status,
-                                                                             run_status=run_status,
-                                                                             all_status=all_status)
+    pmc_figure, hoverData = create_fitness_chart(ride_status=ride_status, run_status=run_status,
+                                                 all_status=all_status)
+
+    return pmc_figure, hoverData, workout_distribution(ride_status=ride_status, run_status=run_status,
+                                                       all_status=all_status)
 
 
 # Growth Chart KPIs
@@ -2009,8 +2067,8 @@ def update_growth_kpis(hoverData):
 
 
 @app.callback(
-    Output('activity-table', 'children'),
-    [Input('pmd-chart', 'clickData')])
+    Output('activity-table', 'data'),
+    [Input('pm-chart', 'clickData')])
 def update_fitness_table(clickData):
     if clickData is not None:
         if len(clickData['points']) >= 3:
@@ -2186,39 +2244,18 @@ def annotation_table(n_clicks, password, data):
                        style={'display': 'inline-block', 'color': 'red', 'paddingLeft': '1vw',
                               'fontSize': '150%'})]
 
-
+# # Main Dashboard Generation Callback
 # @app.callback(
-#     Output('modal-power-curve-kpis', 'children'),
-#     [Input('modal-power-curve-chart', 'hoverData')])
-# def modal_power_curve_kpis(hoverData):
-#     at, cy, cm, last = '', '', '', ''
-#     if hoverData is not None:
-#         interval = hoverData['points'][0]['x']
-#         for x in hoverData['points']:
-#             if x['customdata'].split('_')[3] == 'at':
-#                 at = '{:.0f} W'.format(x['y'])
-#             elif x['customdata'].split('_')[3] == 'cy':
-#                 cy = '{:.0f} W'.format(x['y'])
-#             elif x['customdata'].split('_')[3] == 'cm':
-#                 cm = '{:.0f} W'.format(x['y'])
-#             elif x['customdata'].split('_')[3] == 'lw':
-#                 last = '{:.0f} W'.format(x['y'])
-#
-#     return create_power_curve_kpis(interval, at, cy, cm, last)
-
-
-# Main Dashboard Generation Callback
-@app.callback(
-    Output('performance-layout', 'children'),
-    [Input('performance-canvas', 'children')]
-)
-def performance_dashboard(dummy):
-    session, engine = db_connect()
-    db_summary = pd.read_sql(sql=session.query(stravaSummary).statement, con=engine,
-                             index_col='start_date_local').sort_index(ascending=True)
-    engine.dispose()
-    session.close()
-    return generate_fitness_dashboard(db_summary)
+#     Output('performance-layout', 'children'),
+#     [Input('performance-canvas', 'children')]
+# )
+# def performance_dashboard(dummy):
+#     session, engine = db_connect()
+#     db_summary = pd.read_sql(sql=session.query(stravaSummary).statement, con=engine,
+#                              index_col='start_date_local').sort_index(ascending=True)
+#     engine.dispose()
+#     session.close()
+#     return generate_fitness_dashboard(db_summary)
 
 # Cycling
 # Low: PZ Endurance and Yoga / Weights
