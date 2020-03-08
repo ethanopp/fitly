@@ -910,7 +910,8 @@ def get_layout(**kwargs):
                              # TODO: Add dcc.Loading() for power curve once able to not have it load on hoverData per
                              # https://github.com/plotly/dash/issues/951
                              dbc.CardBody(
-                                 dcc.Graph(id='power-curve-chart', config={'displayModeBar': False}))
+                                 dcc.Graph(id='power-curve-chart', config={'displayModeBar': False},
+                                           style={'height': '100%'}, ))
                          ]
                          ),
 
@@ -925,7 +926,8 @@ def get_layout(**kwargs):
                                  target="ftp-current", ),
                              # TODO: Add dcc.Loading() for power curve once able to not have it load on hoverData per
                              # https://github.com/plotly/dash/issues/951
-                             dbc.CardBody(dcc.Graph(id='ftp-chart', config={'displayModeBar': False}))
+                             dbc.CardBody(dcc.Graph(id='ftp-chart', config={'displayModeBar': False},
+                                                    style={'height': '100%'}, ))
                          ]
                          ),
 
@@ -937,10 +939,10 @@ def get_layout(**kwargs):
                 html.Div(className='col', children=[
                     html.H6('Power Profiles by'),
                     html.Div(id='power-profile-buttons', className='twelve columns nospace', children=[
-                        html.Button('Day', id='day-button', className='btn btn-primary'),
-                        html.Button('Week', id='week-button', className='btn btn-primary'),
-                        html.Button('Month', id='month-button', className='btn btn-primary'),
-                        html.Button('Year', id='year-button', className='btn btn-primary'),
+                        dbc.Button('Day', id='day-button', color='primary', size='md'),
+                        dbc.Button('Week', id='week-button', color='primary', size='md'),
+                        dbc.Button('Month', id='month-button', color='primary', size='md'),
+                        dbc.Button('Year', id='year-button', color='primary', size='md'),
                     ]),
 
                 ]),
@@ -953,6 +955,7 @@ def get_layout(**kwargs):
                     dbc.CardBody(dcc.Graph(
                         id='power-profile-5-chart',
                         config={'displayModeBar': False},
+                        style={'height': '100%'},
                     )
                     )])]),
             html.Div(className='col-lg-3', children=[
@@ -961,6 +964,7 @@ def get_layout(**kwargs):
                     dbc.CardBody(dcc.Graph(
                         id='power-profile-60-chart',
                         config={'displayModeBar': False},
+                        style={'height': '100%'},
                     )
                     )])]),
             html.Div(className='col-lg-3', children=[
@@ -969,6 +973,7 @@ def get_layout(**kwargs):
                     dbc.CardBody(dcc.Graph(
                         id='power-profile-300-chart',
                         config={'displayModeBar': False},
+                        style={'height': '100%'},
                     )
                     )])]),
             html.Div(className='col-lg-3', children=[
@@ -977,6 +982,7 @@ def get_layout(**kwargs):
                     dbc.CardBody(dcc.Graph(
                         id='power-profile-1200-chart',
                         config={'displayModeBar': False},
+                        style={'height': '100%'},
                     )
                     )])]),
         ])
