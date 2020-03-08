@@ -112,7 +112,7 @@ def generate_exercise_charts(timeframe, muscle_options):
 
                 widgets.append([exercise, backgroundColor,
                                 dcc.Graph(id=exercise + '-trend',
-                                          # style={'height': '100%'},
+                                          style={'height': '100%'},
                                           config={'displayModeBar': False, },
                                           figure={
                                               'data': [
