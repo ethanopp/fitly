@@ -156,8 +156,7 @@ def power_profiles(interval, activity_type='ride', power_unit='mmp', group='mont
     return figure
 
 
-def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend=False,
-                chart_id='power-curve-chart'):
+def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend=False):
     activity_type = '%' + activity_type + '%'
 
     session, engine = db_connect()
@@ -227,9 +226,7 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
     session.close()
 
     if len(all_best_interval_df) < 1:
-        return html.Div(className='twelve columns ', children=[
-            html.H6('No {} workouts with power data found'.format(activity_type))
-        ])
+        return {}
 
     # Make 2nd line for L6W pr and highlight orange and remove points from L6W df to avoid duplicate tooltips
     pr_df = L90D_best_interval_df.copy()
@@ -263,6 +260,7 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
         {'y': (round(recent_best_interval_df.loc[60]['mmp']) if len(
             recent_best_interval_df) > 0 else 0), 'customdata': 'x_x_w'}
     ]}
+
     tooltip = '''Interval: {:%H:%M:%S} - {:%H:%M:%S}<br>Best: {:%Y-%m-%d}<br>{}: {:.1f} W/kg''' if power_unit == 'watts_per_kg' else '''Interval: {:%H:%M:%S} - {:%H:%M:%S}<br>Best: {:%Y-%m-%d}<br>{}: {:.0f} W'''
     data = [
         go.Scatter(
@@ -582,6 +580,7 @@ def zone_chart(activity_id=None, metric='power_zone', chart_id='power-zone-chart
                 xaxis=dict(
                     hoverformat=".1%",
                     tickformat="%",
+                    showgrid=False,
                     # zerolinecolor='rgb(238, 238, 238)',
                 ),
                 yaxis=dict(
@@ -911,7 +910,8 @@ def get_layout(**kwargs):
                              # https://github.com/plotly/dash/issues/951
                              dbc.CardBody(
                                  dcc.Graph(id='power-curve-chart', config={'displayModeBar': False},
-                                           style={'height': '100%'}, ))
+                                           style={'height': '100%'}))
+
                          ]
                          ),
 
