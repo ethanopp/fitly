@@ -108,6 +108,11 @@ a:hover {
 }
 
 
+/* Font Awesome Icons */
+.fa, .fas {
+    color: #aaa;
+    background: rgba(0, 0, 0, 0) !important;
+}
 /* Dash Charts */
 .main-svg {
     background: rgba(0, 0, 0, 0) !important;
@@ -117,18 +122,15 @@ a:hover {
 .fsmTNM {
     width: 0 !important;
 }
-
 .eMfdXL {
     width: 0 !important;
 }
-
 .gJuplL, .cmSQpo {
     padding-left: 0% !important;
     padding-right: 0% !important;
     margin-right: 0% !important;
     margin-left: 0% !important;
 }
-
 /* Webkit /
 –––––––––––––––––––––––––––––––––––––––––––––––––– */
 ::-webkit-scrollbar {
