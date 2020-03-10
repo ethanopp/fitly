@@ -737,11 +737,11 @@ def update_power_curve(activity_type, power_unit):
 )
 def update_icon(value):
     if value:
-        return {'fontSize': '2rem', 'display': 'inline-block', 'vertical-align': 'middle', 'color': white}, {
+        return {'fontSize': '2rem', 'display': 'inline-block', 'vertical-align': 'middle'}, {
             'fontSize': '2rem', 'display': 'inline-block', 'vertical-align': 'middle', 'color': teal}
     else:
         return {'fontSize': '2rem', 'display': 'inline-block', 'vertical-align': 'middle', 'color': teal}, {
-            'fontSize': '2rem', 'display': 'inline-block', 'vertical-align': 'middle', 'color': white}
+            'fontSize': '2rem', 'display': 'inline-block', 'vertical-align': 'middle'}
 
 
 @app.callback(
@@ -751,11 +751,11 @@ def update_icon(value):
 )
 def update_icon(value):
     if value:
-        return {'fontSize': '2rem', 'display': 'inline-block', 'vertical-align': 'middle', 'color': white}, {
+        return {'fontSize': '2rem', 'display': 'inline-block', 'vertical-align': 'middle'}, {
             'fontSize': '2rem', 'display': 'inline-block', 'vertical-align': 'middle', 'color': teal}
     else:
         return {'fontSize': '2rem', 'display': 'inline-block', 'vertical-align': 'middle', 'color': teal}, {
-            'fontSize': '2rem', 'display': 'inline-block', 'vertical-align': 'middle', 'color': white}
+            'fontSize': '2rem', 'display': 'inline-block', 'vertical-align': 'middle'}
 
 
 # FTP Chart

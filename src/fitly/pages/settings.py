@@ -240,7 +240,7 @@ def generate_goal(id, title, value):
             dcc.Input(id=id + '-input', className='goalinput ml-2', type='text', value=value),
 
             html.Button(id=id + '-input-submit', className='fa fa-upload ml-2',
-                        style={'display': 'inline-block', 'border': '0px', 'backgroundColor': 'rgba(0,0,0,0)'}),
+                        style={'display': 'inline-block', 'border': '0px'}),
 
             html.I(id=id + '-input-status', className='fa fa-check ml-2',
                    style={'display': 'inline-block', 'color': 'rgba(0,0,0,0)',

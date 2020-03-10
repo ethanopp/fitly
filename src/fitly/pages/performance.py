@@ -11,7 +11,7 @@ import pandas as pd
 import plotly.graph_objs as go
 from dash.dependencies import Input, Output, State
 from sqlalchemy import or_, delete, extract
-from ..app import app, server
+from ..app import app
 from ..api.sqlalchemy_declarative import db_insert, db_connect, athlete, stravaSummary, stravaSamples, \
     hrvWorkoutStepLog, \
     ouraSleepSummary, ouraReadinessSummary, annotations
@@ -197,8 +197,6 @@ def get_layout(**kwargs):
                                                                       style={'fontSize': '1.5rem',
                                                                              'display': 'inline-block',
                                                                              'vertical-align': 'middle',
-                                                                             'color': '#aaaaaa',
-                                                                             'backgroundColor': 'rgba(0,0,0,0)',
                                                                              'border': '0'}),
                                                       ]),
                                              dbc.Tooltip(
@@ -418,7 +416,7 @@ def create_fitness_kpis(date, ctl, ramp, rr_min_threshold, rr_max_threshold, atl
                 html.H6('{}'.format(datetime.strptime(date, '%Y-%m-%d').strftime("%b %d, %Y")),
                         # html.H3('{}'.format(date),
                         style={'display': 'inline-block', 'fontWeight': 'bold',
-                               'color': 'rgba(220, 220, 220, 1)', 'marginTop': '0', 'marginBottom': '0'}),
+                               'color': 'rgb(220, 220, 220)', 'marginTop': '0', 'marginBottom': '0'}),
             ]),
         ]),
         ### CTL KPI ###
