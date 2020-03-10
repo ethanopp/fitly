@@ -1,27 +1,45 @@
 /* Default link colours */
-a {color: #0275d8 !important}
+a {
+    color: #0275d8 !important
+}
 
-a:hover {color: #014c8c !important}
+a:hover {
+    color: #014c8c !important
+}
 
 
-#header a, #sidebar a {color: white !important;}
+#header a, #sidebar a {
+    color: white !important;
+}
 
-#header, #sidebar {color: white}
+#header, #sidebar {
+    color: white
+}
 
 #header h1 {
     margin-bottom: 0;
     line-height: inherit;
 }
 
-#sidebar {height: 100vh}
+#sidebar {
+    height: 100vh
+}
 
-.nav-item {font-size: 1.1em}
+.nav-item {
+    font-size: 1.1em
+}
 
-.nav-link.active, .nav-link:hover {text-decoration: underline}
+.nav-link.active, .nav-link:hover {
+    text-decoration: underline
+}
 
-.brand i, .nav-link i {padding: 0 0.5rem}
+.brand i, .nav-link i {
+    padding: 0 0.5rem
+}
 
-.brand a:hover{text-decoration: none}
+.brand a:hover {
+    text-decoration: none
+}
 
 
 /*
@@ -48,15 +66,23 @@ a:hover {color: #014c8c !important}
 
 /* the spinner animation */
 @keyframes spinner {
-  to {transform: rotate(360deg);}
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 
-/* Animation that makes elements visible sharply at end of animation */ 
+/* Animation that makes elements visible sharply at end of animation */
 @keyframes offset {
-    from {visibility: hidden;}
-    99% {visibility: hidden;}
-    to {visibility: visible;}
+    from {
+        visibility: hidden;
+    }
+    99% {
+        visibility: hidden;
+    }
+    to {
+        visibility: visible;
+    }
 }
 
 
@@ -77,37 +103,46 @@ a:hover {color: #014c8c !important}
     border: 2px solid #999;
     border-top-color: #222;
     /* Wait for 1s before displaying spinner using 'offset' anomation This
-       avoids flickering when wait times are low. */ 
+       avoids flickering when wait times are low. */
     animation: offset 1s, spinner .6s linear infinite;
 }
 
 
 /* Dash Charts */
 .main-svg {
-    background: rgba(0,0,0,0) !important;
+    background: rgba(0, 0, 0, 0) !important;
 }
 
 /* Dash Components */
 .fsmTNM {
     width: 0 !important;
 }
+
 .eMfdXL {
     width: 0 !important;
 }
 
+.gJuplL, .cmSQpo {
+    padding-left: 0% !important;
+    padding-right: 0% !important;
+    margin-right: 0% !important;
+    margin-left: 0% !important;
+}
+
 /* Webkit /
 –––––––––––––––––––––––––––––––––––––––––––––––––– */
-::-webkit-scrollbar{
+::-webkit-scrollbar {
     -webkit-appearance: none;
     width: .4rem;
     height: .4rem;
 }
-::-webkit-scrollbar-track
-{
-	background-color: rgba(0,0,0,0);
+
+::-webkit-scrollbar-track {
+    background-color: rgba(0, 0, 0, 0);
 }
+
 ::-webkit-scrollbar-thumb {
     border-radius: 0.3rem;
-    background-color: rgba(0,0,0,.5);
-    -webkit-box-shadow: 0 0 1px rgba(255,255,255,.5);
+    background-color: rgba(0, 0, 0, .5);
+    -webkit-box-shadow: 0 0 1px rgba(255, 255, 255, .5);
 }
