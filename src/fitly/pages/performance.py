@@ -10,8 +10,8 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objs as go
 from dash.dependencies import Input, Output, State
-from sqlalchemy import or_, delete
-from ..app import app
+from sqlalchemy import or_, delete, extract
+from ..app import app, server
 from ..api.sqlalchemy_declarative import db_insert, db_connect, athlete, stravaSummary, stravaSamples, \
     hrvWorkoutStepLog, \
     ouraSleepSummary, ouraReadinessSummary, annotations
@@ -25,8 +25,10 @@ transition = int(config.get('dashboard', 'transition'))
 
 
 def get_layout(**kwargs):
-    return html.Div([
+    growth_figure, growth_hoverData = create_growth_chart()
 
+    return html.Div([
+        # Dummy div for simultaneous callbacks on page load
         dbc.Modal(id="annotation-modal", centered=True, autoFocus=True, fade=False, backdrop='static', size='l',
                   children=[
                       dbc.ModalHeader(id='annotation-modal-header', children=['Annotations']),
@@ -57,61 +59,66 @@ def get_layout(**kwargs):
                                                  ])]),
 
                       dbc.ModalFooter(
-                          dbc.Button("Close", id="close-annotation-modal-button", className="ml-auto", color='primary',
-                                     size='sm',
-                                     n_clicks=0)
+                          dbc.Button("Close", id="close-annotation-modal-button", color='primary', size='sm',
+                                     href='/performance')
                       ),
                   ]),
-        dbc.Modal(id="activity-modal", centered=True, autoFocus=True, fade=False, backdrop='static', size='l',
+        dbc.Modal(id="activity-modal", is_open=False, centered=True, autoFocus=True, fade=False, backdrop='static',
+                  size='xl',
                   children=[
                       dbc.ModalHeader(id='activity-modal-header'),
-                      dbc.ModalBody(children=[
+                      dbc.ModalBody([
                           dcc.Loading(
-                              html.Div(id='activity-modal-body', className='twelve columns maincontainer',
-                                       style={'height': '40vh'}, children=[
-                                      html.Div(id='modal-workout-summary', className='two columns height-100'),
-                                      html.Div(id='modal-workout-trends', className='eight columns height-100'),
-                                      html.Div(id='modal-workout-stats', className='two columns height-100'),
+                              html.Div(id='activity-modal-body', className='row mt-2 mb-2', children=[
+                                  html.Div(className='col-lg-10', children=[
+                                      html.Div(className='row', children=[
+                                          html.Div(className='col-lg-12', children=[
+                                              dbc.Card(color='dark', children=[
+                                                  dbc.CardHeader(html.H4('Activity Stream')),
+                                                  dbc.CardBody([
+                                                      html.Div(className='row', children=[
+                                                          html.Div(id='modal-workout-summary',
+                                                                   className='col-lg-3'),
+                                                          html.Div(id='modal-workout-trends', className='col-lg-9'),
+                                                      ])
+                                                  ])
+                                              ])
+                                          ])
+                                      ])
                                   ]),
+
+                                  html.Div(id='modal-workout-stats', className='col-lg-2',
+                                           style={'height': '100%'}),
+                              ]),
                           ),
 
-                          html.Div(className='twelve columns',
-                                   style={'backgroundColor': 'rgb(48, 48, 48)', 'paddingBottom': '1vh'}),
-
                           dcc.Loading(
-                              html.Div(id="activity-modal-body-2", className='twelve columns', style={'height': '40vh'},
+                              html.Div(id="activity-modal-body-2", className='row mt-2 mb-2',
                                        children=[
-                                           html.Div(id='modal-power-zone-container',
-                                                    className='six columns maincontainer',
-                                                    style={'height': '100%'},
-                                                    children=[
-                                                        html.H6('Power Zones', id='modal-zone-title',
-                                                                style={'height': '10%', 'verticalAlign': 'middle'},
-                                                                className='twelve columns nospace'),
-                                                        html.Div(id='modal-power-zones',
-                                                                 className='twelve columns height-90'),
-                                                    ]),
-
-                                           html.Div(id='modal-power-curve-container',
-                                                    className='six columns maincontainer height-100',
-                                                    children=[
-                                                        # Uncomment for adding hover kpis back
-                                                        # html.Div(id='modal-power-curve-kpis', className='twelve columns',
-                                                        #          style={'height': '15%'}),
-                                                        html.H6('Power Curve',
-                                                                style={'height': '10%', 'verticalAlign': 'middle'},
-                                                                className='twelve columns nospace'),
-                                                        html.Div(id='modal-power-curve',
-                                                                 className='twelve columns height-90'),
-                                                    ]),
+                                           html.Div(className='col-lg-6', children=[
+                                               dbc.Card(color='dark', children=[
+                                                   dbc.CardHeader(id='modal-zone-title'),
+                                                   dbc.CardBody(id='modal-zones')
+                                               ])
+                                           ]),
+                                           html.Div(className='col-lg-6', children=[
+                                               dbc.Card(id='modal-power-curve-card', color='dark', children=[
+                                                   dbc.CardHeader(html.H4('Power Curve')),
+                                                   dbc.CardBody([
+                                                       dcc.Graph(id='modal-power-curve-chart',
+                                                                 config={'displayModeBar': False},
+                                                                 style={'height': '100%'})
+                                                   ]
+                                                   )
+                                               ])
+                                           ]),
 
                                        ])
                           ),
                       ]),
 
                       dbc.ModalFooter(
-                          html.Button("Close", id="close-activity-modal-button", className="ml-auto",
-                                      n_clicks=0)
+                          dbc.Button("Close", id="close-activity-modal-button", color='primary', n_clicks=0)
                       ),
                   ]),
         html.Div(className='row mt-2 mb-2', children=[
@@ -122,26 +129,31 @@ def get_layout(**kwargs):
                                  # generates from hoverData callback
 
                                  html.Div(id='pmd-kpi'),
-                                 html.Div(id='pmc-controls', className='row text-center ', children=[
-                                     html.Div(className='col-lg-4 offset-lg-3', children=[
+                                 html.Div(id='pmc-controls', className='row text-center mb-2', children=[
+                                     html.Div(className='col-lg-6 offset-lg-2', children=[
                                          html.Div(className='row', children=[
 
-                                             html.Div(id='ride-pmc', className='col-lg-3', children=[
-                                                 daq.BooleanSwitch(
-                                                     id='ride-pmc-switch',
-                                                     on=True,
-                                                     style={'display': 'inline-block', 'vertical-align': 'middle'}
-                                                 ),
-                                                 html.I(id='ride-pmc-icon', className='fa fa-bicycle',
-                                                        style={'fontSize': '2.0rem', 'display': 'inline-block',
-                                                               'vertical-align': 'middle'}),
-                                             ]),
+                                             html.Div(id='ride-pmc', className='col-lg-3',
+                                                      style={'display': 'inline-block', 'paddingLeft': '0',
+                                                             'paddingRight': '0'},
+                                                      children=[
+                                                          daq.BooleanSwitch(
+                                                              id='ride-pmc-switch',
+                                                              on=True,
+                                                              style={'display': 'inline-block',
+                                                                     'vertical-align': 'middle'}
+                                                          ),
+                                                          html.I(id='ride-pmc-icon', className='fa fa-bicycle',
+                                                                 style={'fontSize': '1.5rem', 'display': 'inline-block',
+                                                                        'vertical-align': 'middle'}),
+                                                      ]),
                                              dbc.Tooltip(
                                                  'Include cycling workouts in Fitness trend.',
                                                  target="ride-pmc"),
 
                                              html.Div(id='run-pmc', className='col-lg-3',
-                                                      style={'display': 'inline-block'},
+                                                      style={'display': 'inline-block', 'paddingLeft': '0',
+                                                             'paddingRight': '0'},
                                                       children=[
                                                           daq.BooleanSwitch(
                                                               id='run-pmc-switch',
@@ -150,7 +162,7 @@ def get_layout(**kwargs):
                                                                      'vertical-align': 'middle'}
                                                           ),
                                                           html.I(id='ride-pmc-icon', className='fa fa-running',
-                                                                 style={'fontSize': '2.0rem', 'display': 'inline-block',
+                                                                 style={'fontSize': '1.5rem', 'display': 'inline-block',
                                                                         'vertical-align': 'middle'}),
                                                       ]),
                                              dbc.Tooltip(
@@ -158,7 +170,8 @@ def get_layout(**kwargs):
                                                  target="run-pmc"),
 
                                              html.Div(id='all-pmc', className='col-lg-3',
-                                                      style={'display': 'inline-block'},
+                                                      style={'display': 'inline-block', 'paddingLeft': '0',
+                                                             'paddingRight': '0'},
                                                       children=[
                                                           daq.BooleanSwitch(
                                                               id='all-pmc-switch',
@@ -167,22 +180,27 @@ def get_layout(**kwargs):
                                                                      'vertical-align': 'middle'}
                                                           ),
                                                           html.I(id='all-pmc-icon', className='fa fa-stream',
-                                                                 style={'fontSize': '2.0rem', 'display': 'inline-block',
+                                                                 style={'fontSize': '1.5rem', 'display': 'inline-block',
                                                                         'vertical-align': 'middle'}),
                                                       ]),
                                              dbc.Tooltip(
                                                  'Include all other workouts in Fitness trend.',
                                                  target="all-pmc"),
 
-                                             html.Div(className='col-lg-3', children=[
-                                                 html.Button(id="open-annotation-modal-button",
-                                                             className='fa fa-comment-alt',
-                                                             n_clicks=0,
-                                                             style={'fontSize': '2.0rem', 'display': 'inline-block',
-                                                                    'vertical-align': 'middle', 'color': '#aaaaaa',
-                                                                    'backgroundColor': 'rgba(0,0,0,0)',
-                                                                    'border': '0'}),
-                                             ]),
+                                             html.Div(className='col-lg-3',
+                                                      style={'display': 'inline-block', 'paddingLeft': '0',
+                                                             'paddingRight': '0'},
+                                                      children=[
+                                                          html.Button(id="open-annotation-modal-button",
+                                                                      className='fa fa-comment-alt',
+                                                                      n_clicks=0,
+                                                                      style={'fontSize': '1.5rem',
+                                                                             'display': 'inline-block',
+                                                                             'vertical-align': 'middle',
+                                                                             'color': '#aaaaaa',
+                                                                             'backgroundColor': 'rgba(0,0,0,0)',
+                                                                             'border': '0'}),
+                                                      ]),
                                              dbc.Tooltip(
                                                  'Chart Annotations',
                                                  target="open-annotation-modal-button"),
@@ -190,7 +208,8 @@ def get_layout(**kwargs):
                                      ]),
                                  ]),
 
-                                 ### Start Graph ###
+                                 # Start Graph #
+
                                  # Populated by callback
                                  html.Div(className='row', children=[
                                      # html.Div([
@@ -243,7 +262,9 @@ def get_layout(**kwargs):
                              dbc.CardHeader(html.Div(id='growth-header')),
                              dbc.CardBody([
                                  dcc.Graph(id='growth-chart', config={'displayModeBar': False},
-                                           style={'height': '100%'}, )
+                                           style={'height': '100%'},
+                                           figure=growth_figure,
+                                           hoverData=growth_hoverData)
                              ])
                          ]),
                      ]),
@@ -253,8 +274,10 @@ def get_layout(**kwargs):
             html.Div(className='col-lg-12', children=[
                 dbc.Card([
                     dbc.CardBody([
-                        html.Div(id='activity-table', className='col-lg-12', style={'overflow': 'hidden'},
+                        html.Div(className='col-lg-12', style={'overflow': 'hidden'},
                                  children=dash_table.DataTable(
+                                     id='activity-table',
+                                     data=create_activity_table(),
                                      columns=[
                                          {'name': 'Date', 'id': 'date'},
                                          {'name': 'Name', 'id': 'name'},
@@ -313,7 +336,7 @@ def get_layout(**kwargs):
             ]),
         ]),
 
-        html.Div(id='modal-activity-id-type-metric-metric', style={'display': 'none'}),
+        html.Div(id='modal-activity-id-type-metric', style={'display': 'none'}),
     ])
 
 
@@ -492,22 +515,33 @@ def create_activity_table(date=None):
     session, engine = db_connect()
 
     if date is not None:
-        date = datetime.strptime(date, '%Y-%m-%d')
-        # df_table = query_strava_summary(date, date)
-        df_table = pd.read_sql(sql=session.query(stravaSummary).filter(stravaSummary.start_day_local == date).statement,
+        df_table = pd.read_sql(sql=session.query(stravaSummary.start_day_local, stravaSummary.name, stravaSummary.type,
+                                                 stravaSummary.elapsed_time,
+                                                 stravaSummary.distance, stravaSummary.tss, stravaSummary.hrss,
+                                                 stravaSummary.trimp, stravaSummary.weighted_average_power,
+                                                 stravaSummary.relative_intensity, stravaSummary.efficiency_factor,
+                                                 stravaSummary.variability_index, stravaSummary.ftp,
+                                                 stravaSummary.activity_id)
+                               .filter(stravaSummary.start_day_local == date)
+                               .statement,
                                con=engine).sort_index(ascending=True)
 
     else:
-        df_table = pd.read_sql(sql=session.query(stravaSummary).statement, con=engine).sort_index(ascending=True)
+        df_table = pd.read_sql(sql=session.query(stravaSummary.start_day_local, stravaSummary.name, stravaSummary.type,
+                                                 stravaSummary.elapsed_time,
+                                                 stravaSummary.distance, stravaSummary.tss, stravaSummary.hrss,
+                                                 stravaSummary.trimp, stravaSummary.weighted_average_power,
+                                                 stravaSummary.relative_intensity, stravaSummary.efficiency_factor,
+                                                 stravaSummary.variability_index, stravaSummary.ftp,
+                                                 stravaSummary.activity_id)
+                               .statement, con=engine).sort_index(ascending=True)
     engine.dispose()
     session.close()
 
     df_table['distance'] = df_table['distance'].replace({0: np.nan})
     # Filter df to columns we want for the table
-
     # If data was returned for date passed
     if len(df_table) > 0:
-
         # Add date column
         df_table['date'] = df_table['start_day_local'].apply(lambda x: x.strftime('%a, %b %d, %Y'))
 
@@ -516,9 +550,6 @@ def create_activity_table(date=None):
         df_summary_table_columns = ['date'] + df_summary_table_columns
         # Reorder columns
         df_table = df_table[df_summary_table_columns]
-        # Create list of clean headers to show in table
-        col_names = ['Date', 'Name', 'Type', 'Time', 'Mileage', 'PSS', 'HRSS', 'TRIMP', 'NP', 'IF', 'EF', 'VI', 'FTP',
-                     'activity_id']
 
         # Table Rounding
         round_0_cols = ['tss', 'hrss', 'trimp', 'weighted_average_power', 'ftp']
@@ -530,7 +561,8 @@ def create_activity_table(date=None):
         return df_table[df_summary_table_columns].sort_index(ascending=False).to_dict('records')
 
     else:
-        return html.H3('No workouts found for {}'.format(date.strftime("%b %d, %Y")), style={'textAlign': 'center'})
+        return [{}]
+        # return html.H3('No workouts found for {}'.format(date.strftime("%b %d, %Y")), style={'textAlign': 'center'})
 
 
 def create_growth_kpis(date, cy_tss, ly_tss, target):
@@ -540,45 +572,46 @@ def create_growth_kpis(date, cy_tss, ly_tss, target):
     cy_color = orange if goal_diff != '' and cy_tss < target else teal
 
     return (
+        html.Div(className='row', children=[
+            ### TSS Title ###
+            html.Div(className='col-lg-4', style={'textAlign': 'left'}, children=[
+                html.Div(children=[
+                    html.H5('Stress Score', className='mt-0 mb-0',
+                            style={'display': 'inline-block', 'color': 'rgba(220, 220, 220, 1)'}),
+                ]),
+            ]),
+            ### ▲ Target ###
+            html.Div(id='target-change-kpi', className='col-lg-4', children=[
+                html.Div(children=[
+                    html.H5('△ Goal {}'.format(goal_diff), className='mt-0 mb-0',
+                            style={'display': 'inline-block', 'color': cy_color}),
+                ]),
+            ]),
 
-        ### TSS Title ###
-        html.Div(className='four columns', style={'textAlign': 'left'}, children=[
-            html.Div(children=[
-                html.H5('Stress Score',
-                        style={'display': 'inline-block',  # 'fontWeight': 'bold',
-                               'color': 'rgba(220, 220, 220, 1)', 'marginTop': '0', 'marginBottom': '0'}),
+            ### YOY ▲ ###
+            html.Div(id='atl-kpi', className='col-lg-4', children=[
+                html.Div(children=[
+                    html.H5('△ YOY {}'.format(ly_diff), className='mt-0 mb-0',
+                            style={'display': 'inline-block', 'color': ly_color}),
+                ]),
             ]),
-        ]),
-        ### ▲ Target ###
-        html.Div(id='target-change-kpi', className='four columns', children=[
-            html.Div(children=[
-                html.H5('△ Goal {}'.format(goal_diff),
-                        style={'display': 'inline-block',  # 'fontWeight': 'bold',
-                               'color': cy_color, 'marginTop': '0', 'marginBottom': '0'}),
-            ]),
-        ]),
-
-        ### YOY ▲ ###
-        html.Div(id='atl-kpi', className='four columns', children=[
-            html.Div(children=[
-                html.H5('△ YOY {}'.format(ly_diff),
-                        style={'display': 'inline-block',  # 'fontWeight': 'bold',
-                               'color': ly_color, 'marginTop': '0', 'marginBottom': '0'}),
-            ]),
-        ]),
+        ])
     )
 
 
-def create_growth_chart(df_summary, metric='tss'):
+def create_growth_chart(metric='tss'):
     session, engine = db_connect()
     weekly_tss_goal = session.query(athlete).filter(athlete.athlete_id == 1).first().weekly_tss_goal
+
+    df = pd.read_sql(
+        sql=session.query(stravaSummary.start_date_utc, stravaSummary.tss, stravaSummary.activity_id).filter(or_(
+            extract('year', stravaSummary.start_date_utc) == datetime.utcnow().year,
+            extract('year', stravaSummary.start_date_utc) == (datetime.utcnow().year - 1))
+        ).statement, con=engine, index_col='start_date_utc').sort_index(ascending=True)
+
     engine.dispose()
     session.close()
-    df = df_summary[
-        ((df_summary.index.year == datetime.now().year) | (df_summary.index.year == datetime.now().year - 1))  # &
-        # ((df_summary['type'].str.lower().str.contains("run")) | (df_summary['type'].str.lower().str.contains("ride"))
-        #  | (df_summary['type'].str.lower().str.contains("weight")))
-    ]
+
     df['year'] = df.index.year
     df['day'] = df.index.dayofyear
 
@@ -648,10 +681,9 @@ def create_growth_chart(df_summary, metric='tss'):
         )
     )
 
-    hoverData = {'points': [{'x': current_date, 'y': curr_tss, 'customdata': 'cy'},
-                            {'x': current_date, 'y': ly_tss, 'customdata': 'ly'},
-                            {'x': current_date, 'y': target, 'customdata': 'target'}]
-                 },
+    hoverData = dict(points=[{'x': current_date, 'y': curr_tss, 'customdata': 'cy'},
+                             {'x': current_date, 'y': ly_tss, 'customdata': 'ly'},
+                             {'x': current_date, 'y': target, 'customdata': 'target'}])
 
     figure = {
         'data': data,
@@ -676,8 +708,9 @@ def create_growth_chart(df_summary, metric='tss'):
             legend=dict(
                 x=.5,
                 y=1,
+                bgcolor='rgba(0,0,0,0)',
                 xanchor='center',
-                orientation="h",
+                orientation='h',
             ),
             autosize=True,
             hovermode='x'
@@ -1372,73 +1405,41 @@ def workout_distribution(run_status, ride_status, all_status):
 
 
 def workout_summary_kpi(df_samples):
-    return html.Div(className='twelve columns', style={'height': '100%'}, children=[
-        html.Div(style={'height': '25%', 'width': '100%', 'display': 'table'}, children=[
-            html.Div(style={'display': 'table-cell', 'verticalAlign': 'middle'}, children=[
-
-                html.H6('Power', className='nospace', style={'textAlign': 'center'}),
-
-                html.P('Max: {:.0f}'.format(df_samples['watts'].max()), className='nospace',
-                       style={'fontSize': '1.5rem', 'textAlign': 'center'}),
-
-                html.P('Avg: {:.0f}'.format(df_samples['watts'].mean()), className='nospace',
-                       style={'fontSize': '1.5rem', 'textAlign': 'center'}),
-
-                html.P('Min: {:.0f}'.format(df_samples['watts'].min()), className='nospace',
-                       style={'fontSize': '1.5rem', 'textAlign': 'center'})
-
+    return [
+        html.Div(className='text-center', style={'height': '25%'}, children=[
+            html.Div(children=[
+                html.H5('Power', className='text-center mb-0'),
+                html.P('Max: {:.0f}'.format(df_samples['watts'].max()), className='text-center mb-0'),
+                html.P('Avg: {:.0f}'.format(df_samples['watts'].mean()), className='text-center mb-0'),
+                html.P('Min: {:.0f}'.format(df_samples['watts'].min()), className='text-center mb-0')
+            ])
+        ]),
+        html.Div(className='text-center', style={'height': '25%'}, children=[
+            html.Div(children=[
+                html.H5('Heartrate', className='text-center mb-0'),
+                html.P('Max: {:.0f}'.format(df_samples['heartrate'].max()), className='text-center mb-0'),
+                html.P('Avg: {:.0f}'.format(df_samples['heartrate'].mean()), className='text-center mb-0'),
+                html.P('Min: {:.0f}'.format(df_samples['heartrate'].min()), className='text-center mb-0')
+            ])
+        ]),
+        html.Div(className='text-center', style={'height': '25%'}, children=[
+            html.Div(children=[
+                html.H5('Speed', className='text-center mb-0'),
+                html.P('Max: {:.0f}'.format(df_samples['velocity_smooth'].max()), className='text-center mb-0'),
+                html.P('Avg: {:.0f}'.format(df_samples['velocity_smooth'].mean()), className='text-center mb-0'),
+                html.P('Min: {:.0f}'.format(df_samples['velocity_smooth'].min()), className='text-center mb-0')
+            ])
+        ]),
+        html.Div(className='text-center', style={'height': '25%'}, children=[
+            html.Div(children=[
+                html.H5('Cadence', className='text-center mb-0'),
+                html.P('Max: {:.0f}'.format(df_samples['cadence'].max()), className='text-center mb-0'),
+                html.P('Avg: {:.0f}'.format(df_samples['cadence'].mean()), className='text-center mb-0'),
+                html.P('Min: {:.0f}'.format(df_samples['cadence'].min()), className='text-center mb-0')
             ])
         ]),
 
-        html.Div(style={'height': '25%', 'width': '100%', 'display': 'table'}, children=[
-            html.Div(style={'display': 'table-cell', 'verticalAlign': 'middle'}, children=[
-                html.H6('Heart Rate', className='nospace', style={'textAlign': 'center'}),
-
-                html.P('Max: {:.0f}'.format(df_samples['heartrate'].max()), className='nospace',
-                       style={'fontSize': '1.5rem', 'textAlign': 'center'}),
-
-                html.P('Avg: {:.0f}'.format(df_samples['heartrate'].mean()), className='nospace',
-                       style={'fontSize': '1.5rem', 'textAlign': 'center'}),
-
-                html.P('Min: {:.0f}'.format(df_samples['heartrate'].min()), className='nospace',
-                       style={'fontSize': '1.5rem', 'textAlign': 'center'})
-
-            ])
-        ]),
-
-        html.Div(style={'height': '25%', 'width': '100%', 'display': 'table'}, children=[
-            html.Div(style={'display': 'table-cell', 'verticalAlign': 'middle'}, children=[
-
-                html.H6('Speed', className='nospace', style={'textAlign': 'center'}),
-
-                html.P('Max: {:.0f}'.format(df_samples['velocity_smooth'].max()), className='nospace',
-                       style={'fontSize': '1.5rem', 'textAlign': 'center'}),
-
-                html.P('Avg: {:.0f}'.format(df_samples['velocity_smooth'].mean()), className='nospace',
-                       style={'fontSize': '1.5rem', 'textAlign': 'center'}),
-
-                html.P('Min: {:.0f}'.format(df_samples['velocity_smooth'].min()), className='nospace',
-                       style={'fontSize': '1.5rem', 'textAlign': 'center'})
-
-            ])
-        ]),
-
-        html.Div(style={'height': '25%', 'width': '100%', 'display': 'table'}, children=[
-            html.Div(style={'display': 'table-cell', 'verticalAlign': 'middle'}, children=[
-                html.H6('Cadence', className='nospace', style={'textAlign': 'center'}),
-
-                html.P('Max: {:.0f}'.format(df_samples['cadence'].max()), className='nospace',
-                       style={'fontSize': '1.5rem', 'textAlign': 'center'}),
-
-                html.P('Avg: {:.0f}'.format(df_samples['cadence'].mean()), className='nospace',
-                       style={'fontSize': '1.5rem', 'textAlign': 'center'}),
-
-                html.P('Min: {:.0f}'.format(df_samples['cadence'].min()), className='nospace',
-                       style={'fontSize': '1.5rem', 'textAlign': 'center'})
-            ])
-        ])
-
-    ])
+    ]
 
 
 def workout_details(df_samples, start_seconds=None, end_seconds=None):
@@ -1459,10 +1460,6 @@ def workout_details(df_samples, start_seconds=None, end_seconds=None):
     else:
         highlight_df = df_samples[df_samples['activity_id'] == 0]  # Dummy
 
-    annotation_font = dict(
-        size=16
-    )
-
     # Remove best points from main df_samples so lines do not overlap nor show 2 hoverinfos
     for idx, row in df_samples.iterrows():
         if idx in highlight_df.index:
@@ -1471,107 +1468,6 @@ def workout_details(df_samples, start_seconds=None, end_seconds=None):
             df_samples.loc[idx, 'heartrate'] = np.nan
             df_samples.loc[idx, 'watts'] = np.nan
 
-    # fig = make_subplots(
-    #     rows=4, cols=1, shared_xaxes=True, #vertical_spacing=0.02
-    # )
-    #
-    # fig.add_trace(go.Scatter(x=df_samples['time_interval'], y=round(df_samples['velocity_smooth'])),
-    #               row=4, col=1)
-    # fig.add_trace(go.Scatter(x=df_samples['time_interval'], y=round(highlight_df['velocity_smooth'])),
-    #               row=4, col=1)
-    #
-    # fig.add_trace(go.Scatter(x=df_samples['time_interval'], y=round(df_samples['watts'])),
-    #               row=3, col=1)
-    # fig.add_trace(go.Scatter(x=df_samples['time_interval'], y=round(highlight_df['watts'])),
-    #               row=3, col=1)
-    #
-    # fig.add_trace(go.Scatter(x=df_samples['time_interval'], y=round(df_samples['heartrate'])),
-    #               row=2, col=1)
-    # fig.add_trace(go.Scatter(x=df_samples['time_interval'], y=round(highlight_df['heartrate'])),
-    #               row=2, col=1)
-    #
-    # fig.add_trace(go.Scatter(x=df_samples['time_interval'], y=round(df_samples['cadence'])),
-    #               row=1, col=1)
-    # fig.add_trace(go.Scatter(x=df_samples['time_interval'], y=round(highlight_df['cadence'])),
-    #               row=1, col=1)
-    #
-    #
-    # import pprint
-    # pprint.pprint(fig)
-    #
-    # fig.update_layout(
-
-    #     showlegend=False,
-    #     font=dict(
-    #         color='rgb(220,220,220)'
-    #         ),
-    #     hovermode='x',
-    #     margin={'l': 40, 'b': 25, 't': 25, 'r': 40},
-    #
-    #     xaxis1=dict(
-    #         showticklabels=False,
-    #         showgrid=False,
-    #         tickformat="%Mm",
-    #         hoverformat="%H:%M:%S",
-    #         spikemode='across',
-    #         showspikes=True,
-    #         zeroline=False,
-    #     ),
-    #     xaxis2=dict(
-    #         showticklabels=False,
-    #         showgrid=False,
-    #         tickformat="%Mm",
-    #         hoverformat="%H:%M:%S",
-    #         spikemode='across',
-    #         showspikes=True,
-    #         zeroline=False,
-    #     ),
-    #     xaxis3=dict(
-    #         showticklabels=False,
-    #         showgrid=False,
-    #         tickformat="%Mm",
-    #         hoverformat="%H:%M:%S",
-    #         spikemode='across',
-    #         showspikes=True,
-    #         zeroline=False,
-    #     ),
-    #     xaxis4=dict(
-    #         showticklabels=True,
-    #         showgrid=False,
-    #         tickformat="%Mm",
-    #         hoverformat="%H:%M:%S",
-    #         spikemode='across',
-    #         showspikes=True,
-    #         zeroline=False,
-    #     ),
-    #
-    #     yaxis=dict(
-    #         showgrid=False,
-    #         showticklabels=False,
-    #         zeroline=False,
-    #         # anchor='x'
-    #     ),
-    #     yaxis2=dict(
-    #         showgrid=False,
-    #         showticklabels=False,
-    #         zeroline=False,
-    #         # anchor='x'
-    #     ),
-    #     yaxis3=dict(
-    #         showgrid=False,
-    #         showticklabels=False,
-    #         zeroline=False,
-    #         # anchor='x'
-    #     ),
-    #     yaxis4=dict(
-    #         showgrid=False,
-    #         showticklabels=False,
-    #         zeroline=False,
-    #         # anchor='x'
-    #     )
-    #
-    # )
-
     return html.Div(className='twelve columns', style={'height': '100%'}, children=[
         dcc.Graph(
             id='trends', style={'height': '100%'},
@@ -1579,8 +1475,7 @@ def workout_details(df_samples, start_seconds=None, end_seconds=None):
                 'displayModeBar': False,
             },
             # figure= fig
-            figure=
-            {
+            figure={
                 'data': [
                     go.Scatter(
                         name='Speed',
@@ -1904,7 +1799,7 @@ def calculate_splits(df_samples):
         df_samples_table_columns = ['mile_marker', 'time_str']
         col_names = ['Mile', 'Pace']
 
-        return html.Div(className='twelve columns', style={'height': '100%'}, children=[
+        return html.Div(className='table', style={'height': '100%'}, children=[
             dash_table.DataTable(
                 columns=[{"name": x, "id": y} for (x, y) in
                          zip(col_names, df_samples[df_samples_table_columns].columns)],
@@ -1912,18 +1807,17 @@ def calculate_splits(df_samples):
                 style_as_list_view=True,
                 fixed_rows={'headers': True, 'data': 0},
                 style_table={'height': '100%'},
-                style_header={'backgroundColor': 'rgb(66, 66, 66)',
-                              'borderBottom': '1px solid rgb(220, 220, 220)',
+                style_header={'backgroundColor': 'rgba(0, 0, 0, 0)',
+                              # 'borderBottom': '1px solid rgb(220, 220, 220)',
+                              'textAlign': 'center',
                               'borderTop': '0px',
-                              'textAlign': 'left',
-                              'fontWeight': 'bold',
+                              # 'fontWeight': 'bold',
                               'fontFamily': '"Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif',
-                              # 'fontSize': '1.2rem'
                               },
                 style_cell={
-                    'backgroundColor': 'rgb(66, 66, 66)',
-                    'color': 'rgb(220, 220, 220)',
-                    'borderBottom': '1px solid rgb(73, 73, 73)',
+                    'backgroundColor': 'rgba(0, 0, 0, 0)',
+                    'textAlign': 'center',
+                    # 'borderBottom': '1px solid rgb(73, 73, 73)',
                     'maxWidth': 100,
                     'fontFamily': '"Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif',
                 },
@@ -2026,21 +1920,31 @@ def update_fitness_kpis(hoverData):
     [Output('pm-chart', 'figure'),
      Output('pm-chart', 'hoverData'),
      Output('workout-type-distributions', 'data')],
-    [Input("close-annotation-modal-button", "n_clicks"),
-     Input('ride-pmc-switch', 'on'),
+    [Input('ride-pmc-switch', 'on'),
      Input('run-pmc-switch', 'on'),
      Input('all-pmc-switch', 'on')],
     [State('ride-pmc-switch', 'on'),
      State('run-pmc-switch', 'on'),
      State('all-pmc-switch', 'on')]
 )
-def refresh_fitness_chart(dummy_annotation_refresh, ride_switch, run_switch, all_switch, ride_status, run_status,
+def refresh_fitness_chart(ride_switch, run_switch, all_switch, ride_status, run_status,
                           all_status):
     pmc_figure, hoverData = create_fitness_chart(ride_status=ride_status, run_status=run_status,
                                                  all_status=all_status)
 
     return pmc_figure, hoverData, workout_distribution(ride_status=ride_status, run_status=run_status,
                                                        all_status=all_status)
+
+
+# # Create Growth Chart
+# @app.callback(
+#     [Output('growth-chart', 'figure'),
+#      Output('growth-chart', 'hoverData')],
+#     [Input('performance-page-load-dummy', 'children')]
+# )
+# def update_fitness_table(dummy_for_page_load):
+#     figure, hoverData = create_growth_chart()
+#     return figure, hoverData
 
 
 # Growth Chart KPIs
@@ -2068,9 +1972,10 @@ def update_growth_kpis(hoverData):
 
 @app.callback(
     Output('activity-table', 'data'),
-    [Input('pm-chart', 'clickData')])
+    [Input('pm-chart', 'clickData')]
+)
 def update_fitness_table(clickData):
-    if clickData is not None:
+    if clickData:
         if len(clickData['points']) >= 3:
             date = clickData['points'][0]['x']
             return create_activity_table(date)
@@ -2082,19 +1987,21 @@ def update_fitness_table(clickData):
 @app.callback(
     [Output("activity-modal", "is_open"),
      Output("activity-modal-header", "children"),
-     Output("modal-activity-id-type-metric-metric", 'children')],
-    [Input('activity-table', 'n_clicks'),
-     Input("close-activity-modal-button", "n_clicks"),
-     Input('activity-table', 'children')],
-    [State("activity-modal", "is_open")]
+     Output("modal-activity-id-type-metric", 'children')],
+    [Input('activity-table', 'active_cell'),
+     Input("close-activity-modal-button", "n_clicks")],
+    [State('activity-table', 'data'),
+     State("activity-modal", "is_open")]
 )
-def toggle_activity_modal(n1, n2, data, is_open):
-    if n1 or n2:
-        # if open, populate charts
-        if not is_open:
-            if 'active_cell' in data['props']:
-                active_cell = data['props']['active_cell']['row']
-                activity_id = data['props']['derived_viewport_data'][active_cell]['activity_id']
+def toggle_activity_modal(active_cell, n2, data, is_open):
+    if active_cell or n2:
+        try:
+            activity_id = data[active_cell['row']]['activity_id']
+        except:
+            activity_id = None
+        if activity_id:
+            # if open, populate charts
+            if not is_open:
                 session, engine = db_connect()
                 activity = session.query(stravaSummary).filter(stravaSummary.activity_id == activity_id).first()
                 engine.dispose()
@@ -2105,16 +2012,16 @@ def toggle_activity_modal(n1, n2, data, is_open):
                                      activity.name)), '{}|{}|{}'.format(activity_id,
                                                                         'ride' if 'ride' in activity.type else 'run' if 'run' in activity.type else activity.type,
                                                                         'power_zone' if activity.max_watts and activity.ftp else 'hr_zone')
-        else:
-            return not is_open, None, None
+            else:
+                return not is_open, None, None
     return is_open, None, None
 
 
 # Activity modal power curve callback
 @app.callback(
-    [Output("modal-power-curve", "children"),
-     Output("modal-power-curve-container", "style")],
-    [Input("modal-activity-id-type-metric-metric", "children")],
+    [Output("modal-power-curve-chart", "figure"),
+     Output("modal-power-curve-card", "style")],
+    [Input("modal-activity-id-type-metric", "children")],
     [State("activity-modal", "is_open")]
 )
 def modal_power_curve(activity, is_open):
@@ -2124,20 +2031,19 @@ def modal_power_curve(activity, is_open):
         metric = activity.split('|')[2]
         # Only show power zone chart if power data exists
         if metric == 'power_zone':
-            return power_curve(last_id=activity_id, activity_type=activity_type, showlegend=True,
-                               chart_id='modal-power-curve-chart'), {
-                       'height': '100%'}
+            figure, horverData = power_curve(last_id=activity_id, activity_type=activity_type, showlegend=True)
+            return figure, {'height': '100%'}
         else:
-            return None, {'display': 'none'}
+            return {}, {'display': 'None'}
     else:
-        return None, {'display': 'none'}
+        return {}, {'display': 'None'}
 
 
 # Activity modal power zone callback
 @app.callback(
-    [Output("modal-power-zones", "children"),
+    [Output("modal-zones", "children"),
      Output("modal-zone-title", "children")],
-    [Input("modal-activity-id-type-metric-metric", "children")],
+    [Input("modal-activity-id-type-metric", "children")],
     [State("activity-modal", "is_open")]
 )
 def modal_power_zone(activity, is_open):
@@ -2145,7 +2051,8 @@ def modal_power_zone(activity, is_open):
         activity_id = activity.split('|')[0]
         metric = activity.split('|')[2]
         return zone_chart(activity_id=activity_id, metric=metric,
-                          chart_id='modal-power-zone-chart'), 'Heart Rate Zones' if metric == 'hr_zone' else 'Power Zones'
+                          chart_id='modal-power-zone-chart'), html.H4(
+            'Heart Rate Zones') if metric == 'hr_zone' else html.H4('Power Zones')
     else:
         return None, None
 
@@ -2155,7 +2062,7 @@ def modal_power_zone(activity, is_open):
     [Output("modal-workout-summary", "children"),
      Output("modal-workout-trends", "children"),
      Output("modal-workout-stats", "children")],
-    [Input("modal-activity-id-type-metric-metric", "children")],
+    [Input("modal-activity-id-type-metric", "children")],
     [State("activity-modal", "is_open")]
 )
 def modal_workout_trends(activity, is_open):
@@ -2173,15 +2080,14 @@ def modal_workout_trends(activity, is_open):
         return None, None, None
 
 
-# Annotation Modal Toggle
+# # Annotation Modal Toggle
 @app.callback(
     Output("annotation-modal", "is_open"),
-    [Input('open-annotation-modal-button', 'n_clicks'),
-     Input("close-annotation-modal-button", "n_clicks")],
+    [Input('open-annotation-modal-button', 'n_clicks')],
     [State("annotation-modal", "is_open")],
 )
-def toggle_annotation_modal(n1, n2, is_open):
-    if n1 or n2:
+def toggle_annotation_modal(n1, is_open):
+    if n1:
         return not is_open
     return is_open
 
@@ -2232,30 +2138,12 @@ def annotation_table(n_clicks, password, data):
             app.server.logger.error('Error with annotations DB transactions'.format(e))
             session.rollback()
 
-        return [html.Div(className='twelve columns',
-                         style={'backgroundColor': 'rgb(48, 48, 48)', 'paddingBottom': '1vh'}),
-                html.I(className='fa fa-check',
-                       style={'display': 'inline-block', 'color': 'green', 'paddingLeft': '1vw',
-                              'fontSize': '150%'})]
+        return html.I(className='fa fa-check',
+                      style={'display': 'inline-block', 'color': 'green', 'paddingLeft': '1vw',
+                             'fontSize': '150%'})
     elif n_clicks > 0 and password != config.get('settings', 'password'):
-        return [html.Div(className='twelve columns',
-                         style={'backgroundColor': 'rgb(48, 48, 48)', 'paddingBottom': '1vh'}),
-                html.I(className='fa fa-times',
-                       style={'display': 'inline-block', 'color': 'red', 'paddingLeft': '1vw',
-                              'fontSize': '150%'})]
-
-# # Main Dashboard Generation Callback
-# @app.callback(
-#     Output('performance-layout', 'children'),
-#     [Input('performance-canvas', 'children')]
-# )
-# def performance_dashboard(dummy):
-#     session, engine = db_connect()
-#     db_summary = pd.read_sql(sql=session.query(stravaSummary).statement, con=engine,
-#                              index_col='start_date_local').sort_index(ascending=True)
-#     engine.dispose()
-#     session.close()
-#     return generate_fitness_dashboard(db_summary)
+        return html.I(className='fa fa-times',
+                      style={'display': 'inline-block', 'color': 'red', 'paddingLeft': '1vw', 'fontSize': '150%'})
 
 # Cycling
 # Low: PZ Endurance and Yoga / Weights
