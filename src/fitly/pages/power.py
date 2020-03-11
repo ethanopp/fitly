@@ -593,7 +593,7 @@ def zone_chart(activity_id=None, metric='power_zone', chart_id='power-zone-chart
 
 @app.callback(
     [Output('power-curve-chart', 'figure'),
-    Output('power-curve-chart', 'hoverData')],
+     Output('power-curve-chart', 'hoverData')],
     [Input('activity-type-toggle', 'value'),
      Input('power-unit-toggle', 'value')]
 )
@@ -901,29 +901,19 @@ def get_layout(**kwargs):
         html.Div(id='power-curve-and-zone', className='row mt-2 mb-2',
                  children=[
                      html.Div(className='col-lg-6', children=[
-
                          dbc.Card(children=[
                              dbc.CardHeader(id='power-curve-kpis'),
-                             # TODO: Add dcc.Loading() for power curve once able to not have it load on hoverData per
-                             # https://github.com/plotly/dash/issues/951
                              dbc.CardBody(
                                  dcc.Graph(id='power-curve-chart', config={'displayModeBar': False},
                                            style={'height': '100%'}))
-
-                         ]
-                         ),
-
+                         ]),
                      ]),
-
                      html.Div(className='col-lg-6', children=[
-
                          dbc.Card(children=[
                              dbc.CardHeader(html.H4(id='ftp-current')),
                              dbc.Tooltip(
                                  'Functional Threshold Power (FTP) is the highest average power you can sustain for 1 hour, measured in watts. FTP is used to determine training zones when using a power meter and to measure improvement.',
                                  target="ftp-current", ),
-                             # TODO: Add dcc.Loading() for power curve once able to not have it load on hoverData per
-                             # https://github.com/plotly/dash/issues/951
                              dbc.CardBody(dcc.Graph(id='ftp-chart', config={'displayModeBar': False},
                                                     style={'height': '100%'}, ))
                          ]
