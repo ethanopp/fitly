@@ -483,20 +483,17 @@ def create_fitness_kpis(date, ctl, ramp, rr_min_threshold, rr_max_threshold, atl
             html.Div(id='workout-recommendation', className='row text-center', children=[
                 html.Div(className='col-lg-4',
                          children=[
-                             html.H6('HRV Recommendation: {}'.format(plan_recommendation), id='hrv-rationale',
-                                     className='nospace')]),
+                             html.H6('HRV Recommendation: {}'.format(plan_recommendation), id='hrv-rationale')]),
                 dbc.Tooltip(None if plan_recommendation == 'N/A' else plan_rationale,
                             target="hrv-rationale", ),
                 html.Div(className='col-lg-4',
                          children=[
-                             html.H6('Oura Recommendation: {}'.format(oura_recommendation), id='oura-rationale',
-                                     className='nospace')]),
+                             html.H6('Oura Recommendation: {}'.format(oura_recommendation), id='oura-rationale')]),
                 dbc.Tooltip(oura_rationale,
                             target="oura-rationale", ),
                 html.Div(className='col-lg-4',
                          children=[
-                             html.H6('Injury Risk: {}'.format(injury_risk), id='injury-rationale',
-                                     className='nospace')]),
+                             html.H6('Injury Risk: {}'.format(injury_risk), id='injury-rationale')]),
                 dbc.Tooltip('7 day CTL △ = {:.1f}'.format(ramp),
                             target="injury-rationale", ),
 
@@ -1348,19 +1345,19 @@ def workout_distribution(run_status, ride_status, all_status):
         'total_intensity_seconds'].sum()) * 100
     df_temp['Percent of Total'] = df_temp['Percent of Total'].apply(lambda x: '{:.0f}%'.format(x))
 
-    html.Div(id='{}-container'.format('total_intensity_seconds'), className='twelve columns maincontainer nospace',
+    html.Div(id='{}-container'.format('total_intensity_seconds'), className='row',
              style={'overflow': 'hidden', 'height': '100%'},
              children=[
                  html.H6(id='{}-title'.format('total_intensity_seconds'),
                          # children=['{}'.format(intensity.split('_')[0].capitalize())],
                          children=['Workouts'],
-                         className='twelve columns nospace',
+                         className='col',
                          style={'height': '10%'}),
                  # dbc.Tooltip('{} intensity workout distribution over the last 6 weeks.'.format('High' if intensity == 'high_intensity_seconds' else 'Low'),
                  dbc.Tooltip('Workout distribution over the last 6 weeks.',
                              target='{}-title'.format('total_intensity_seconds'), ),
 
-                 html.Div(id='{}-table'.format('total_intensity_seconds'), className='twelve columns',
+                 html.Div(id='{}-table'.format('total_intensity_seconds'), className='col',
                           style={'overflow': 'scroll', 'height': '90%'},
                           children=[
                               dash_table.DataTable(
@@ -1466,7 +1463,7 @@ def workout_details(df_samples, start_seconds=None, end_seconds=None):
             df_samples.loc[idx, 'heartrate'] = np.nan
             df_samples.loc[idx, 'watts'] = np.nan
 
-    return html.Div(className='twelve columns', style={'height': '100%'}, children=[
+    return html.Div([
         dcc.Graph(
             id='trends', style={'height': '100%'},
             config={
@@ -1766,7 +1763,7 @@ def workout_details(df_samples, start_seconds=None, end_seconds=None):
             }
         )])
 
-
+# TODO: Debug this function - check activity ID: 3168258393
 def calculate_splits(df_samples):
     if np.isnan(df_samples['distance'].max()):
         return None
