@@ -26,7 +26,7 @@ def get_layout(**kwargs):
         html.Div(id='lifting-header', className='row', children=[
             html.Div(className='col-lg-6 offset-md-3 align-self-center text-center mt-2 mb-2', children=[
 
-                dcc.Dropdown(id='muscle-options', className='nospace bg-light',
+                dcc.Dropdown(id='muscle-options', className='bg-light',
                              style={'backgroundColor': 'rgba(0,0,0,0)'},
                              options=[
                                  {'label': 'Abs', 'value': 'Abs'},
