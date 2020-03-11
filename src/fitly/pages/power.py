@@ -89,9 +89,8 @@ def get_workout_title(activity_id=None):
     engine.dispose()
     session.close()
 
-    return [html.H6(datetime.strftime(df_samples['date'][0], "%A %b %d, %Y"), style={'height': '50%'},
-                    className='twelve columns nospace'),
-            html.H6(df_samples['act_name'][0], style={'height': '50%'}, className='twelve columns nospace')]
+    return [html.H6(datetime.strftime(df_samples['date'][0], "%A %b %d, %Y"), style={'height': '50%'}),
+            html.H6(df_samples['act_name'][0], style={'height': '50%'})]
 
 
 def power_profiles(interval, activity_type='ride', power_unit='mmp', group='month'):
@@ -439,9 +438,7 @@ def create_ftp_chart(activity_type='ride', power_unit='watts'):
     title = 'Current FTP {:.0f} W' if metric == 'ftp' else 'Current FTP {:.1f} W/kg'
 
     if len(df_ftp) < 1:
-        return html.Div(className='twelve columns ', children=[
-            html.H6('No {} FTP tests found'.format(activity_type))
-        ])
+        return None, {}
 
     df_ftp['ftp_%'] = ['{}{:.0f}%'.format('+' if x > 0 else '', x) if x != 0 else '' for x in
                        (((df_ftp[metric] - df_ftp[metric].shift(1)) / df_ftp[metric].shift(1)) * 100).fillna(0)]
@@ -932,19 +929,17 @@ def get_layout(**kwargs):
                          ),
 
                      ]),
-
                  ]),
         html.Div(id='power-profile-header',
                  className='row text-center mt-2 mb-2', children=[
                 html.Div(className='col', children=[
                     html.H6('Power Profiles by'),
-                    html.Div(id='power-profile-buttons', className='twelve columns nospace', children=[
+                    html.Div(id='power-profile-buttons', className='col', children=[
                         dbc.Button('Day', id='day-button', color='primary', size='md'),
                         dbc.Button('Week', id='week-button', color='primary', size='md'),
                         dbc.Button('Month', id='month-button', color='primary', size='md'),
                         dbc.Button('Year', id='year-button', color='primary', size='md'),
                     ]),
-
                 ]),
             ]),
 
