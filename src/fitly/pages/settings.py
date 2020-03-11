@@ -56,36 +56,36 @@ def get_layout(**kwargs):
 def check_oura_connection():
     # If not connected, send to auth app page to start token request
     if not oura_connected():
-        return html.A(style={'textAlign': 'center'}, children=[
+        return html.A(className='text-center col-lg-12', children=[
             dbc.Button('Connect Oura', id='connect-oura-button', color='primary', className='text-center mb-2',
                        size='md')],
                       href=connect_oura_link(oura_auth_client))
     else:
-        return html.H4('Oura Connected!')
+        return html.H4('Oura Connected!', className='text-center col-lg-12',)
 
 
 def check_strava_connection():
     # If not connected, send to auth app page to start token request
     if not strava_connected():
-        return html.A(style={'textAlign': 'center'}, children=[
+        return html.A(className='text-center col-lg-12', children=[
             dbc.Button('Connect Strava', id='connect-strava-button', color='primary', className='text-center mb-2',
                        size='md')],
                       href=connect_strava_link(get_strava_client()))
     else:
-        return html.H4('Strava Connected!')
+        return html.H4('Strava Connected!', className='text-center col-lg-12',)
 
 
 def check_withings_connection():
     # If not connected, send to auth app page to start token request
     if not withings_connected():
-        return html.A(style={'textAlign': 'center'}, children=[
+        return html.A(className='text-center col-lg-12', children=[
             dbc.Button('Connect Withings', id='connect-withings-btton', color='primary', className='text-center mb-2',
                        size='md')],
                       href=connect_withings_link(
                           NokiaAuth(config.get('withings', 'client_id'), config.get('withings', 'client_secret'),
                                     callback_uri=config.get('withings', 'redirect_uri'))))
     else:
-        return html.H4('Withings Connected!')
+        return html.H4('Withings Connected!', className='text-center col-lg-12',)
 
 
 def generate_cycle_power_zone_card():
@@ -219,7 +219,7 @@ def generate_hr_zone_card():
         dbc.CardHeader(html.H4('Heart Rate Zones')),
         dbc.CardBody(className='text-center', children=[
 
-            html.H5('Based of Resting Heart Rate: {}'.format(rhr), className='nospace'),
+            html.H5('Based of Resting Heart Rate: {}'.format(rhr)),
             html.H6('Aerobic Z1: <= {:.0f}'.format(z1), className='col'),
             html.H6('Aerobic Z2 : {:.0f} - {:.0f}'.format(z1 + 1, z2),
                     className='col'),
@@ -266,7 +266,7 @@ def goal_parameters():
             generate_goal(id='rr-min-goal', title='Low Ramp Rate Injury Threshold', value=athlete_info.rr_min_goal),
 
             html.Div(className='col', children=[
-                html.H6('Use weekly TSS for fitness goals', className='nospace',
+                html.H6('Use weekly TSS for fitness goals',
                         style={'display': 'inline-block', 'paddingRight': '1%'}),
                 daq.BooleanSwitch(
                     id='use-tss-for-goal-switch',
@@ -275,7 +275,7 @@ def goal_parameters():
                 )
             ]),
             html.Div(className='col', children=[
-                html.H6('Use readiness for workout / yoga goals', className='nospace',
+                html.H6('Use readiness for workout / yoga goals',
                         style={'display': 'inline-block', 'paddingRight': '1%'}),
                 daq.BooleanSwitch(
                     id='use-readiness-for-goal-switch',
@@ -848,9 +848,9 @@ from ..utils import get_url
 def update_api_connection_status(n_clicks):
     if n_clicks and n_clicks > 0:
         return html.Div(children=[
-            html.Div(className='twelve columns', children=[check_oura_connection()]),
-            html.Div(className='twelve columns', children=[check_strava_connection()]),
-            html.Div(className='twelve columns', children=[check_withings_connection()])
+            html.Div(className='row ', children=[check_oura_connection()]),
+            html.Div(className='row', children=[check_strava_connection()]),
+            html.Div(className='row', children=[check_withings_connection()])
         ])
 
 
