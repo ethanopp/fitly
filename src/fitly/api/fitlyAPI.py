@@ -207,12 +207,13 @@ class FitlyActivity(stravalib.model.Activity):
 
         # Convert pd date to datetime to compare in sqlalchemy queries
         date = self.start_date.date()
+
         # Query exercises within trailing 6 weeks of exercise date
         session, engine = db_connect()
         df = pd.read_sql(
             sql=session.query(fitbod).filter(
-                (date - timedelta(days=180)) <= cast(fitbod.date_utc, Date),
-                cast(fitbod.date_utc, Date) <= date
+                (date - timedelta(days=180)) <= fitbod.date_utc,
+                fitbod.date_utc <= date + timedelta(days=1)
             ).statement, con=engine).sort_index(ascending=True)
         engine.dispose()
         session.close()
@@ -226,7 +227,7 @@ class FitlyActivity(stravalib.model.Activity):
             # Get 'Best' sets on all exercises in the 6 weeks preceeding current workout being analyzed
             df_1rm = df.copy()
             # Dont include current workout to get 1RMs to compare against
-            df_1rm = df_1rm[df_1rm['date_UTC'] != date]
+            df_1rm = df_1rm[df_1rm['date_UTC'].dt.date != date]
             df_1rm = df_1rm.loc[df_1rm.groupby('Exercise')['Volume'].agg(pd.Series.idxmax)].reset_index()
             # Calculate Brzycki 1RM based off last 6 weeks of workouts
             df_1rm['one_rep_max'] = (df_1rm['Weight'] * (36 / (37 - df_1rm['Reps'])))
@@ -240,7 +241,7 @@ class FitlyActivity(stravalib.model.Activity):
 
             # Filter main df back to current workout which we are assigning 1rms to
 
-            df = df[df['date_UTC'] == date]
+            df = df[df['date_UTC'].dt.date == date]
             # Merge in 1rms
             df = df.merge(df_1rm[['Exercise', 'one_rep_max', 'weight_duration_max']], how='left',
                           left_on='Exercise',
