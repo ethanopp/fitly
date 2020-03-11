@@ -216,7 +216,7 @@ def generate_hr_zone_card():
     z4 = round((hrr * hr_zone_threshold_4) + rhr)
 
     return dbc.Card([
-        dbc.CardHeader(html.H4('Current Heart Rate Zones')),
+        dbc.CardHeader(html.H4('Heart Rate Zones')),
         dbc.CardBody(className='text-center', children=[
 
             html.H5('Based of Resting Heart Rate: {}'.format(rhr), className='nospace'),
