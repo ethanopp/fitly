@@ -29,7 +29,7 @@ def get_layout(**kwargs):
 
     return html.Div([
         # Dummy div for simultaneous callbacks on page load
-        dbc.Modal(id="annotation-modal", centered=True, autoFocus=True, fade=False, backdrop='static', size='l',
+        dbc.Modal(id="annotation-modal", centered=True, autoFocus=True, fade=False, backdrop='static', size='lg',
                   children=[
                       dbc.ModalHeader(id='annotation-modal-header', children=['Annotations']),
                       dbc.ModalBody(id='annotation-modal-body',
