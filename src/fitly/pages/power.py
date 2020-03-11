@@ -592,15 +592,16 @@ def zone_chart(activity_id=None, metric='power_zone', chart_id='power-zone-chart
 
 
 @app.callback(
-    Output('power-curve-chart', 'figure'),
+    [Output('power-curve-chart', 'figure'),
+    Output('power-curve-chart', 'hoverData')],
     [Input('activity-type-toggle', 'value'),
      Input('power-unit-toggle', 'value')]
 )
 def update_power_curve(activity_type, power_unit):
     power_unit = 'watts_per_kg' if power_unit else 'mmp'
     activity_type = 'run' if activity_type else 'ride'
-    figure, hoverdata = power_curve(activity_type, power_unit)
-    return figure
+    figure, hoverData = power_curve(activity_type, power_unit)
+    return figure, hoverData
 
 
 # # Callbacks to figure out which is the latest chart that was clicked
