@@ -617,14 +617,13 @@ def hrv_training_workflow(min_non_warmup_workout_time, athlete_id=1):
         con=engine, index_col='date')
 
     if len(db_test) == 0:
-        min_oura_date = session.query(func.min(ouraSleepSummary.report_date))[0][0]
-        db_test.at[pd.to_datetime(min_oura_date + timedelta(29)), 'athlete_id'] = athlete_id
-        db_test.at[pd.to_datetime(min_oura_date + timedelta(29)), 'hrv_workout_step'] = 0
-        db_test.at[pd.to_datetime(min_oura_date + timedelta(29)), 'hrv_workout_step_desc'] = 'Low'
-        db_test.at[pd.to_datetime(min_oura_date + timedelta(29)), 'completed'] = 0
-        db_test.at[
-            pd.to_datetime(min_oura_date + timedelta(
-                29)), 'rationale'] = 'This is the first date 30 day hrv thresholds could be calculated'
+        min_oura_date = pd.to_datetime(
+            session.query(func.min(ouraSleepSummary.report_date))[0][0] + timedelta(29)).date()
+        db_test.at[min_oura_date, 'athlete_id'] = athlete_id
+        db_test.at[min_oura_date, 'hrv_workout_step'] = 0
+        db_test.at[min_oura_date, 'hrv_workout_step_desc'] = 'Low'
+        db_test.at[min_oura_date, 'completed'] = 0
+        db_test.at[min_oura_date, 'rationale'] = 'This is the first date 30 day hrv thresholds could be calculated'
         db_insert(db_test, 'hrv_workout_step_log')
 
     # Check if a step has already been inserted for today and if so check if workout has been completed yet
@@ -666,8 +665,9 @@ def hrv_training_workflow(min_non_warmup_workout_time, athlete_id=1):
 
             # Resample to today
             step_log_df.at[pd.to_datetime(datetime.today().date()), 'hrv_workout_step'] = None
-            step_log_df = step_log_df.set_index(pd.to_datetime(step_log_df.index))
+            step_log_df.set_index(pd.to_datetime(step_log_df.index), inplace=True)
             step_log_df = step_log_df.resample('D').mean()
+
             # Remove first row from df so it does not get re inserted into db
             step_log_df = step_log_df.iloc[1:]
 
@@ -682,7 +682,7 @@ def hrv_training_workflow(min_non_warmup_workout_time, athlete_id=1):
                         .statement, con=engine,
                     index_col='start_day_local')
                 # Resample workouts to the per day level - just take max activity_id in case they were more than 1 workout for that day to avoid duplication of hrv data
-                workouts = workouts.set_index(pd.to_datetime(workouts.index))
+                workouts.set_index(pd.to_datetime(workouts.index), inplace=True)
                 workouts = workouts.resample('D').max()
                 step_log_df = step_log_df.merge(workouts, how='left', left_index=True, right_index=True)
                 # Completed = True if a workout (not just warmup) was done on that day or was a rest day
@@ -720,6 +720,7 @@ def hrv_training_workflow(min_non_warmup_workout_time, athlete_id=1):
                     hrv_df.at[i, 'upper_threshold_crossed'] = True
                 else:
                     hrv_df.at[i, 'upper_threshold_crossed'] = False
+
             # Merge dfs
             df = pd.merge(step_log_df, hrv_df, how='left', right_index=True, left_index=True)
 
@@ -803,9 +804,11 @@ def hrv_training_workflow(min_non_warmup_workout_time, athlete_id=1):
             df['hrv_workout_step_desc'] = df['hrv_workout_step'].map(
                 {0: 'Low', 1: 'High', 2: 'HIIT/MOD', 3: 'Low', 4: 'Rest', 5: 'Rest', 6: 'Low'})
 
+            df.reset_index(inplace=True)
             # Insert into db
-            df = df[['athlete_id', 'hrv_workout_step', 'hrv_workout_step_desc', 'completed', 'rationale']]
-            db_insert(df, 'hrv_workout_step_log')
+            df = df[['athlete_id', 'date', 'hrv_workout_step', 'hrv_workout_step_desc', 'completed', 'rationale']]
+            df['date'] = df['date'].dt.date
+            df.to_sql('hrv_workout_step_log', engine, if_exists='append', index=False)
 
     engine.dispose()
     session.close()
