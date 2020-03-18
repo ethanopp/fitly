@@ -101,8 +101,9 @@ def pull_readiness_data(oura, days_back=7):
         df_readiness_summary = pd.DataFrame.from_dict(oura_data)
         # Readiness shows the 'summary' of the previous day.
         # To align with charts when filtering on date use readiness summary_date + 1 day
-        df_readiness_summary['report_date'] = pd.to_datetime(df_readiness_summary['summary_date']) + timedelta(days=1)
-        df_readiness_summary = df_readiness_summary.set_index('report_date')
+        df_readiness_summary['report_date'] = (
+                pd.to_datetime(df_readiness_summary['summary_date']) + timedelta(days=1)).dt.date
+        df_readiness_summary.set_index('report_date', inplace=True)
 
         return df_readiness_summary
     else:
@@ -144,9 +145,9 @@ def pull_activity_data(oura, days_back=7):
     oura_data = oura.activity_summary(start=start)['activity']
 
     if len(oura_data) > 0:
-        df_activity_summary = pd.DataFrame.from_dict(oura_data).set_index('summary_date')
-        df_activity_summary = df_activity_summary.set_index(pd.to_datetime(df_activity_summary.index))
-
+        df_activity_summary = pd.DataFrame.from_dict(oura_data)
+        df_activity_summary['summary_date'] = pd.to_datetime(df_activity_summary['summary_date']).dt.date
+        df_activity_summary.set_index('summary_date', inplace=True)
         df_activity_summary['day_end_local'] = pd.to_datetime(df_activity_summary['day_end'].apply(lambda x: x[:-6]))
         df_activity_summary['day_start_local'] = pd.to_datetime(
             df_activity_summary['day_start'].apply(lambda x: x[:-6]))
@@ -236,7 +237,7 @@ def pull_sleep_data(oura, days_back=7):
         df_sleep_summary = pd.DataFrame.from_dict(oura_data)
         # Sleep shows the 'summary' of the previous day.
         # To align with charts when filtering on date use readiness summary_date + 1 day
-        df_sleep_summary['report_date'] = pd.to_datetime(df_sleep_summary['summary_date']) + timedelta(days=1)
+        df_sleep_summary['report_date'] = (pd.to_datetime(df_sleep_summary['summary_date']) + timedelta(days=1)).dt.date
         df_sleep_summary = df_sleep_summary.set_index('report_date')
         # Remove timestamps from bedtimes as we want whatever the time was locally
         df_sleep_summary['bedtime_end_local'] = pd.to_datetime(df_sleep_summary['bedtime_end'].apply(lambda x: x[:-6]))
