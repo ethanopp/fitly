@@ -162,7 +162,7 @@ def pull_activity_data(oura, days_back=7):
             df_1min = df_1min.set_index('timestamp_local')
             # Remove timezone info from date, we are just storing whatever the local time was, where the person was
             df_1min.index = df_1min.index.tz_localize(None)
-            df_1min['summary_date'] = x['summary_date']
+            df_1min['summary_date'] = pd.to_datetime(x['summary_date']).date()
             df_1min_list.append(df_1min)
 
             # build 5 min metrics df
@@ -173,7 +173,7 @@ def pull_activity_data(oura, days_back=7):
             df_5min = df_5min.set_index('timestamp_local')
             # Remove timezone info from date, we are just storing whatever the local time was, where the person was
             df_5min.index = df_5min.index.tz_localize(None)
-            df_5min['summary_date'] = x['summary_date']
+            df_5min['summary_date'] = pd.to_datetime(x['summary_date']).date()
             df_5min_list.append(df_5min)
 
         df_1min = pd.concat(df_1min_list)
@@ -257,7 +257,7 @@ def pull_sleep_data(oura, days_back=7):
                 {1: 'Deep', 2: 'Light', 3: 'REM', 4: 'Awake'})
             df['timestamp_local'] = pd.to_datetime(x['bedtime_start']) + pd.to_timedelta(df.index * 5, unit='m')
 
-            df['summary_date'] = pd.to_datetime(x['summary_date'])
+            df['summary_date'] = pd.to_datetime(x['summary_date']).date()
             df['report_date'] = df['summary_date'] + timedelta(days=1)
             df = df.set_index('timestamp_local')
             # Remove timezone info from date, we are just storing whatever the local time was, where the person was
