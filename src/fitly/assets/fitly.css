@@ -131,6 +131,12 @@ a:hover {
     margin-right: 0% !important;
     margin-left: 0% !important;
 }
+.selector-rect{
+    fill: rgb(66,66,66) !important;
+}
+.rangeslider-bg, .rangeslider-mask-min, .rangeslider-mask-max{
+    fill-opacity: .25 !important;
+}
 /* Webkit /
 –––––––––––––––––––––––––––––––––––––––––––––––––– */
 ::-webkit-scrollbar {
@@ -147,4 +153,24 @@ a:hover {
     border-radius: 0.3rem;
     background-color: rgba(0, 0, 0, .5);
     -webkit-box-shadow: 0 0 1px rgba(255, 255, 255, .5);
+}
+
+/* Other */
+.contributorright {
+    float: right;
+    margin-bottom: 0;
+    font-size: .75rem;
+}
+
+.contributorleft {
+    float: left;
+    margin-bottom: 0;
+    font-size: .75rem;
+}
+
+.contentbutton {
+    padding-top: 0%;
+    padding-bottom: 0%;
+    padding-left: 0%;
+    padding-right: 0%;
 }
