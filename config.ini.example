@@ -30,10 +30,10 @@ password =
 activities_after_date = 2018-01-01T00:00:00Z
 client_id =
 client_secret =
-redirect_uri = http://127.0.0.1:8050/pages/authorize/strava
+redirect_uri = http://127.0.0.1:8050/settings?strava
 
 [oura]
-redirect_uri = http://127.0.0.1:8050/pages/authorize/oura
+redirect_uri = http://127.0.0.1:8050/settings?oura
 client_id =
 client_secret =
 days_back = 7
@@ -44,7 +44,7 @@ dark_blue = rgb(39, 77, 86)
 orange = rgb(217,100,43)
 
 [withings]
-redirect_uri = http://127.0.0.1:8050/pages/authorize/withings
+redirect_uri = http://127.0.0.1:8050/settings?withings
 client_id =
 client_secret =
 
