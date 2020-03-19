@@ -1,6 +1,7 @@
 from . import create_flask, create_dash
 from .layouts import main_layout_header, main_layout_sidebar
 from apscheduler.schedulers.background import BackgroundScheduler
+
 # The Flask instance
 server = create_flask()
 
@@ -33,8 +34,12 @@ with server.app_context():
     if config.get('cron', 'hourly_pull').lower() == 'true':
         try:
             from .api.datapull import refresh_database
+
             scheduler = BackgroundScheduler()
-            scheduler.add_job(func=refresh_database, trigger="cron", hour='*/10 * * * *')
+            scheduler.add_job(func=refresh_database, trigger="cron",
+                              minute=10,
+                              # hour='*'
+                              )
             app.server.logger.info('Starting cron jobs')
             scheduler.start()
         except BaseException as e:
