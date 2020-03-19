@@ -990,7 +990,7 @@ def update_tokens(n_clicks, search):
     if 'oura' in search:
         if not oura_connected():
             search = search.replace('?oura', '')
-            auth_code = re.findall('=(?<=\=)(.*?)(?=\&)', search)[0]
+            auth_code = re.findall('=(?<=code\=)(.*?)(?=\&)', search)[0]
             oura_auth_client.fetch_access_token(auth_code)
             save_oura_token(oura_auth_client.session.token)
 
@@ -1007,7 +1007,7 @@ def update_tokens(n_clicks, search):
     if 'withings' in search:
         if not withings_connected():
             search = search.replace('?withings', '')
-            auth_code = re.findall('=(?<=\=)(.*?)(?=\&)', search)[0]
+            auth_code = re.findall('=(?<=code\=)(.*?)(?=\&)', search)[0]
             creds = withings_auth_client.get_credentials(auth_code)
             save_withings_token(creds)
 
