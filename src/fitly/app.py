@@ -36,10 +36,7 @@ with server.app_context():
             from .api.datapull import refresh_database
 
             scheduler = BackgroundScheduler()
-            scheduler.add_job(func=refresh_database, trigger="cron",
-                              minute=10,
-                              # hour='*'
-                              )
+            scheduler.add_job(func=refresh_database, trigger="cron", hour='*')
             app.server.logger.info('Starting cron jobs')
             scheduler.start()
         except BaseException as e:
