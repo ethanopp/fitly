@@ -15,10 +15,10 @@ import operator
 from ..utils import calc_next_saturday, calc_prev_sunday, utc_to_local
 import configparser
 
-
 config = configparser.ConfigParser()
 config.read('./config.ini')
 
+transition = int(config.get('dashboard', 'transition'))
 default_icon_color = 'rgb(220, 220, 220)'
 white = 'rgb(220, 220, 220)'
 teal = 'rgb(100, 217, 236)'
@@ -26,6 +26,8 @@ light_blue = 'rgb(56, 128, 139)'
 dark_blue = 'rgb(39, 77, 86)'
 orange = 'rgb(217,100,43)'
 grey = 'rgb(50,50,50)'
+
+chartHeight = 150
 
 
 def modal_range_buttons(df, resample='D'):
@@ -128,10 +130,10 @@ def generate_sleep_stages_chart(date):
 
     # Set layout
     fig['layout'].update(
-        paper_bgcolor='rgb(66, 66, 66)',
-        plot_bgcolor='rgb(66, 66, 66)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
         showlegend=False,
-        height=None,
+        height=150,
         xaxis={'showgrid': False,
                'zeroline': False,
                'showline': True,
@@ -209,7 +211,7 @@ def generate_daily_movement_chart(date):
 
     df['movement_tooltip'] = ['<b>{}:</b> {} MET'.format(x, y) for (x, y) in zip(df['action'], df['met_1min'])]
 
-    return dcc.Graph(id='daily-movement-chart', className='twelve columns',
+    return dcc.Graph(id='daily-movement-chart', className='col-lg-12',
                      style={'paddingLeft': '0vw', 'paddingRight': '0vw', 'height': '100%'},
                      config={
                          'displayModeBar': False,
@@ -252,12 +254,12 @@ def generate_daily_movement_chart(date):
                              ),
                          ],
                          'layout': go.Layout(
+                             height=150,
+                             transition=dict(duration=transition),
                              font=dict(
                                  size=10,
                                  color=white
                              ),
-                             plot_bgcolor='rgb(66, 66, 66)',
-                             paper_bgcolor='rgb(66, 66, 66)',  # margin bg color
                              xaxis=dict(
                                  showticklabels=True,
                                  # tickvals=[x for x in df.index if
@@ -305,10 +307,7 @@ def generate_rhr_day_chart(date):
     # Take average including all data
     df['rhr_avg'] = round(df['hr_5min'].mean())
 
-    return dcc.Graph(id='rhr-trend', className='twelve columns', style={'height': '100%'},
-                     config={
-                         'displayModeBar': False,
-                     },
+    return dcc.Graph(id='rhr-trend', config={'displayModeBar': False},
                      figure={
                          'data': [
                              go.Scatter(
@@ -337,10 +336,8 @@ def generate_rhr_day_chart(date):
 
                          ],
                          'layout': go.Layout(
-                             # title = metricTitle[metric],
-                             plot_bgcolor='rgb(66, 66, 66)',  # plot bg color
-                             paper_bgcolor='rgb(66, 66, 66)',  # margin bg color
-                             # height=100,
+                             height=150,
+                             transition=dict(duration=transition),
                              font=dict(
                                  color='rgb(220,220,220)',
                                  size=10,
@@ -400,9 +397,8 @@ def generate_kpi_donut(kpi_name, metric, goal, current_streak, best_streak, colo
     remaining = 1 - progress if progress > 0 else 1
     if not color:
         color = teal if progress >= 1 else white
-    return [html.H6(className='text-center', children=['{}'.format(kpi_name)]),
+    return [html.H6(className='text-center mb-2', children=['{}'.format(kpi_name)]),
             dcc.Graph(id=kpi_name + '-donut-chart',
-                      style={'paddingLeft': '0vw', 'paddingRight': '0vw', 'height': '75%'},
                       config={
                           'displayModeBar': False,
                       },
@@ -419,8 +415,8 @@ def generate_kpi_donut(kpi_name, metric, goal, current_streak, best_streak, colo
 
                           ],
                           'layout': go.Layout(
-                              plot_bgcolor='rgb(66, 66, 66)',
-                              paper_bgcolor='rgb(66, 66, 66)',  # margin bg color
+                              height=chartHeight,
+                              transition=dict(duration=transition),
                               showlegend=False,
                               autosize=True,
                               margin={'l': 0, 'b': 0, 't': 0, 'r': 0},
@@ -475,7 +471,7 @@ def generate_kpi_donut(kpi_name, metric, goal, current_streak, best_streak, colo
             dbc.Tooltip(
                 'Current Streak: {:.0f} {}\nBest Streak: {:.0f} {}'.format(current_streak, streak_unit, best_streak,
                                                                            streak_unit),
-                target=kpi_name + '-donut-chart', className='tooltip', placement='bottom'),
+                target=kpi_name + '-donut-chart', placement='bottom'),
             ]
 
 
@@ -709,84 +705,77 @@ def generate_content_kpi_trend(df_name, metric):
         ])
         margin = {'l': 35, 'b': 30, 't': 0, 'r': 35}
 
-    return html.Div(id=metric + '-kpi-title', className='col-lg-12 text-center', style={'height': '100%'}, children=[
-        html.H6(style={'display': 'inline-block', 'marginBottom': '0%', 'height': '20%'},
-                children=[metricTitle[metric]]),
+    return html.Div(id=metric + '-kpi-title', className='col-lg-12 text-center',
+                    style={'paddingRight': 0, 'paddingLeft': 0}, children=[
+            html.H6(children=[metricTitle[metric]]),
 
-        dcc.Graph(id=metric + '-kpi-trend', className='twelve columns', style={'height': '80%'},
-                  config={
-                      'displayModeBar': False,
-                      # 'showLink': True  # to edit in studio
-                  },
-                  figure={
-                      'data': [
-                          go.Scatter(
-                              x=df.index,
-                              y=df[metric],
-                              mode='lines',
-                              text=metricTooltip,
-                              hoverinfo='x+text',
-                              opacity=0.7,
-                              line={'shape': 'spline', 'color': teal}),
-                          go.Scatter(
-                              x=df.index,
-                              y=metricAvg,
-                              mode='lines',
-                              text=metricAvgTooltip,
-                              hoverinfo='x+text',
-                              opacity=0.7,
-                              line={'dash': 'dot',
-                                    'color': white,
-                                    'width': 2},
-                          )
-                      ],
-                      'layout': go.Layout(
-                          # title = metricTitle[metric],
-                          plot_bgcolor='rgb(66, 66, 66)',  # plot bg color
-                          paper_bgcolor='rgb(66, 66, 66)',  # margin bg color
-                          # height=100,
-                          font=dict(
-                              color='rgb(220,220,220)',
-                              size=10,
-                          ),
-
-                          # hoverlabel={'font': {'size': 10}},
-                          xaxis=dict(
-                              showline=True,
-                              color='rgb(220,220,220)',
-                              showgrid=False,
-                              showticklabels=True,
-                              tickformat='%b %d',
-                              # Specify range to get rid of auto x-axis padding when using scatter markers
-                              range=[df.index.max() - timedelta(days=41),
-                                     df.index.max()],
-                              rangeselector=dict(
-                                  bgcolor='rgb(66, 66, 66)',
-                                  bordercolor='#d4d4d4',
-                                  borderwidth=.5,
-                                  buttons=buttons,
-                                  xanchor='center',
-                                  x=.5,
-                                  y=1,
+            dcc.Graph(id=metric + '-kpi-trend', config={'displayModeBar': False},
+                      figure={
+                          'data': [
+                              go.Scatter(
+                                  x=df.index,
+                                  y=df[metric],
+                                  mode='lines',
+                                  text=metricTooltip,
+                                  hoverinfo='x+text',
+                                  opacity=0.7,
+                                  line={'shape': 'spline', 'color': teal}),
+                              go.Scatter(
+                                  x=df.index,
+                                  y=metricAvg,
+                                  mode='lines',
+                                  text=metricAvgTooltip,
+                                  hoverinfo='x+text',
+                                  opacity=0.7,
+                                  line={'dash': 'dot',
+                                        'color': white,
+                                        'width': 2},
+                              )
+                          ],
+                          'layout': go.Layout(
+                              height=150,
+                              transition=dict(duration=transition),
+                              font=dict(
+                                  color='rgb(220,220,220)',
+                                  size=10,
                               ),
-                          ),
-                          yaxis=dict(
-                              showgrid=False,
-                              showticklabels=False,
-                              gridcolor='rgb(73, 73, 73)',
-                              gridwidth=.5,
+                              # hoverlabel={'font': {'size': 10}},
+                              xaxis=dict(
+                                  showline=True,
+                                  color='rgb(220,220,220)',
+                                  showgrid=False,
+                                  showticklabels=True,
+                                  tickformat='%b %d',
+                                  # Specify range to get rid of auto x-axis padding when using scatter markers
+                                  range=[df.index.max() - timedelta(days=41),
+                                         df.index.max()],
+                                  rangeselector=dict(
+                                      # bgcolor='rgba(66, 66, 66)',
+                                      # bordercolor='#d4d4d4',
+                                      borderwidth=.5,
+                                      buttons=buttons,
+                                      xanchor='center',
+                                      x=.5,
+                                      y=1,
+                                  ),
+                              ),
+                              yaxis=dict(
+                                  showgrid=False,
+                                  showticklabels=False,
+                                  gridcolor='rgb(73, 73, 73)',
+                                  gridwidth=.5,
 
-                          ),
-                          margin=margin,
-                          showlegend=False,
-                          hovermode='x',
-                          autosize=True,
-                      )
-                  })
-    ])
+                              ),
+                              margin=margin,
+                              showlegend=False,
+                              hovermode='x',
+                              autosize=True,
+                          )
+                      })
+        ])
 
 
-def update_kpis(date, days=7, chartHeight='15vh'):
+def update_kpis(date, days=7):
     session, engine = db_connect()
     df_summary = pd.read_sql(
         sql=session.query(stravaSummary).filter(stravaSummary.start_date_utc <= date).statement, con=engine,
@@ -847,7 +836,7 @@ def update_kpis(date, days=7, chartHeight='15vh'):
 
         class_name = 'col-lg-2'
         specific_donuts = [
-            html.Div(id='tss-donut', className=class_name, style={'height': chartHeight},
+            html.Div(id='tss-donut', className=class_name,
                      children=generate_kpi_donut(kpi_name='Stress', metric=tss_df['stress_score'].sum(),
                                                  goal=athlete_info.weekly_tss_goal,
                                                  current_streak=tss_streak,
@@ -891,37 +880,37 @@ def update_kpis(date, days=7, chartHeight='15vh'):
         yoga_color = orange if df_yoga.shape[0] < athlete_weekly_yoga_goal and athlete_weekly_yoga_goal != 99 else None
 
         class_name = 'col-lg-2 '
-        specific_donuts = [html.Div(id='workout-donut', className=class_name, style={'height': chartHeight},
+        specific_donuts = [html.Div(id='workout-donut', className=class_name,
                                     children=generate_kpi_donut(kpi_name='Workout', metric=df_workout.shape[0],
                                                                 goal=athlete_weekly_workout_goal,
                                                                 current_streak=current_workout_streak,
                                                                 best_streak=best_workout_streak,
                                                                 color=workout_color)),
-                           html.Div(id='yoga-donut', className=class_name, style={'height': chartHeight},
+                           html.Div(id='yoga-donut', className=class_name,
                                     children=generate_kpi_donut(kpi_name='Yoga', metric=df_yoga.shape[0],
                                                                 goal=athlete_weekly_yoga_goal,
                                                                 current_streak=current_yoga_streak,
                                                                 best_streak=best_yoga_streak,
                                                                 color=yoga_color))]
 
-    main_donuts = [html.Div(id='sleep-donut', className=class_name, style={'height': chartHeight},
+    main_donuts = [html.Div(id='sleep-donut', className=class_name,
                             children=generate_kpi_donut(kpi_name='Sleep', metric=df_sleep.shape[0],
                                                         goal=athlete_info.weekly_sleep_score_goal,
                                                         current_streak=current_sleep_streak,
                                                         best_streak=best_sleep_streak)),
-                   html.Div(id='readiness-donut', className=class_name, style={'height': chartHeight},
+                   html.Div(id='readiness-donut', className=class_name,
                             children=generate_kpi_donut(kpi_name='Readiness', metric=df_readiness.shape[0],
                                                         goal=athlete_info.weekly_readiness_score_goal,
                                                         current_streak=current_readiness_streak,
                                                         best_streak=best_readiness_streak)),
-                   html.Div(id='activity-donut', className=class_name, style={'height': chartHeight},
+                   html.Div(id='activity-donut', className=class_name,
                             children=generate_kpi_donut(kpi_name='Activity', metric=df_activity.shape[0],
                                                         goal=athlete_info.weekly_activity_score_goal,
                                                         current_streak=current_activity_streak,
                                                         best_streak=best_activity_streak)),
-                   html.Div(id='weight-trend', className=class_name, style={'height': chartHeight},
+                   html.Div(id='weight-trend', className=class_name,
                             children=generate_content_kpi_trend('withings', 'weight')),
-                   html.Div(id='body-fat-trend', className='col-lg-2', style={'height': chartHeight},
+                   html.Div(id='body-fat-trend', className='col-lg-2',
                             children=generate_content_kpi_trend('withings', 'fat_ratio'))
                    ]
 
@@ -967,18 +956,19 @@ def generate_contributor_bar(df, id, column_name, top_left_title, top_right_titl
         "meet-daily-goals": "Meet Daily Targets shows how often you’ve reached your daily activity targets over the past 7 days.\n\nOura gives you a daily activity target based on your age, gender and readiness level.\n\nYour daily activity is measured from 4 am to 4 am. Whether it's everyday activities or intense training, all daily movement measured during this 24-hour period moves you closer to your daily target.\n\nMeet Daily Targets will be at 100% when you’ve met your target 6-7 times a week. Falling short of your target on 3 or more days starts to lower your Activity Score.",
         "training-frequency": "Training Frequency measures how often you've gotten medium and high intensity activity over the past 7 days.\n\nOptimal training frequency is key to maintaining and developing your cardiovascular fitness.\n\nOura recommends getting at least 100 MET minutes of Medium+ Activity a day (100-150 kcal, depending on your body weight). This is equivalent to 20 minutes of jogging or 30 minutes of brisk walking.\n\nTo stay in balance and to boost your Activity Score, your Training Frequency should be at 3-4 times a week.\n\nMET or Metabolic Equivalent is a common measure used to express the energy expenditure and intensity of different physical activities. If the MET value of a specific activity is 4, it means that you’re burning 4 times as many calories as you would burn while resting.\n\nThe time engaged in different activities can be expressed as MET minutes. For example:\n  • 30 min x 5 METs = 150 MET min\n • 30 min x 7 METs = 210 MET min",
         "training-volume": "Training Volume measures the amount of medium and high intensity activity you’ve gotten over the past 7 days.\n\nLike Training Frequency, Training Volume is an essential aspect of maintaining and improving your fitness level.\n\nFor your Training Volume to have a maximum positive contribution to your Activity Score, you need to get 2000 MET minutes of medium to high intensity activity per week (2000-3000 kcal, depending on your body weight).\n\nWhen your activity level goes below 750 MET minutes a week (750-1500 kcal), your Activity Score will start to decline.\n\nMET or Metabolic Equivalent is a common measure used to express the energy expenditure and intensity of different physical activities. If the MET value of a specific activity is 4, it means that you’re burning 4 times as many calories as you would burn while resting.\n\nThe time engaged in different activities can be expressed as MET minutes. For example:\n  • 30 min x 5 METs = 150 MET min\n  • 30 min x 7 METs = 210 MET min",
-        "recovery-time": "Having a sufficient amount of easier days in your training program boosts your performance and helps speed up your recovery.\n\nNo matter how much you train, the actual fitness progress takes place during Recovery Time, when your muscles have time to repair and grow.\n\nFor Oura, an easy day means keeping the amount of medium intensity level activity below 200 MET minutes (200-300 kcal/day), and high intensity activity below 100 MET minutes (100-150 kcal/day).\n\nIn practice this can mean doing lots of low intensity activities, getting healthy amounts of medium intensity activity (30-60 min), but only a small amount of high intensity activity (below 10 min).\n\nMET or Metabolic Equivalent is a common measure used to express the energy expenditure and intensity of different physical activities. If the MET value of a specific activity is 4, it means that you’re burning 4 times as many calories as you would burn while resting.\n\nThe time engaged in different activities can be expressed as MET minutes. For example:\n  • 30 min x 5 METs = 150 MET min\n  • 30 min x 7 METs = 210 MET min"
+        "recovery-time": "Having a sufficient amount of easier days in your training program boosts your performance and helps speed up your recovery.\n\nNo matter how much you train, the actual fitness progress takes place during Recovery Time, when your muscles have time to repair and grow.\n\nFor Oura, an easy day means keeping the amount of medium intensity level activity below 200 MET minutes (200-300 kcal/day), and high intensity activity below 100 MET minutes (100-150 kcal/day).\n\nIn practice this can mean doing lots of low intensity activities, getting healthy amounts of medium intensity activity (30-60 min), but only a small amount of high intensity activity (below 10 min).\n\nMET or Metabolic Equivalent is a common measure used to express the energy expenditure and intensity of different physical activities. If the MET value of a specific activity is 4, it means that you’re burning 4 times as many calories as you would burn while resting.\n\nThe time engaged in different activities can be expressed as MET minutes. For example:\n  • 30 min x 5 METs = 150 MET min\n  • 30 min x 7 METs = 210 MET min",
+        "hrv-balance": "HRV Balance helps you keep track of your recovery status by comparing your 2-week heart rate variability trend to your 3-month average.\n\n Optimal= Your recent HRV trend is on par or better than your average, which is usually a sign of good recovery.\n\n Good = Your recent HRV trend is slightly different from your average, but on a good level.\n\n Pay attention = Your recent HRV trend is below your average, which can be a sign that your body or mind is under stress."
     }
 
-    return html.Div(style={'height': '12.5%'},
-                    className='twelve columns', children=[
-            html.Div(id=id, className='twelve columns', style={'clear': 'both'}, children=[
+    return html.Div(
+        className='row', children=[
+            html.Div(id=id, className='col-lg-12', style={'clear': 'both'}, children=[
                 html.P(top_left_title, className='contributorleft'),
                 html.P(top_right_title, className='contributorright', style={'color': textColor})
             ]),
             dbc.Tooltip(tooltipDict[id], target=id + '-bar'),
-            dcc.Graph(id=id + '-bar', className='twelve columns',
-                      config={'displayModeBar': False}, style={'height': '1vh'},
+            dcc.Graph(id=id + '-bar', className='col-lg-12',
+                      config={'displayModeBar': False},
                       figure={
                           'data': [
                               go.Bar(
@@ -997,8 +987,8 @@ def generate_contributor_bar(df, id, column_name, top_left_title, top_right_titl
                               ),
                           ],
                           'layout': go.Layout(
-                              plot_bgcolor='rgb(66, 66, 66)',  # plot bg color
-                              paper_bgcolor='rgb(66, 66, 66)',  # margin bg color
+                              height=10,
+                              transition=dict(duration=transition),
                               xaxis=dict(
                                   showgrid=False,
                                   showticklabels=False,
@@ -1032,42 +1022,19 @@ def generate_oura_sleep_header_kpi(date):
 
     engine.dispose()
     session.close()
+
     score = df.loc[df.index.max()]['score']
-    color = white if score >= 85 else 'rgb(66,66,66)'
-    return [
+    star = (score >= 85)
 
-        html.Div(className='row', children=[
-            html.Div(className='col', children=[
-                html.P(datetime.strftime(date, "%A %b %d, %Y"), id='sleep-date',
-                       style={'display': 'inline-block', 'fontSize': '1.25rem', 'color': teal}),
-                html.I(id='sleep-exclamation', className='fa fa-exclamation-circle',
-                       style={'display': 'none'}),
-                dbc.Tooltip("Latest sleep data not yet posted to Oura cloud", target='sleep-exclamation'),
-            ])
-        ]),
-
-        html.Div(className='row', children=[
-            html.Button(id='sleep-kpi-summary-button', className='col', n_clicks=0,
-                        style={'height': '100%', 'text-transform': 'inherit'},
-                        children=[
-                            html.H6('Sleep', style={'lineHeight': 1}, className='col'),
-                            html.P(className='twelve columns fa fa-star',
-                                   style={'color': color, 'fontSize': '75%'}),
-                            html.H2(id='sleep-kpi', className='col', style={'lineHeight': 1},
-                                    children=['{:.0f}'.format(score)])
-                        ])
-        ])
-    ]
+    return datetime.strftime(date, "%A %b %d, %Y"), star, '{:.0f}'.format(score)
 
 
-def generate_oura_sleep_header_chart(date, days=7, summary=False, graph_id='sleep-trend', resample='D'):
+def generate_oura_sleep_header_chart(date, days=7, summary=False, resample='D'):
+    height = chartHeight if not summary else 300
     session, engine = db_connect()
-
     if summary:
         df = pd.read_sql(sql=session.query(ouraSleepSummary).statement,
                          con=engine, index_col='report_date')
-        graph_id = 'sleep-trend-summary'
-
     else:
         df = pd.read_sql(sql=session.query(ouraSleepSummary).filter(ouraSleepSummary.report_date > date).statement,
                          con=engine, index_col='report_date')[:days]
@@ -1239,8 +1206,8 @@ def generate_oura_sleep_header_chart(date, days=7, summary=False, graph_id='slee
         )
     ]
     full_layout = go.Layout(
-        plot_bgcolor='rgb(66, 66, 66)',  # plot bg color
-        paper_bgcolor='rgb(66, 66, 66)',  # margin bg color
+        height=height,
+        transition=dict(duration=transition),
         font=dict(
             color=white,
             # size=10,
@@ -1276,8 +1243,8 @@ def generate_oura_sleep_header_chart(date, days=7, summary=False, graph_id='slee
     )
 
     summary_layout = go.Layout(
-        plot_bgcolor='rgb(66, 66, 66)',  # plot bg color
-        paper_bgcolor='rgb(66, 66, 66)',  # margin bg color
+        height=height,
+        transition=dict(duration=transition),
         font=dict(
             color=white,
             size=10,
@@ -1292,8 +1259,8 @@ def generate_oura_sleep_header_chart(date, days=7, summary=False, graph_id='slee
             tickformat='%b %d',
             range=range,
             rangeselector=dict(
-                bgcolor='rgb(66, 66, 66)',
-                bordercolor='#d4d4d4',
+                # bgcolor='rgb(66, 66, 66)',
+                # bordercolor='#d4d4d4',
                 borderwidth=.5,
                 buttons=buttons,
                 xanchor='center',
@@ -1317,8 +1284,8 @@ def generate_oura_sleep_header_chart(date, days=7, summary=False, graph_id='slee
     )
 
     short_layout = go.Layout(
-        plot_bgcolor='rgb(66, 66, 66)',  # plot bg color
-        paper_bgcolor='rgb(66, 66, 66)',  # margin bg color
+        height=height,
+        transition=dict(duration=transition),
         font=dict(
             color=white,
             # size=10,
@@ -1403,22 +1370,20 @@ def generate_oura_sleep_header_chart(date, days=7, summary=False, graph_id='slee
     # chart = short_chart
     # layout = short_layout
 
-    return dcc.Graph(id=graph_id, className='twelve columns', style={'height': '100%'},
-                     # Initial click data so callback will fire for content container
-                     clickData={'points': [{'x': df.index.max(),
-                                            'y': df['deep'].max()},
-                                           {'y': df['light'].max()},
-                                           {'y': df['rem'].max()},
-                                           {'y': df['awake'].max()},
-                                           {'y': daily_sleep_hr_target}]},
-                     config={
-                         'displayModeBar': False,
-                         # 'showLink': True  # to edit in studio
-                     },
-                     figure={
-                         'data': chart,
-                         'layout': layout
-                     })
+    figure = {
+        'data': chart,
+        'layout': layout
+    }
+
+    # Initial click data so callback will fire for content container
+    clickData = {'points': [{'x': df.index.max(),
+                             'y': df['deep'].max()},
+                            {'y': df['light'].max()},
+                            {'y': df['rem'].max()},
+                            {'y': df['awake'].max()},
+                            {'y': daily_sleep_hr_target}]}
+
+    return figure, clickData
 
 
 def generate_oura_sleep_content(date):
@@ -1432,71 +1397,71 @@ def generate_oura_sleep_content(date):
     engine.dispose()
     session.close()
 
-    return dcc.Loading(className='twelve columns height-100', children=[
-        html.Div(id='sleep-content', style={'height': '100%'}, children=[
-            # html.Div(className='twelve columns', style={'height': '1%'}),
-            html.Div(id='oura-sleep-content-kpi-trend', className='twelve columns',
-                     style={'height': '0%'}),
+    return [html.Div(className='row', children=[
+        html.Div(id='oura-sleep-content-kpi-trend', className='col', style={'display': 'none'})
+    ]),
 
-            html.Div(className='twelve columns', style={'height': '2%'}),
-            html.Div(id='sleep-content-kpi', className='twelve columns', style={'height': '13%'}, children=[
-                html.Button(id='total-sleep-time-button', className='four columns contentbutton', children=[
-                    html.Div(children=['TOTAL SLEEP TIME']),
-                    html.H6(('{}h {}m'.format(df['total'].max() // 3600, (df['total'].max() % 3600) // 60)))
-                ]),
+            html.Div(id='sleep-content-kpi', className='row', children=[
+                html.Div(className='col', children=[
+                    dbc.Button(id='total-sleep-time-button', className='col-lg-4 contentbutton', children=[
+                        html.Div(children=['TOTAL SLEEP TIME']),
+                        html.H6(('{}h {}m'.format(df['total'].max() // 3600, (df['total'].max() % 3600) // 60)),
+                                className='mb-0')
+                    ]),
 
-                html.Button(id='total-time-in-bed-button', className='four columns contentbutton', children=[
-                    html.Div(children=['TIME IN BED']),
-                    html.H6('{}h {}m'.format(df['duration'].max() // 3600, (df['duration'].max() % 3600) // 60))
-                ]),
-                html.Button(id='sleep-efficiency-button', className='four columns contentbutton', children=[
-                    html.Div(children=['SLEEP EFFICIENCY']),
-                    html.H6('{}%'.format(df['efficiency'].max()))
-                ]),
-                # html.Button(id='resting-heartrate-button', className='three columns contentbutton', children=[
-                #     html.Div(children=['RESTING HR']),
-                #     html.H6('{} bpm'.format(df['hr_lowest'].max()))
-                # ]),
+                    dbc.Button(id='total-time-in-bed-button', className='col-lg-4 contentbutton', children=[
+                        html.Div(children=['TIME IN BED']),
+                        html.H6('{}h {}m'.format(df['duration'].max() // 3600, (df['duration'].max() % 3600) // 60),
+                                className='mb-0')
+                    ]),
+                    dbc.Button(id='sleep-efficiency-button', className='col-lg-4 contentbutton', children=[
+                        html.Div(children=['SLEEP EFFICIENCY']),
+                        html.H6('{}%'.format(df['efficiency'].max()),
+                                className='mb-0')
+                    ])
+                ])
             ]),
 
-            html.Div(className='twelve columns', style={'height': '1%'}),
-
-            html.Div(id='sleep-stages-day-trend', className='twelve columns', style={'height': '30%'}, children=[
-                html.H6('Sleep Stages', style={'display': 'inline-block', 'marginBottom': '0%', 'height': '25%'}, ),
-                html.Div(id='sleep-stages-chart-container', className='twelve columns',
-                         children=generate_sleep_stages_chart(date),
-                         style={'height': '75%'}),
+            html.Div(className='row text-center', children=[
+                html.Div(id='sleep-stages-day-trend', className='col', children=[
+                    html.H6('Sleep Stages', style={'display': 'inline-block', 'marginBottom': '0%'}),
+                    html.Div(id='sleep-stages-chart-container', className='col',
+                             style={'paddingRight': 0, 'paddingLeft': 0},
+                             children=generate_sleep_stages_chart(date)),
+                ])
             ]),
-            # html.Div(className='twelve columns', style={'height': '1%'}),
+            html.Div(className='row', children=[
+                html.Div(id='sleep-contributors', className='col-lg-12', children=[
+                    html.H6('Sleep Contributors', className='text-center'),
+                    generate_contributor_bar(df=df, id='total-sleep', column_name='score_total',
+                                             top_left_title='Total Sleep',
+                                             top_right_title='{}h {}m'.format(df['total'].max() // 3600,
+                                                                              (df['total'].max() % 3600) // 60)),
+                    generate_contributor_bar(df=df, id='efficiency', column_name='score_efficiency',
+                                             top_left_title='Efficiency',
+                                             top_right_title='{:.0f}%'.format(df['score_efficiency'].max())),
+                    generate_contributor_bar(df=df, id='restfulness', column_name='score_disturbances',
+                                             top_left_title='Restfulness'),
+                    generate_contributor_bar(df=df, id='rem-sleep', column_name='score_rem',
+                                             top_left_title='REM Sleep',
+                                             top_right_title='{:.0f}h {:.0f}m, {:.0f}%'.format(
+                                                 df['rem'].max() // 3600, (df['rem'].max() % 3600) // 60,
+                                                 (df['rem'].max() / df['total'].max()) * 100)),
+                    generate_contributor_bar(df=df, id='deep-sleep', column_name='score_deep',
+                                             top_left_title='Deep Sleep',
+                                             top_right_title='{:.0f}h {:.0f}m, {:.0f}%'.format(
+                                                 df['deep'].max() // 3600, (df['deep'].max() % 3600) // 60,
+                                                 (df['deep'].max() / df['total'].max()) * 100)),
+                    generate_contributor_bar(df=df, id='latency', column_name='score_latency',
+                                             top_left_title='Latency',
+                                             top_right_title='{:.0f}m'.format(df['onset_latency'].max() / 60)),
+                    generate_contributor_bar(df=df, id='timing', column_name='score_alignment',
+                                             top_left_title='Timing')
 
-            html.Div(id='sleep-contributors', className='twelve columns', style={'height': '55%'}, children=[
-                html.H6('Sleep Contributors', className='twelve columns', style={'height': '12.5%'}),
-                generate_contributor_bar(df=df, id='total-sleep', column_name='score_total',
-                                         top_left_title='Total Sleep',
-                                         top_right_title='{}h {}m'.format(df['total'].max() // 3600,
-                                                                          (df['total'].max() % 3600) // 60)),
-                generate_contributor_bar(df=df, id='efficiency', column_name='score_efficiency',
-                                         top_left_title='Efficiency',
-                                         top_right_title='{:.0f}%'.format(df['score_efficiency'].max())),
-                generate_contributor_bar(df=df, id='restfulness', column_name='score_disturbances',
-                                         top_left_title='Restfulness'),
-                generate_contributor_bar(df=df, id='rem-sleep', column_name='score_rem',
-                                         top_left_title='REM Sleep', top_right_title='{:.0f}h {:.0f}m, {:.0f}%'.format(
-                        df['rem'].max() // 3600, (df['rem'].max() % 3600) // 60,
-                        (df['rem'].max() / df['total'].max()) * 100)),
-                generate_contributor_bar(df=df, id='deep-sleep', column_name='score_deep',
-                                         top_left_title='Deep Sleep', top_right_title='{:.0f}h {:.0f}m, {:.0f}%'.format(
-                        df['deep'].max() // 3600, (df['deep'].max() % 3600) // 60,
-                        (df['deep'].max() / df['total'].max()) * 100)),
-                generate_contributor_bar(df=df, id='latency', column_name='score_latency',
-                                         top_left_title='Latency',
-                                         top_right_title='{:.0f}m'.format(df['onset_latency'].max() / 60)),
-                generate_contributor_bar(df=df, id='timing', column_name='score_alignment',
-                                         top_left_title='Timing')
-
+                ])
             ])
-        ])
-    ])
+
+            ]
 
 
 def generate_sleep_modal_summary(days=7):
@@ -1513,8 +1478,7 @@ def generate_sleep_modal_summary(days=7):
     df['wakeup'] = df['bedtime_end_local'].apply(
         lambda x: datetime.strptime('1970-01-01', '%Y-%m-%d') + timedelta(hours=x.hour) + timedelta(minutes=x.minute))
 
-    sleep_last_7_graph = dcc.Graph(className='twelve columns', style={'height': '100%'},
-                                   config={'displayModeBar': False},
+    sleep_last_7_graph = dcc.Graph(config={'displayModeBar': False},
                                    figure={
                                        'data': [go.Bar(
                                            name='Sleep',
@@ -1528,12 +1492,11 @@ def generate_sleep_modal_summary(days=7):
                                            marker={'color': light_blue},
                                        )],
                                        'layout': go.Layout(
+                                           height=300,
                                            font=dict(
                                                size=10,
                                                color=white
                                            ),
-                                           plot_bgcolor='rgb(66, 66, 66)',
-                                           paper_bgcolor='rgb(66, 66, 66)',  # margin bg color
                                            xaxis=dict(
                                                showline=True,
                                                color=white,
@@ -1553,8 +1516,7 @@ def generate_sleep_modal_summary(days=7):
                                        )
                                    })
 
-    total_sleep_last_7_graph = dcc.Graph(className='twelve columns', style={'height': '100%'},
-                                         config={'displayModeBar': False},
+    total_sleep_last_7_graph = dcc.Graph(config={'displayModeBar': False},
                                          figure={
                                              'data': [go.Bar(
                                                  name='Total Sleep Time',
@@ -1569,12 +1531,12 @@ def generate_sleep_modal_summary(days=7):
                                                  marker={'color': light_blue},
                                              )],
                                              'layout': go.Layout(
+                                                 height=300,
                                                  font=dict(
                                                      size=10,
                                                      color=white
                                                  ),
-                                                 plot_bgcolor='rgb(66, 66, 66)',
-                                                 paper_bgcolor='rgb(66, 66, 66)',  # margin bg color
+
                                                  xaxis=dict(
                                                      showline=True,
                                                      color=white,
@@ -1594,8 +1556,7 @@ def generate_sleep_modal_summary(days=7):
                                              )
                                          })
 
-    wake_up_last_7_graph = dcc.Graph(className='twelve columns', style={'height': '100%'},
-                                     config={'displayModeBar': False},
+    wake_up_last_7_graph = dcc.Graph(config={'displayModeBar': False},
                                      figure={
                                          'data': [go.Scatter(
                                              name='Wake Up Time',
@@ -1618,12 +1579,11 @@ def generate_sleep_modal_summary(days=7):
                                              marker={'size': 5},
                                          )],
                                          'layout': go.Layout(
+                                             height=300,
                                              font=dict(
                                                  size=10,
                                                  color=white
                                              ),
-                                             plot_bgcolor='rgb(66, 66, 66)',
-                                             paper_bgcolor='rgb(66, 66, 66)',  # margin bg color
                                              xaxis=dict(
                                                  showline=True,
                                                  color=white,
@@ -1643,61 +1603,58 @@ def generate_sleep_modal_summary(days=7):
                                          )
                                      })
 
-    return html.Div(className='twelve columns', children=[
-        html.Div(id='sleep-modal-last-7-container', className='twelve columns maincontainer',
+    return [
+        html.Div(id='sleep-modal-last-7-container', className='row mb-2 text-center',
                  style={'whiteSpace': 'normal'}, children=[
-                html.Div(id='sleep-score-last-7', className='four columns', children=[
-                    html.Div(id='sleep-score-last-7-title', className='twelve columns', style={'height': '5vh'},
+                html.Div(id='sleep-score-last-7', className='col-lg-4', children=[
+                    html.Div(id='sleep-score-last-7-title', className='col-lg-12',
                              children=[
                                  html.P('Your average sleep score for the last 7 days is {:.0f}'.format(
                                      df['score'].mean()))
                              ]),
-                    html.Div(id='sleep-score-last-7-chart', className='twelve columns', style={'height': '20vh'},
+                    html.Div(id='sleep-score-last-7-chart', className='col-lg-12',
                              children=[sleep_last_7_graph]
                              )
                 ]),
-                html.Div(id='total-sleep-last-7', className='four columns', children=[
-                    html.Div(id='total-sleep-last-7-title', className='twelve columns', style={'height': '5vh'},
+                html.Div(id='total-sleep-last-7', className='col-lg-4', children=[
+                    html.Div(id='total-sleep-last-7-title', className='col-lg-12',
                              children=[
                                  html.P('Over the last 7 nights you slept on average {:.0f}h {:.0f}m per night'.format(
                                      df['total'].mean() // 3600, (df['total'].mean() // 3600) % 60))
                              ]),
-                    html.Div(id='total-sleep-last-7-chart', className='twelve columns', style={'height': '20vh'},
+                    html.Div(id='total-sleep-last-7-chart', className='col-lg-12',
                              children=[total_sleep_last_7_graph]
                              )
                 ]),
-                html.Div(id='wake-up-last-7', className='four columns', children=[
-                    html.Div(id='wake-up-last-7-title', className='twelve columns', style={'height': '5vh'},
+                html.Div(id='wake-up-last-7', className='col-lg-4', children=[
+                    html.Div(id='wake-up-last-7-title', className='col-lg-12',
                              children=[
                                  html.P(
                                      "Here's a summary of your wake-up times over the last 7 days")
                              ]),
-                    html.Div(id='wake-up-last-7-chart', className='twelve columns', style={'height': '20vh'},
+                    html.Div(id='wake-up-last-7-chart', className='col-lg-12',
                              children=[wake_up_last_7_graph]
                              )
                 ]),
             ]),
-        html.Div(className='twelve columns', style={'backgroundColor': 'rgb(48, 48, 48)', 'paddingBottom': '1vh'}),
-        html.Div(className='twelve columns maincontainer', children=[
-            html.Div(id='sleep-groupby-controls', className='twelve columns',
-                     style={'height': '10%'}, children=[
-                    html.Button('Year', id='sleep-year-button', n_clicks=0,
-                                style={'marginRight': '1vw'}),
-                    html.Button('Month', id='sleep-month-button', n_clicks=0,
-                                style={'marginRight': '1vw'}),
-                    html.Button('Week', id='sleep-week-button', n_clicks=0,
-                                style={'marginRight': '1vw'}),
-                    html.Button('Day', id='sleep-day-button'),
-                ]),
 
-            dcc.Loading(className='twelve columns maincontainer', children=[
-                html.Div(id='sleep-modal-full-chart',
-                         children=[
-                             # generate_oura_sleep_chart(date, summary=True)
-                         ])
+        html.Div(className='row', children=[
+            html.Div(id='sleep-groupby-controls', className='col-lg-12 text-center mb-2 mt-2', children=[
+                dbc.Button('Year', id='sleep-year-button', n_clicks=0, size='sm', className='mr-3'),
+                dbc.Button('Month', id='sleep-month-button', n_clicks=0, size='sm', className='mr-3'),
+                dbc.Button('Week', id='sleep-week-button', n_clicks=0, size='sm', className='mr-3'),
+                dbc.Button('Day', id='sleep-day-button', size='sm')
+            ]),
+
+            dcc.Loading(className='col-lg-12', children=[
+
+                dcc.Graph(id='sleep-modal-full-chart',
+                          config={'displayModeBar': False}
+                          ),
+
             ]),
         ]),
-    ])
+    ]
 
 
 def generate_oura_readiness_header_kpi(date):
@@ -1715,31 +1672,13 @@ def generate_oura_readiness_header_kpi(date):
     engine.dispose()
     session.close()
     score = df.loc[df.index.max()]['score']
-    color = white if score >= 85 else 'rgb(66,66,66)'
+    star = (score >= 85)
 
-    return [
-        html.Div(className='twelve columns', children=[
-            html.P(datetime.strftime(date, "%A %b %d, %Y"), id='readiness-date',
-                   style={'display': 'inline-block', 'fontSize': '1.25rem', 'color': teal}),
-            html.I(id='readiness-exclamation', className='fa fa-exclamation-circle',
-                   style={'display': 'none'}),
-            dbc.Tooltip("Latest readiness data not yet posted to Oura cloud", target='readiness-exclamation'),
-        ]),
-        html.Div(className='twelve columns', children=[
-            html.Button(id='readiness-kpi-summary-button', n_clicks=0,
-                        style={'height': '100%', 'text-transform': 'inherit'},
-                        children=[
-                            html.H6('Readiness', style={'lineHeight': 1}, className='twelve columns'),
-                            html.P(className='twelve columns fa fa-star',
-                                   style={'color': color, 'fontSize': '75%'}),
-                            html.H2(id='readiness-kpi', className='twelve columns', style={'lineHeight': 1},
-                                    children=['{:.0f}'.format(score)])
-                        ])
-        ])
-    ]
+    return datetime.strftime(date, "%A %b %d, %Y"), star, '{:.0f}'.format(score)
 
 
-def generate_oura_readiness_header_chart(date, days=7, summary=False, graph_id='readiness-scatter', resample='D'):
+def generate_oura_readiness_header_chart(date, days=7, summary=False, resample='D'):
+    height = chartHeight if not summary else 300
     session, engine = db_connect()
     if summary:
         df = pd.read_sql(
@@ -1751,7 +1690,6 @@ def generate_oura_readiness_header_chart(date, days=7, summary=False, graph_id='
                               ouraSleepSummary.hr_lowest).statement, con=engine,
             index_col='report_date')
 
-        graph_id = 'readiness-scatter-summary'
     else:
         df = pd.read_sql(
             sql=session.query(ouraReadinessSummary).filter(ouraReadinessSummary.report_date > date).statement,
@@ -1837,13 +1775,12 @@ def generate_oura_readiness_header_chart(date, days=7, summary=False, graph_id='
 
         ]
         layout = go.Layout(
-            # title=pp_title[i],
+            height=height,
+            transition=dict(duration=transition),
             font=dict(
                 size=10,
                 color=white
             ),
-            plot_bgcolor='rgb(66, 66, 66)',
-            paper_bgcolor='rgb(66, 66, 66)',  # margin bg color
             # hoverlabel={'font': {'size': 10}},
             xaxis=dict(
                 showline=True,
@@ -1854,8 +1791,6 @@ def generate_oura_readiness_header_chart(date, days=7, summary=False, graph_id='
                 tickformat=tickformat,
                 range=range,
                 rangeselector=dict(
-                    bgcolor='rgb(66, 66, 66)',
-                    bordercolor='#d4d4d4',
                     borderwidth=.5,
                     buttons=buttons,
                     xanchor='center',
@@ -1951,13 +1886,12 @@ def generate_oura_readiness_header_chart(date, days=7, summary=False, graph_id='
 
         ]
         layout = go.Layout(
-            # title=pp_title[i],
+            height=height,
+            transition=dict(duration=transition),
             font=dict(
                 # size=10,
                 color=white
             ),
-            plot_bgcolor='rgb(66, 66, 66)',
-            paper_bgcolor='rgb(66, 66, 66)',  # margin bg color
             # hoverlabel={'font': {'size': 10}},
             xaxis=dict(
                 showline=True,
@@ -1990,18 +1924,13 @@ def generate_oura_readiness_header_chart(date, days=7, summary=False, graph_id='
                 )),
             margin={'l': 0, 'b': 20, 't': 0, 'r': 0},
         )
+    figure = {
+        'data': data,
+        'layout': layout
+    }
+    clickData = {'points': [{'x': df.index.max()}]}
 
-    return dcc.Graph(id=graph_id, className='twelve columns',
-                     clickData={'points': [{'x': df.index.max()}]},
-                     style={'paddingLeft': '0vw', 'paddingRight': '0vw', 'height': '100%'},
-                     config={
-                         'displayModeBar': False,
-                     },
-                     figure={
-                         'data': data,
-                         'layout': layout
-                     }
-                     )
+    return figure, clickData
 
 
 def generate_oura_readiness_content(date):
@@ -2022,72 +1951,80 @@ def generate_oura_readiness_content(date):
     engine.dispose()
     session.close()
 
-    return dcc.Loading(className='twelve columns height-100', children=[
-        html.Div(id='readiness-content', style={'height': '100%'}, children=[
-            # html.Div(className='twelve columns', style={'height': '1%'}),
-            html.Div(id='oura-readiness-content-kpi-trend', className='twelve columns',
-                     style={'height': '0%'}),
-            html.Div(className='twelve columns', style={'height': '2%'}),
-            html.Div(id='readiness-content-kpi', className='twelve columns', style={'height': '13%'}, children=[
-                html.Button(id='resting-heart-rate-button', className='four columns contentbutton', children=[
-                    html.Div(children=['RESTING HR']),
-                    html.H6('{} bpm'.format(df['hr_lowest'].max()))
-                ]),
-                html.Button(id='heart-rate-variability-button', className='four columns contentbutton', children=[
-                    html.Div(children=['HR VARIABILITY']),
-                    html.H6('{} ms'.format(df['rmssd'].max()))
-                ]),
-                dbc.Tooltip(
-                    'Heart Rate Variability is a measure which indicates the variation in your heartbeats within a specific timeframe.\n\nGenerally speaking, it tells us how recovered and ready we are for the day.\n\nOn the whole, high heart rate variability is an indication of especially cardiovascular, but also overall health as well as general fitness.',
-                    target='heart-rate-variability-button'),
-                html.Button(id='body-temperature-button', className='four columns contentbutton', children=[
-                    html.Div(children=['BODY TEMP']),
-                    html.H6('{:.1f}°F '.format((df['temperature_delta'].max() * (9 / 5))))
-                ]),
-                dbc.Tooltip(
-                    "Body temperature is a well-regulated vital sign and a powerful indicator of your health status and recovery.\n\nAn elevated body temperature is often a sign that something in your body status requires attention.",
-                    target='body-temperature-button'),
-                # html.Button(id='respiratory-rate-button', className='three columns contentbutton', children=[
-                #     html.Div(children=['RESP. RATE']),
-                #     html.H6('{:.1f}'.format(df['breath_average'].max()))
-                # ]),
+    return [html.Div(className='row', children=[
+        html.Div(id='oura-readiness-content-kpi-trend', className='col',
+                 style={'height': '0%'})
+    ]),
+
+            html.Div(id='readiness-content-kpi', className='row', children=[
+                html.Div(className='col', children=[
+                    dbc.Button(id='resting-heart-rate-button', className='col-lg-4 contentbutton', children=[
+                        html.Div(children=['RESTING HR']),
+                        html.H6('{} bpm'.format(df['hr_lowest'].max()),
+                                className='mb-0')
+                    ]),
+
+                    dbc.Button(id='heart-rate-variability-button', className='col-lg-4 contentbutton', children=[
+                        html.Div(children=['HR VARIABILITY']),
+                        html.H6('{} ms'.format(df['rmssd'].max()),
+                                className='mb-0'),
+                        dbc.Tooltip(
+                            'Heart Rate Variability is a measure which indicates the variation in your heartbeats within a specific timeframe.\n\nGenerally speaking, it tells us how recovered and ready we are for the day.\n\nOn the whole, high heart rate variability is an indication of especially cardiovascular, but also overall health as well as general fitness.',
+                            target='heart-rate-variability-button'),
+                    ]),
+
+                    dbc.Button(id='body-temperature-button', className='col-lg-4 contentbutton', children=[
+                        html.Div(children=['BODY TEMP']),
+                        html.H6('{:.1f}°F '.format((df['temperature_delta'].max() * (9 / 5))),
+                                className='mb-0')
+                    ]),
+                    dbc.Tooltip(
+                        "Body temperature is a well-regulated vital sign and a powerful indicator of your health status and recovery.\n\nAn elevated body temperature is often a sign that something in your body status requires attention.",
+                        target='body-temperature-button'),
+                ])
             ]),
 
-            html.Div(className='twelve columns', style={'height': '1%'}),
-
-            html.Div(id='resting-heart-rate-day-trend', className='twelve columns', style={'height': '30%'}, children=[
-                html.H6('Resting Heart Rate',style={'display': 'inline-block', 'marginBottom': '0%', 'height': '25%'},),
-                html.Div(id='resting-heart-rate-chart-conainer', className='twelve columns',
-                         children=generate_rhr_day_chart(date),
-                         style={'height': '75%'}),
+            html.Div(className='row text-center', children=[
+                html.Div(id='resting-heart-rate-day-trend', className='col', children=[
+                    html.H6('Resting Heart Rate', style={'display': 'inline-block', 'marginBottom': '0%'}),
+                    html.Div(id='resting-heart-rate-chart-conainer', className='col',
+                             style={'paddingRight': 0, 'paddingLeft': 0},
+                             children=generate_rhr_day_chart(date)),
+                ])
             ]),
+            html.Div(className='row', children=[
+                html.Div(id='readiness-contributors', className='col-lg-12', children=[
+                    html.H6('Readiness Contributors', className='text-center'),
+                    generate_contributor_bar(df=df_contributors, id='resting-heart-rate',
+                                             column_name='score_resting_hr',
+                                             top_left_title='Resting Heart Rate',
+                                             top_right_title='{} bpm'.format(df['hr_lowest'].max())),
 
-            # html.Div(className='twelve columns', style={'height': '1%'}),
+                    generate_contributor_bar(df=df_contributors, id='hrv-balance', column_name='score_hrv_balance',
+                                             top_left_title='HRV Balance'),
 
-            html.Div(id='readiness-contributors', style={'height': '55%'}, className='twelve columns', children=[
-                html.H6('Readiness Contributors', className='twelve columns', style={'height': '12.5%'}),
-                generate_contributor_bar(df=df_contributors, id='previous-night', column_name='score_previous_night',
-                                         top_left_title='Previous Night',
-                                         top_right_title='Sleep Score {}'.format(df['score'].max())),
-                generate_contributor_bar(df=df_contributors, id='sleep-balance', column_name='score_sleep_balance',
-                                         top_left_title='Sleep Balance'),
-                generate_contributor_bar(df=df_contributors, id='previous-day-activity',
-                                         column_name='score_previous_day',
-                                         top_left_title='Previous Day Activity'),
-                generate_contributor_bar(df=df_contributors, id='activity-balance',
-                                         column_name='score_activity_balance',
-                                         top_left_title='Activity Balance'),
-                generate_contributor_bar(df=df_contributors, id='body-temperature', column_name='score_temperature',
-                                         top_left_title='Body Temperature'),
-                generate_contributor_bar(df=df_contributors, id='resting-heart-rate', column_name='score_resting_hr',
-                                         top_left_title='Resting Heart Rate',
-                                         top_right_title='{} bpm'.format(df['hr_lowest'].max())),
-                generate_contributor_bar(df=df_contributors, id='recovery-index', column_name='score_recovery_index',
-                                         top_left_title='Recovery Index'),
+                    generate_contributor_bar(df=df_contributors, id='body-temperature', column_name='score_temperature',
+                                             top_left_title='Body Temperature'),
+                    generate_contributor_bar(df=df_contributors, id='recovery-index',
+                                             column_name='score_recovery_index',
+                                             top_left_title='Recovery Index'),
+                    generate_contributor_bar(df=df_contributors, id='previous-night',
+                                             column_name='score_previous_night',
+                                             top_left_title='Previous Night',
+                                             top_right_title='Sleep Score {}'.format(df['score'].max())),
+                    generate_contributor_bar(df=df_contributors, id='sleep-balance', column_name='score_sleep_balance',
+                                             top_left_title='Sleep Balance'),
+                    generate_contributor_bar(df=df_contributors, id='previous-day-activity',
+                                             column_name='score_previous_day',
+                                             top_left_title='Previous Day Activity'),
+                    generate_contributor_bar(df=df_contributors, id='activity-balance',
+                                             column_name='score_activity_balance',
+                                             top_left_title='Activity Balance'),
 
+                ])
             ])
-        ])
-    ])
+
+            ]
 
 
 def generate_readiness_modal_summary(days=7):
@@ -2115,8 +2052,7 @@ def generate_readiness_modal_summary(days=7):
     rhr_direction = 'downward' if rhr_slope < 0 else 'upwards'
     rhr_implies = "you've recovered well" if rhr_slope < 0 else "something may be challenging your recovery"
 
-    readiness_last_7_graph = dcc.Graph(className='twelve columns', style={'height': '100%'},
-                                       config={'displayModeBar': False},
+    readiness_last_7_graph = dcc.Graph(config={'displayModeBar': False},
                                        figure={
                                            'data': [go.Bar(
                                                name='Readiness',
@@ -2130,12 +2066,11 @@ def generate_readiness_modal_summary(days=7):
                                                marker={'color': light_blue},
                                            )],
                                            'layout': go.Layout(
+                                               height=300,
                                                font=dict(
                                                    size=10,
                                                    color=white
                                                ),
-                                               plot_bgcolor='rgb(66, 66, 66)',
-                                               paper_bgcolor='rgb(66, 66, 66)',  # margin bg color
                                                xaxis=dict(
                                                    showline=True,
                                                    color=white,
@@ -2155,8 +2090,7 @@ def generate_readiness_modal_summary(days=7):
                                            )
                                        })
 
-    hrv_last_7_graph = dcc.Graph(className='twelve columns', style={'height': '100%'},
-                                 config={'displayModeBar': False},
+    hrv_last_7_graph = dcc.Graph(config={'displayModeBar': False},
                                  figure={
                                      'data': [go.Scatter(
                                          name='HR Variability',
@@ -2207,12 +2141,11 @@ def generate_readiness_modal_summary(days=7):
                                          )
                                      ],
                                      'layout': go.Layout(
+                                         height=300,
                                          font=dict(
                                              size=10,
                                              color=white
                                          ),
-                                         plot_bgcolor='rgb(66, 66, 66)',
-                                         paper_bgcolor='rgb(66, 66, 66)',  # margin bg color
                                          xaxis=dict(
                                              showline=True,
                                              color=white,
@@ -2231,8 +2164,7 @@ def generate_readiness_modal_summary(days=7):
                                          margin={'l': 20, 'b': 20, 't': 0, 'r': 0},
                                      )
                                  })
-    rhr_last_7_graph = dcc.Graph(className='twelve columns', style={'height': '100%'},
-                                 config={'displayModeBar': False},
+    rhr_last_7_graph = dcc.Graph(config={'displayModeBar': False},
                                  figure={
                                      'data': [go.Scatter(
                                          name='Resting HR',
@@ -2287,12 +2219,11 @@ def generate_readiness_modal_summary(days=7):
                                          )
                                      ],
                                      'layout': go.Layout(
+                                         height=300,
                                          font=dict(
                                              size=10,
                                              color=white
                                          ),
-                                         plot_bgcolor='rgb(66, 66, 66)',
-                                         paper_bgcolor='rgb(66, 66, 66)',  # margin bg color
                                          xaxis=dict(
                                              showline=True,
                                              color=white,
@@ -2312,63 +2243,58 @@ def generate_readiness_modal_summary(days=7):
                                      )
                                  })
 
-    return html.Div(className='twelve columns', children=[
-        html.Div(id='readiness-modal-last-7-container', className='twelve columns maincontainer',
+    return [
+        html.Div(id='readiness-modal-last-7-container', className='row mb-2 text-center',
                  style={'whiteSpace': 'normal'}, children=[
-                html.Div(id='readiness-score-last-7', className='four columns', children=[
-                    html.Div(id='readiness-score-last-7-title', className='twelve columns', style={'height': '5vh'},
+                html.Div(id='readiness-score-last-7', className='col-lg-4', children=[
+                    html.Div(id='readiness-score-last-7-title',
                              children=[
                                  html.P('Your average readiness score for the last 7 days is {:.0f}'.format(
                                      df['score'].mean()))
                              ]),
-                    html.Div(id='readiness-score-last-7-chart', className='twelve columns', style={'height': '20vh'},
+                    html.Div(id='readiness-score-last-7-chart',
                              children=[readiness_last_7_graph]
                              )
                 ]),
-                html.Div(id='hrv-score-last-7', className='four columns', children=[
-                    html.Div(id='hrv-score-last-7-title', className='twelve columns', style={'height': '5vh'},
+                html.Div(id='hrv-score-last-7', className='col-lg-4', children=[
+                    html.Div(id='hrv-score-last-7-title',
                              children=[
                                  html.P('Your {} HRV trend implies that {}'.format(hrv_direction, hrv_implies))
                              ]),
-                    html.Div(id='hrv-score-last-7-chart', className='twelve columns', style={'height': '20vh'},
+                    html.Div(id='hrv-score-last-7-chart',
                              children=[hrv_last_7_graph]
                              )
                 ]),
-                html.Div(id='rhr-score-last-7', className='four columns', children=[
-                    html.Div(id='rhr-score-last-7-title', className='twelve columns', style={'height': '5vh'},
+                html.Div(id='rhr-score-last-7', className='col-lg-4', children=[
+                    html.Div(id='rhr-score-last-7-title',
                              children=[
                                  html.P('Your {} RHR trend implies that {}'.format(rhr_direction, rhr_implies))
                              ]),
-                    html.Div(id='rhr-score-last-7-chart', className='twelve columns', style={'height': '20vh'},
+                    html.Div(id='rhr-score-last-7-chart',
                              children=[rhr_last_7_graph]
                              )
                 ]),
             ]),
-        html.Div(className='twelve columns', style={'backgroundColor': 'rgb(48, 48, 48)', 'paddingBottom': '1vh'}),
 
-        html.Div(className='twelve columns maincontainer', children=[
-            html.Div(id='readiness-groupby-controls', className='twelve columns',
-                     style={'height': '10%'}, children=[
-                    html.Button('Year', id='readiness-year-button', n_clicks=0,
-                                style={'marginRight': '1vw'}),
-                    html.Button('Month', id='readiness-month-button', n_clicks=0,
-                                style={'marginRight': '1vw'}),
-                    html.Button('Week', id='readiness-week-button', n_clicks=0,
-                                style={'marginRight': '1vw'}),
-                    html.Button('Day', id='readiness-day-button'),
-                ]),
-
-            dcc.Loading(className='twelve columns maincontainer', children=[
-                html.Div(id='readiness-modal-full-chart',
-                         children=[
-                             # generate_oura_readiness_header_chart(date, summary=True)
-                         ])
+        html.Div(className='row', children=[
+            html.Div(id='readiness-groupby-controls', className='col-lg-12 text-center mb-2 mt-2', children=[
+                dbc.Button('Year', id='readiness-year-button', n_clicks=0, size='sm', className='mr-3'),
+                dbc.Button('Month', id='readiness-month-button', n_clicks=0, size='sm', className='mr-3'),
+                dbc.Button('Week', id='readiness-week-button', n_clicks=0, size='sm', className='mr-3'),
+                dbc.Button('Day', id='readiness-day-button', size='sm'),
             ]),
-        ]),
-    ])
+
+            dcc.Loading(className='col-lg-12', children=[
+                dcc.Graph(id='readiness-modal-full-chart',
+                          config={'displayModeBar': False}
+                          )
+            ]),
+
+        ])
+    ]
 
 
-def generate_oura_acvitity_header_kpi(date):
+def generate_oura_activity_header_kpi(date):
     session, engine = db_connect()
     df = pd.read_sql(
         sql=session.query(ouraActivitySummary.score).filter(ouraActivitySummary.summary_date == date).statement,
@@ -2383,36 +2309,15 @@ def generate_oura_acvitity_header_kpi(date):
     engine.dispose()
     session.close()
     score = df.loc[df.index.max()]['score']
-    color = white if score >= 85 else 'rgb(66,66,66)'
-    return [
-        html.Div(className='twelve columns', children=[
-            html.P(datetime.strftime(date, "%A %b %d, %Y"), id='activity-date',
-                   style={'display': 'inline-block', 'fontSize': '1.25rem', 'color': teal}),
-            html.I(id='activity-exclamation', className='fa fa-exclamation-circle',
-                   style={'display': 'none'}),
-            dbc.Tooltip("Latest activity data not yet posted to Oura cloud", target='activity-exclamation'),
-        ]),
-
-        html.Div(className='twelve columns', children=[
-            html.Button(id='activity-kpi-summary-button', n_clicks=0,
-                        style={'height': '100%', 'text-transform': 'inherit'},
-                        children=[
-                            html.H6('Activity', style={'lineHeight': 1}, className='twelve columns'),
-                            html.P(className='twelve columns fa fa-star',
-                                   style={'color': color, 'fontSize': '75%'}),
-                            html.H2(id='activity-kpi', className='twelve columns', style={'lineHeight': 1},
-                                    children=['{:.0f}'.format(score)])
-                        ])
-        ])
-    ]
+    star = (score >= 85)
+    return datetime.strftime(date, "%A %b %d, %Y"), star, '{:.0f}'.format(score)
 
 
-def generate_oura_activity_header_chart(date, days=7, summary=False, graph_id='activity-bars', resample='D'
-                                                                                                        ''):
+def generate_oura_activity_header_chart(date, days=7, summary=False, resample='D'):
+    height = chartHeight if not summary else 300
     session, engine = db_connect()
     if summary:
         df = pd.read_sql(sql=session.query(ouraActivitySummary).statement, con=engine, index_col='summary_date')
-        graph_id = 'activity-bars-summary'
     else:
         df = pd.read_sql(
             sql=session.query(ouraActivitySummary).filter(ouraActivitySummary.summary_date > date).statement,
@@ -2467,8 +2372,8 @@ def generate_oura_activity_header_chart(date, days=7, summary=False, graph_id='a
 
         ]
         layout = go.Layout(
-            plot_bgcolor='rgb(66, 66, 66)',  # plot bg color
-            paper_bgcolor='rgb(66, 66, 66)',  # margin bg color
+            height=height,
+            transition=dict(duration=transition),
             font=dict(
                 color=white,
                 size=10,
@@ -2483,8 +2388,8 @@ def generate_oura_activity_header_chart(date, days=7, summary=False, graph_id='a
                 tickformat='%b %d',
                 range=range,
                 rangeselector=dict(
-                    bgcolor='rgb(66, 66, 66)',
-                    bordercolor='#d4d4d4',
+                    # bgcolor='rgb(66, 66, 66)',
+                    # bordercolor='#d4d4d4',
                     borderwidth=.5,
                     buttons=buttons,
                     xanchor='center',
@@ -2548,8 +2453,8 @@ def generate_oura_activity_header_chart(date, days=7, summary=False, graph_id='a
 
         ]
         layout = go.Layout(
-            plot_bgcolor='rgb(66, 66, 66)',  # plot bg color
-            paper_bgcolor='rgb(66, 66, 66)',  # margin bg color
+            height=height,
+            transition=dict(duration=transition),
             font=dict(
                 color=white
             ),
@@ -2588,19 +2493,16 @@ def generate_oura_activity_header_chart(date, days=7, summary=False, graph_id='a
             # autosize=True,
         )
 
-    return dcc.Graph(id=graph_id, className='twelve columns', style={'height': '100%'},
-                     clickData={'points': [{'x': df.index.max(),
-                                            'y': df['low'].max()},
-                                           {'y': df['medium'].max()},
-                                           {'y': df['high'].max()}]},
-                     config={
-                         'displayModeBar': False,
-                         # 'showLink': True  # to edit in studio
-                     },
-                     figure={
-                         'data': data,
-                         'layout': layout
-                     })
+    clickData = {'points': [{'x': df.index.max(),
+                             'y': df['low'].max()},
+                            {'y': df['medium'].max()},
+                            {'y': df['high'].max()}]}
+    figure = {
+        'data': data,
+        'layout': layout
+    }
+
+    return figure, clickData
 
 
 def generate_oura_activity_content(date):
@@ -2614,77 +2516,71 @@ def generate_oura_activity_content(date):
     engine.dispose()
     session.close()
 
-    return dcc.Loading(className='twelve columns height-100', children=[
-        html.Div(id='activity-content', style={'height': '100%'}, children=[
-            # html.Div(className='twelve columns', style={'height': '1%'}),
-            html.Div(id='oura-activity-content-kpi-trend', className='twelve columns',
-                     style={'height': '0%'}),
-            html.Div(className='twelve columns', style={'height': '2%'}),
-            html.Div(id='activity-content-kpi', className='twelve columns', style={'height': '13%'}, children=[
-                html.Button(id='goal-progress-button', className='four columns contentbutton',
-                            children=[
-                                html.Div(children=['CAL PROGRESS']),
-                                html.H6(
-                                    '{} / {}'.format(df['cal_active'].max(), df['target_calories'].max()))
-                            ]),
-                html.Button(id='total-burn-button', className='four columns contentbutton', children=[
-                    html.Div(children=['TOTAL BURN (CAL)']),
-                    html.H6('{}'.format(df['cal_total'].max()))
-                ]),
-                html.Button(id='walking-equivalency-button', className='four columns contentbutton',
-                            children=[
-                                html.Div(children=['WALKING EQUIV.']),
-                                html.H6('{:.1f} mi'.format(df['daily_movement'].max() * 0.000621371))
-                            ]),
-                # html.Button(id='steps-button', className='three columns contentbutton', children=[
-                #     html.Div(children=['STEPS']),
-                #     html.H6('{}'.format(df['steps'].max()))
-                # ]),
-            ]),
-            html.Div(className='twelve columns', style={'height': '1%'}),
-            html.Div(id='daily-movement-day-trend', className='twelve columns', style={'height': '30%'}, children=[
-                html.H6('Daily Movement',
-                        style={'display': 'inline-block', 'marginBottom': '0%', 'height': '25%'},
-                        ),
+    return [html.Div(className='row', children=[
+        html.Div(id='oura-activity-content-kpi-trend', className='col',
+                 style={'height': '0%'})
+    ]),
 
-                html.Div(id='daily-movement-chart-conainer', className='twelve columns',
-                         children=generate_daily_movement_chart(date),
-                         style={'height': '75%'}),
+            html.Div(id='activity-content-kpi', className='row', children=[
+                html.Div(className='col', children=[
+                    dbc.Button(id='goal-progress-button', className='col-lg-4 contentbutton', children=[
+                        html.Div(children=['CAL PROGRESS']),
+                        html.H6('{} / {}'.format(df['cal_active'].max(), df['target_calories'].max()),
+                                className='mb-0')
+                    ]),
+
+                    dbc.Button(id='total-burn-button', className='col-lg-4 contentbutton', children=[
+                        html.Div(children=['TOTAL BURN (CAL)']),
+                        html.H6('{}'.format(df['cal_total'].max()),
+                                className='mb-0')
+                    ]),
+                    dbc.Button(id='walking-equivalency-button', className='col-lg-4 contentbutton', children=[
+                        html.Div(children=['WALKING EQUIV.']),
+                        html.H6('{:.1f} mi'.format(df['daily_movement'].max() * 0.000621371),
+                                className='mb-0')
+                    ])
+                ])
             ]),
 
-            # html.Div(className='twelve columns', style={'height': '1%'}),
+            html.Div(className='row text-center', children=[
+                html.Div(id='daily-movement-day-trend', className='col', children=[
+                    html.H6('Daily Movement', style={'display': 'inline-block', 'marginBottom': '0%'}),
+                    html.Div(id='daily-movement-chart-conainer', className='col',
+                             style={'paddingRight': 0, 'paddingLeft': 0},
+                             children=generate_daily_movement_chart(date)),
+                ])
+            ]),
+            html.Div(className='row', children=[
+                html.Div(id='activity-contributors', className='col-lg-12', children=[
+                    html.H6('Activity Contributors', className='text-center'),
+                    generate_contributor_bar(df=df, id='stay-active',
+                                             column_name='score_stay_active',
+                                             top_left_title='Stay Active',
+                                             top_right_title='{}h {}m'.format(
+                                                 df['inactive'].max() // 60,
+                                                 (df['inactive'].max() % 60))),
+                    generate_contributor_bar(df=df, id='move-every-hour',
+                                             column_name='score_move_every_hour',
+                                             top_left_title='Move Every Hour',
+                                             top_right_title='{:.0f} alerts'.format(
+                                                 df['inactivity_alerts'].max())),
+                    generate_contributor_bar(df=df, id='meet-daily-goals',
+                                             column_name='score_meet_daily_targets',
+                                             top_left_title='Meet Daily Goals'),
+                    generate_contributor_bar(df=df, id='training-frequency',
+                                             column_name='score_training_frequency',
+                                             top_left_title='Training Frequency'),
+                    generate_contributor_bar(df=df, id='training-volume',
+                                             column_name='score_training_volume',
+                                             top_left_title='Training Volume'),
+                    generate_contributor_bar(df=df, id='recovery-time',
+                                             column_name='score_recovery_time',
+                                             top_left_title='Recovery Time')
 
-            html.Div(id='activity-contributors', className='twelve columns', style={'height': '55%'},
-                     children=[
-                         html.H6('Activity Contributors', className='twelve columns',
-                                 style={'height': '12.5%'}),
+                ])
+            ])
 
-                         generate_contributor_bar(df=df, id='stay-active',
-                                                  column_name='score_stay_active',
-                                                  top_left_title='Stay Active',
-                                                  top_right_title='{}h {}m'.format(
-                                                      df['inactive'].max() // 60,
-                                                      (df['inactive'].max() % 60))),
-                         generate_contributor_bar(df=df, id='move-every-hour',
-                                                  column_name='score_move_every_hour',
-                                                  top_left_title='Move Every Hour',
-                                                  top_right_title='{:.0f} alerts'.format(
-                                                      df['inactivity_alerts'].max())),
-                         generate_contributor_bar(df=df, id='meet-daily-goals',
-                                                  column_name='score_meet_daily_targets',
-                                                  top_left_title='Meet Daily Goals'),
-                         generate_contributor_bar(df=df, id='training-frequency',
-                                                  column_name='score_training_frequency',
-                                                  top_left_title='Training Frequency'),
-                         generate_contributor_bar(df=df, id='training-volume',
-                                                  column_name='score_training_volume',
-                                                  top_left_title='Training Volume'),
-                         generate_contributor_bar(df=df, id='recovery-time',
-                                                  column_name='score_recovery_time',
-                                                  top_left_title='Recovery Time')
-                     ])
-        ])
-    ])
+            ]
 
 
 def generate_activity_modal_summary(days=7):
@@ -2701,8 +2597,7 @@ def generate_activity_modal_summary(days=7):
 
     df['completion'] = df['cal_active'] / df['target_calories']
 
-    activity_last_7_graph = dcc.Graph(className='twelve columns', style={'height': '100%'},
-                                      config={'displayModeBar': False},
+    activity_last_7_graph = dcc.Graph(config={'displayModeBar': False},
                                       figure={
                                           'data': [go.Bar(
                                               name='Activity',
@@ -2716,12 +2611,11 @@ def generate_activity_modal_summary(days=7):
                                               marker={'color': light_blue},
                                           )],
                                           'layout': go.Layout(
+                                              height=300,
                                               font=dict(
                                                   size=10,
                                                   color=white
                                               ),
-                                              plot_bgcolor='rgb(66, 66, 66)',
-                                              paper_bgcolor='rgb(66, 66, 66)',  # margin bg color
                                               xaxis=dict(
                                                   showline=True,
                                                   color=white,
@@ -2741,8 +2635,7 @@ def generate_activity_modal_summary(days=7):
                                           )
                                       })
 
-    goal_completion_last_7_graph = dcc.Graph(className='twelve columns', style={'height': '100%'},
-                                             config={'displayModeBar': False},
+    goal_completion_last_7_graph = dcc.Graph(config={'displayModeBar': False},
                                              figure={
                                                  'data': [go.Bar(
                                                      name='Goal Completion',
@@ -2755,12 +2648,11 @@ def generate_activity_modal_summary(days=7):
                                                      marker={'color': light_blue},
                                                  )],
                                                  'layout': go.Layout(
+                                                     height=300,
                                                      font=dict(
                                                          size=10,
                                                          color=white
                                                      ),
-                                                     plot_bgcolor='rgb(66, 66, 66)',
-                                                     paper_bgcolor='rgb(66, 66, 66)',  # margin bg color
                                                      xaxis=dict(
                                                          showline=True,
                                                          color=white,
@@ -2779,8 +2671,7 @@ def generate_activity_modal_summary(days=7):
                                                      margin={'l': 40, 'b': 20, 't': 0, 'r': 0},
                                                  )
                                              })
-    inactive_last_7_graph = dcc.Graph(className='twelve columns', style={'height': '100%'},
-                                      config={'displayModeBar': False},
+    inactive_last_7_graph = dcc.Graph(config={'displayModeBar': False},
                                       figure={
                                           'data': [go.Bar(
                                               name='Inactive Time',
@@ -2793,12 +2684,11 @@ def generate_activity_modal_summary(days=7):
                                               marker={'color': light_blue},
                                           )],
                                           'layout': go.Layout(
+                                              height=300,
                                               font=dict(
                                                   size=10,
                                                   color=white
                                               ),
-                                              plot_bgcolor='rgb(66, 66, 66)',
-                                              paper_bgcolor='rgb(66, 66, 66)',  # margin bg color
                                               xaxis=dict(
                                                   showline=True,
                                                   color=white,
@@ -2818,59 +2708,53 @@ def generate_activity_modal_summary(days=7):
                                           )
                                       })
 
-    return html.Div(className='twelve columns', children=[
-        html.Div(id='activity-modal-last-7-container', className='twelve columns maincontainer',
+    return html.Div([
+        html.Div(id='activity-modal-last-7-container', className='row mb-2 text-center',
                  style={'whiteSpace': 'normal'}, children=[
-                html.Div(id='activity-score-last-7', className='four columns', children=[
-                    html.Div(id='activity-score-last-7-title', className='twelve columns', style={'height': '5vh'},
+                html.Div(id='activity-score-last-7', className='col-lg-4', children=[
+                    html.Div(id='activity-score-last-7-title',
                              children=[
                                  html.P('Your average activity score for the last 7 days is {:.0f}'.format(
                                      df['score'].mean()))
                              ]),
-                    html.Div(id='activity-score-last-7-chart', className='twelve columns', style={'height': '20vh'},
+                    html.Div(id='activity-score-last-7-chart',
                              children=[activity_last_7_graph]
                              )
                 ]),
-                html.Div(id='goal-completion-last-7', className='four columns', children=[
-                    html.Div(id='goal-completion-last-7-title', className='twelve columns', style={'height': '5vh'},
+                html.Div(id='goal-completion-last-7', className='col-lg-4', children=[
+                    html.Div(id='goal-completion-last-7-title',
                              children=[
                                  html.P('Your average activity goal completion for the last 7 days is {:.0f}%'.format(
                                      df['completion'].mean() * 100))
                              ]),
-                    html.Div(id='goal-completion-last-7-chart', className='twelve columns', style={'height': '20vh'},
+                    html.Div(id='goal-completion-last-7-chart',
                              children=[goal_completion_last_7_graph]
                              )
                 ]),
-                html.Div(id='inactive-last-7', className='four columns', children=[
-                    html.Div(id='inactive-last-7-title', className='twelve columns', style={'height': '5vh'},
+                html.Div(id='inactive-last-7', className='col-lg-4', children=[
+                    html.Div(id='inactive-last-7-title',
                              children=[
                                  html.P(
                                      'Your daily average inactive time over the last 7 days is {:.0f}h {:.0f}m'.format(
                                          df['inactive'].mean() // 60, df['inactive'].mean() % 60))
                              ]),
-                    html.Div(id='inactive-last-7-chart', className='twelve columns', style={'height': '20vh'},
+                    html.Div(id='inactive-last-7-chart',
                              children=[inactive_last_7_graph]
                              )
                 ]),
             ]),
-        html.Div(className='twelve columns', style={'backgroundColor': 'rgb(48, 48, 48)', 'paddingBottom': '1vh'}),
-        html.Div(className='twelve columns maincontainer', children=[
-            html.Div(id='activity-groupby-controls', className='twelve columns',
-                     style={'height': '10%'}, children=[
-                    html.Button('Year', id='activity-year-button', n_clicks=0,
-                                style={'marginRight': '1vw'}),
-                    html.Button('Month', id='activity-month-button', n_clicks=0,
-                                style={'marginRight': '1vw'}),
-                    html.Button('Week', id='activity-week-button', n_clicks=0,
-                                style={'marginRight': '1vw'}),
-                    html.Button('Day', id='activity-day-button'),
-                ]),
+        html.Div(className='row', children=[
+            html.Div(id='activity-groupby-controls', className='col-lg-12 text-center mb-2 mt-2', children=[
+                dbc.Button('Year', id='activity-year-button', n_clicks=0, size='sm', className='mr-3'),
+                dbc.Button('Month', id='activity-month-button', n_clicks=0, size='sm', className='mr-3'),
+                dbc.Button('Week', id='activity-week-button', n_clicks=0, size='sm', className='mr-3'),
+                dbc.Button('Day', id='activity-day-button', size='sm'),
+            ]),
 
-            dcc.Loading(className='twelve columns maincontainer', children=[
-                html.Div(id='activity-modal-full-chart',
-                         children=[
-                             # generate_oura_activity_header_chart(date, summary=True)
-                         ])
+            dcc.Loading(className='col-lg-12', children=[
+                dcc.Graph(id='activity-modal-full-chart',
+                          config={'displayModeBar': False}
+                          )
             ]),
         ]),
     ])
@@ -2951,16 +2835,22 @@ def cycle_week(back_week_n_clicks, forward_week_n_clicks, back_week_timestamp, f
 
 # Update Header containers
 @app.callback(
-    [Output('oura-sleep-header', 'children'),
-     Output('oura-readiness-header', 'children'),
-     Output('oura-acvitity-header', 'children')],
+    [Output('sleep-trend', 'figure'),
+     Output('sleep-trend', 'clickData'),
+     Output('readiness-scatter', 'figure'),
+     Output('readiness-scatter', 'clickData'),
+     Output('activity-bars', 'figure'),
+     Output('activity-bars', 'clickData')
+     ],
     [Input('week-ending', 'children')]
 )
 def update_header_containers(week_ending):
     date = datetime.strptime(week_ending, '%A %b %d, %Y')
     date -= timedelta(days=7)
-    return generate_oura_sleep_header_chart(date), generate_oura_readiness_header_chart(
-        date), generate_oura_activity_header_chart(date)
+    sleep_figure, sleep_clickData = generate_oura_sleep_header_chart(date)
+    readiness_figure, readiness_clickData = generate_oura_readiness_header_chart(date)
+    activity_figure, activity_clickData = generate_oura_activity_header_chart(date)
+    return sleep_figure, sleep_clickData, readiness_figure, readiness_clickData, activity_figure, activity_clickData
 
 
 # Sleep content kpi trend action
@@ -2989,9 +2879,9 @@ def sleep_content_kpi_trend(total_sleep_time_timestamp, total_time_in_bed_timest
     latest = max(timestamps.items(), key=operator.itemgetter(1))[0]
 
     if current_trend == latest:
-        return [], {'height': '0%'}, [],
+        return [], {'display': 'none'}, [],
     else:
-        return generate_content_kpi_trend('sleep', latest), {'height': '30%'}, latest
+        return generate_content_kpi_trend('sleep', latest), {'display': 'inherit'}, latest
 
 
 # Readiness content kpi trend action
@@ -3021,9 +2911,9 @@ def readiness_content_kpi_trend(resting_heart_rate_timestamp, heart_rate_variabi
     latest = max(timestamps.items(), key=operator.itemgetter(1))[0]
 
     if current_trend == latest:
-        return [], {'height': '0%'}, []
+        return [], {'display': 'none'}, [],
     else:
-        return generate_content_kpi_trend('sleep', latest), {'height': '30%'}, latest
+        return generate_content_kpi_trend('sleep', latest), {'display': 'inherit'}, latest
 
 
 # Activity content kpi trend action
@@ -3053,9 +2943,9 @@ def activity_content_kpi_trend(goal_progress_timestamp, total_burn_timestamp, wa
     latest = max(timestamps.items(), key=operator.itemgetter(1))[0]
 
     if current_trend == latest:
-        return [], {'height': '0%'}, []
+        return [], {'display': 'none'}, [],
     else:
-        return generate_content_kpi_trend('activity', latest), {'height': '30%'}, latest
+        return generate_content_kpi_trend('activity', latest), {'display': 'inherit'}, latest
 
 
 # Callbacks to figure out which is the latest header chart that was clicked
@@ -3093,14 +2983,16 @@ def update_last_clicked(sleepClick_timestamp, readinessClick_timestamp, activity
                         sleepClick, readinessClick, activityClick):
     timestamps = {'sleep': sleepClick_timestamp, 'readiness': readinessClick_timestamp,
                   'activity': activityClick_timestamp}
-
     latest = max(timestamps.items(), key=operator.itemgetter(1))[0]
-    if latest == 'sleep':
-        date = sleepClick['points'][0]['x']
-    elif latest == 'readiness':
-        date = readinessClick['points'][0]['x']
-    elif latest == 'activity':
-        date = activityClick['points'][0]['x']
+    try:
+        if latest == 'sleep':
+            date = sleepClick['points'][0]['x']
+        elif latest == 'readiness':
+            date = readinessClick['points'][0]['x']
+        elif latest == 'activity':
+            date = activityClick['points'][0]['x']
+    except:
+        date = datetime.strftime(datetime.now(), '%Y-%m-%dT%H:%M:%S')
 
     if len(date) > 10:
         date = datetime.strptime(date, "%Y-%m-%dT%H:%M:%S").date()
@@ -3173,36 +3065,60 @@ def show_activity_exclamation(dummy):
 
 # Sleep content click data action
 @app.callback(
-    [Output('sleep-title', 'children'),
+    [Output('sleep-date', 'children'),
+     Output('sleep-kpi', 'children'),
      Output('oura-sleep-content', 'children')],
     [Input('last-chart-clicked', 'children')],
 
 )
 def update_oura_sleep_contents(date):
     date = pd.to_datetime(date).date()
-    return generate_oura_sleep_header_kpi(date), generate_oura_sleep_content(date)
+    date_title, star, score = generate_oura_sleep_header_kpi(date)
+    if star:
+        kpi_score = [html.I(className='fa fa-star align-middle mr-1', style={'fontSize': '25%'}),
+                     score,
+                     html.I(className='fa fa-star align-middle ml-1', style={'fontSize': '25%'})]
+    else:
+        kpi_score = score
+    return date_title, kpi_score, generate_oura_sleep_content(date)
 
 
 # Readiness content click data action
 @app.callback(
-    [Output('readiness-title', 'children'),
+    [Output('readiness-date', 'children'),
+     Output('readiness-kpi', 'children'),
      Output('oura-readiness-content', 'children')],
     [Input('last-chart-clicked', 'children')]
 )
 def update_oura_readiness_contents(date):
     date = pd.to_datetime(date).date()
-    return generate_oura_readiness_header_kpi(date), generate_oura_readiness_content(date)
+    date_title, star, score = generate_oura_readiness_header_kpi(date)
+    if star:
+        kpi_score = [html.I(className='fa fa-star align-middle mr-1', style={'fontSize': '25%'}),
+                     score,
+                     html.I(className='fa fa-star align-middle ml-1', style={'fontSize': '25%'})]
+    else:
+        kpi_score = score
+    return date_title, kpi_score, generate_oura_readiness_content(date)
 
 
 # Activity content click data action
 @app.callback(
-    [Output('activity-title', 'children'),
+    [Output('activity-date', 'children'),
+     Output('activity-kpi', 'children'),
      Output('oura-activity-content', 'children')],
     [Input('last-chart-clicked', 'children')]
 )
 def update_oura_activity_contents(date):
     date = pd.to_datetime(date).date()
-    return generate_oura_acvitity_header_kpi(date), generate_oura_activity_content(date)
+    date_title, star, score = generate_oura_activity_header_kpi(date)
+    if star:
+        kpi_score = [html.I(className='fa fa-star align-middle mr-1', style={'fontSize': '25%'}),
+                     score,
+                     html.I(className='fa fa-star align-middle ml-1', style={'fontSize': '25%'})]
+    else:
+        kpi_score = score
+    return date_title, kpi_score, generate_oura_activity_content(date)
 
 
 # Sleep Summary Modal Toggle
@@ -3229,7 +3145,7 @@ def sleep_modal_content(is_open):
 
 
 # Sleep Group By chart
-@app.callback([Output("sleep-modal-full-chart", "children"),
+@app.callback([Output("sleep-modal-full-chart", "figure"),
                Output('sleep-year-button', 'style'),
                Output('sleep-month-button', 'style'),
                Output('sleep-week-button', 'style'),
@@ -3266,10 +3182,11 @@ def sleep_modal_content(is_open, year_n_clicks, month_n_clicks, week_n_clicks, d
             'marginRight': '1%'}
         day_style = {'marginRight': '1%', 'color': '#64D9EC', 'borderColor': '#64D9EC'} if latest == 'D' else {
             'marginRight': '1%'}
-        return generate_oura_sleep_header_chart(date=None, summary=True,
-                                                resample=latest), year_style, month_style, week_style, day_style
+
+        figure, clickData = generate_oura_sleep_header_chart(date=None, summary=True, resample=latest)
+        return figure, year_style, month_style, week_style, day_style
     else:
-        return [], {'marginRight': '1%'}, {'marginRight': '1%'}, {'marginRight': '1%'}, {'marginRight': '1%'}
+        return {}, {'marginRight': '1%'}, {'marginRight': '1%'}, {'marginRight': '1%'}, {'marginRight': '1%'}
 
 
 # Readiness Summary Modal Toggle
@@ -3296,7 +3213,7 @@ def readiness_modal_content(is_open):
 
 
 # Readiness Group By chart
-@app.callback([Output("readiness-modal-full-chart", "children"),
+@app.callback([Output("readiness-modal-full-chart", "figure"),
                Output('readiness-year-button', 'style'),
                Output('readiness-month-button', 'style'),
                Output('readiness-week-button', 'style'),
@@ -3332,10 +3249,10 @@ def readiness_modal_content(is_open, year_n_clicks, month_n_clicks, week_n_click
             'marginRight': '1%'}
         day_style = {'marginRight': '1%', 'color': '#64D9EC', 'borderColor': '#64D9EC'} if latest == 'D' else {
             'marginRight': '1%'}
-        return generate_oura_readiness_header_chart(date=None, summary=True,
-                                                    resample=latest), year_style, month_style, week_style, day_style
+        figure, clickData = generate_oura_readiness_header_chart(date=None, summary=True, resample=latest)
+        return figure, year_style, month_style, week_style, day_style
     else:
-        return [], {'marginRight': '1%'}, {'marginRight': '1%'}, {'marginRight': '1%'}, {'marginRight': '1%'}
+        return {}, {'marginRight': '1%'}, {'marginRight': '1%'}, {'marginRight': '1%'}, {'marginRight': '1%'}
 
 
 # Activity Summary Modal Toggle
@@ -3362,7 +3279,7 @@ def readiness_modal_content(is_open):
 
 
 # Activity Group By chart
-@app.callback([Output("activity-modal-full-chart", "children"),
+@app.callback([Output("activity-modal-full-chart", "figure"),
                Output('activity-year-button', 'style'),
                Output('activity-month-button', 'style'),
                Output('activity-week-button', 'style'),
@@ -3398,10 +3315,10 @@ def activity_modal_content(is_open, year_n_clicks, month_n_clicks, week_n_clicks
             'marginRight': '1%'}
         day_style = {'marginRight': '1%', 'color': '#64D9EC', 'borderColor': '#64D9EC'} if latest == 'D' else {
             'marginRight': '1%'}
-        return generate_oura_activity_header_chart(date=None, summary=True,
-                                                   resample=latest), year_style, month_style, week_style, day_style
+        figure, clickData = generate_oura_activity_header_chart(date=None, summary=True, resample=latest)
+        return figure, year_style, month_style, week_style, day_style
     else:
-        return [], {'marginRight': '1%'}, {'marginRight': '1%'}, {'marginRight': '1%'}, {'marginRight': '1%'}
+        return {}, {'marginRight': '1%'}, {'marginRight': '1%'}, {'marginRight': '1%'}, {'marginRight': '1%'}
 
 
 def get_layout(**kwargs):
@@ -3414,11 +3331,11 @@ def get_layout(**kwargs):
 
                                  html.Div(className='col-lg-12 text-center', children=[
                                      html.P('Week Ending', className='mb-0',
-                                            style={'color': teal, 'fontSize': '.75rem'}),
+                                            style={'color': teal, 'fontSize': '1rem'}),
                                  ]),
                                  html.Div(className='col-lg-12 text-center', children=[
                                      html.Button(id='back-week', className='fa fa-arrow-left mr-2', n_clicks=0),
-                                     html.H6(id='week-ending', style={'display': 'inline-block'}),
+                                     html.H4(id='week-ending', style={'display': 'inline-block'}),
                                      html.Button(id='forward-week', className='fa fa-arrow-right ml-2'),
                                  ])
                              ])
@@ -3437,10 +3354,10 @@ def get_layout(**kwargs):
                       size='xl',
                       children=[
                           dbc.ModalHeader("Sleep Summary"),
-                          dbc.ModalBody(html.Div(id="oura-sleep-summary-modal-body")),
+                          dbc.ModalBody(id="oura-sleep-summary-modal-body"),
                           dbc.ModalFooter(
-                              html.Button("Close", id="close-sleep-summary-modal-button", className="ml-auto",
-                                          n_clicks=0)
+                              dbc.Button("Close", id="close-sleep-summary-modal-button", className="ml-auto",
+                                         n_clicks=0)
                           ),
                       ]),
 
@@ -3450,8 +3367,8 @@ def get_layout(**kwargs):
                           dbc.ModalHeader("Readiness Summary"),
                           dbc.ModalBody(html.Div(id="oura-readiness-summary-modal-body")),
                           dbc.ModalFooter(
-                              html.Button("Close", id="close-readiness-summary-modal-button", className="ml-auto",
-                                          n_clicks=0)
+                              dbc.Button("Close", id="close-readiness-summary-modal-button", className="ml-auto",
+                                         n_clicks=0)
                           ),
                       ]),
 
@@ -3461,51 +3378,155 @@ def get_layout(**kwargs):
                           dbc.ModalHeader("Activity Summary"),
                           dbc.ModalBody(html.Div(id="oura-activity-summary-modal-body")),
                           dbc.ModalFooter(
-                              html.Button("Close", id="close-activity-summary-modal-button", className="ml-auto",
-                                          n_clicks=0)
+                              dbc.Button("Close", id="close-activity-summary-modal-button", className="ml-auto",
+                                         n_clicks=0)
                           ),
                       ]),
+
+            ## TODO: Finish cleaning card for sleep, fix callbacks, replicate for readiness and activity
             html.Div(className='col-lg-4', children=[
                 dbc.Card([
                     dbc.CardBody(id='oura-sleep-container',
                                  children=[
-                                     html.Div(id='oura-sleep-kpi', className='col-lg-12', style={'height': '15%'},
-                                              children=[dcc.Loading(children=[html.Div(id='sleep-title')])]),
-                                     html.Div(id='oura-sleep-header', className='col-lg-12',
-                                              style={'height': '20%'}),
-                                     # html.Div(className='twelve columns', style={'height': '1%'}),
-                                     html.Div(id='oura-sleep-content', className='col-lg-12',
-                                              style={'height': '65%'})])
+                                     html.Div(className='row', children=[
+                                         html.Div(id='oura-sleep-kpi', className='col-lg-12 text-center',
+                                                  children=[
+                                                      html.P(id='sleep-date', className='mb-0',
+                                                             style={'display': 'inline-block',
+                                                                    'fontSize': '1rem',
+                                                                    'color': teal}),
+                                                      html.I(id='sleep-exclamation',
+                                                             className='fa fa-exclamation-circle',
+                                                             style={'display': 'none'}),
+                                                      dbc.Tooltip(
+                                                          "Latest sleep data not yet posted to Oura cloud",
+                                                          target='sleep-exclamation'),
+
+                                                  ])
+                                     ]),
+
+                                     html.Div(className='row', children=[
+                                         dbc.Button(id='sleep-kpi-summary-button', className='col-4 offset-4',
+                                                    color='primary', n_clicks=0, size='sm',
+                                                    style={'height': '100%', 'text-transform': 'inherit'},
+                                                    children=[
+                                                        html.H6('Sleep', style={'lineHeight': 1}, className='col mb-0'),
+                                                        html.H2(id='sleep-kpi', className='col mb-0',
+                                                                style={'lineHeight': 1})
+                                                    ])
+                                     ]),
+                                     html.Div(className='row', children=[
+                                         dcc.Graph(id='sleep-trend', className='col-lg-12',
+                                                   config={'displayModeBar': False}
+                                                   ),
+
+                                         html.Div(id='oura-sleep-header', className='col-lg-12',
+                                                  # style={'height': '20%'}
+                                                  )
+                                     ]),
+                                     html.Div(className='row', children=[
+                                         html.Div(id='oura-sleep-content', className='col-lg-12',
+                                                  style={'height': '65%'})])
+                                 ]),
+
                 ])
             ]),
+
             html.Div(className='col-lg-4', children=[
                 dbc.Card([
                     dbc.CardBody(id='oura-readiness-container',
                                  children=[
-                                     html.Div(id='oura-readiness-kpi', className='col-lg-12',
-                                              style={'height': '15%'},
-                                              children=[dcc.Loading(children=[html.Div(id='readiness-title')])]),
-                                     html.Div(id='oura-readiness-header', className='col-lg-12',
-                                              style={'height': '20%'}),
-                                     # html.Div(className='twelve columns', style={'height': '1%'}),
-                                     html.Div(id='oura-readiness-content', className='col-lg-12',
-                                              style={'height': '65%'})])
+                                     html.Div(className='row', children=[
+                                         html.Div(id='oura-readiness-kpi', className='col-lg-12 text-center',
+                                                  children=[
+
+                                                      html.P(id='readiness-date', className='mb-0',
+                                                             style={'display': 'inline-block',
+                                                                    'fontSize': '1rem',
+                                                                    'color': teal}),
+                                                      html.I(id='readiness-exclamation',
+                                                             className='fa fa-exclamation-circle',
+                                                             style={'display': 'none'}),
+                                                      dbc.Tooltip(
+                                                          "Latest readiness data not yet posted to Oura cloud",
+                                                          target='readiness-exclamation'),
+
+                                                  ])
+                                     ]),
+
+                                     html.Div(className='row', children=[
+                                         dbc.Button(id='readiness-kpi-summary-button', className='col-4 offset-4',
+                                                    color='primary', n_clicks=0, size='sm',
+                                                    style={'height': '100%', 'text-transform': 'inherit'},
+                                                    children=[
+                                                        html.H6('Readiness', style={'lineHeight': 1},
+                                                                className='col mb-0'),
+                                                        html.H2(id='readiness-kpi', className='col mb-0',
+                                                                style={'lineHeight': 1})
+                                                    ])
+                                     ]),
+                                     html.Div(className='row', children=[
+                                         dcc.Graph(id='readiness-scatter', className='col-lg-12',
+                                                   style={'paddingLeft': '0vw', 'paddingRight': '0vw'},  # TODO: delete?
+                                                   config={'displayModeBar': False},
+                                                   )
+
+                                     ]),
+                                     html.Div(className='row', children=[
+                                         html.Div(id='oura-readiness-content', className='col-lg-12',
+                                                  style={'height': '65%'})])
+                                 ]),
+
                 ])
             ]),
+
             html.Div(className='col-lg-4', children=[
                 dbc.Card([
                     dbc.CardBody(id='oura-activity-container',
                                  children=[
-                                     html.Div(id='oura-activity-kpi', className='col-lg-12',
-                                              style={'height': '15%'},
-                                              children=[dcc.Loading(children=[html.Div(id='activity-title')])]),
-                                     html.Div(id='oura-acvitity-header', className='col-lg-12',
-                                              style={'height': '20%'}),
-                                     # html.Div(className='twelve columns', style={'height': '1%'}),
-                                     html.Div(id='oura-activity-content', className='col-lg-12',
-                                              style={'height': '65%'})])
+                                     html.Div(className='row', children=[
+                                         html.Div(id='oura-activity-kpi', className='col-lg-12 text-center',
+                                                  children=[
+
+                                                      html.P(id='activity-date', className='mb-0',
+                                                             style={'display': 'inline-block',
+                                                                    'fontSize': '1rem',
+                                                                    'color': teal}),
+                                                      html.I(id='activity-exclamation',
+                                                             className='fa fa-exclamation-circle',
+                                                             style={'display': 'none'}),
+                                                      dbc.Tooltip(
+                                                          "Latest activity data not yet posted to Oura cloud",
+                                                          target='activity-exclamation'),
+
+                                                  ])
+                                     ]),
+
+                                     html.Div(className='row', children=[
+                                         dbc.Button(id='activity-kpi-summary-button', className='col-4 offset-4',
+                                                    color='primary', n_clicks=0, size='sm',
+                                                    style={'height': '100%', 'text-transform': 'inherit'},
+                                                    children=[
+                                                        html.H6('Activity', style={'lineHeight': 1},
+                                                                className='col mb-0'),
+                                                        html.H2(id='activity-kpi', className='col mb-0',
+                                                                style={'lineHeight': 1})
+                                                    ])
+                                     ]),
+                                     html.Div(className='row', children=[
+                                         dcc.Graph(id='activity-bars', className='col-lg-12',
+                                                   config={'displayModeBar': False},
+                                                   )
+
+                                     ]),
+                                     html.Div(className='row', children=[
+                                         html.Div(id='oura-activity-content', className='col-lg-12',
+                                                  style={'height': '65%'})])
+                                 ]),
+
                 ])
             ]),
+
             # Dummy divs for controlling which over happened last to update all containers
             html.Div(id='last-chart-clicked', style={'display': 'none'}),
             html.Div(id='sleepClick-timestamp', style={'display': 'none'}, children=datetime.utcnow()),
