@@ -32,7 +32,7 @@ with server.app_context():
     # Enable refresh cron
     if config.get('cron', 'hourly_pull').lower() == 'true':
         try:
-            from fitly.api.datapull import refresh_database
+            from .api.datapull import refresh_database
             scheduler = BackgroundScheduler()
             scheduler.add_job(func=refresh_database, trigger="cron", hour='*/10 * * * *')
             app.server.logger.info('Starting cron jobs')
