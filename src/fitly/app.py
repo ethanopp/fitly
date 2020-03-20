@@ -23,9 +23,8 @@ app.server.logger.addHandler(handler)
 logging.getLogger('werkzeug').setLevel(logging.ERROR)
 
 # Make sure config.ini.example gets written to host
-with open('./config/config.ini.example', 'a+') as f:
-    pass
-
+import shutil
+shutil.copyfile('./config/config.ini.example', './config/config.ini.example')
 
 # Push an application context so we can use Flask's 'current_app'
 with server.app_context():
@@ -44,4 +43,4 @@ with server.app_context():
             app.server.logger.error(f'Error starting cron jobs: {e}')
     # configure the Dash instance's layout
     app.layout = main_layout_header()
-    # app.layout = main_layout_sidebar()
+        # app.layout = main_layout_sidebar()
