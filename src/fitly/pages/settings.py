@@ -956,7 +956,7 @@ def set_log_level(info_n_clicks, error_n_clicks, debug_n_clicks, info_n_clicks_t
     if info_n_clicks_timestamp != 0 or error_n_clicks_timestamp != 0 or debug_n_clicks_timestamp != 0:
         latest = max(timestamps.items(), key=operator.itemgetter(1))[0]
         config.set('logger', 'level', latest)
-        with open('../config/config.ini', 'w') as configfile:
+        with open('./config/config.ini', 'w') as configfile:
             config.write(configfile)
 
         # Set to info to show message in log, then switch to selected level
