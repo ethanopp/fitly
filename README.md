@@ -135,11 +135,9 @@ details.
           - PGID=100
           - DASH_DEBUG=true
         volumes:
-          - /share/CACHEDEV2_DATA/Container/Fitly-Slap/fitness.db:/app/fitness.db
-          - /share/CACHEDEV2_DATA/Container/Fitly-Slap/config.ini:/app/config.ini
-          - /share/CACHEDEV2_DATA/Container/Fitly-Slap/log.log:/app/log.log
-          - /share/CACHEDEV2_DATA/Container/Fitly-Slap/gunicorn_conf.py:/gunicorn_conf.py
+          - /share/CACHEDEV2_DATA/Container/Fitly-Slap:/app/config
           - /share/CACHEDEV2_DATA/Container/LetsEncrypt/keys:/app/keys
+
 
 ### NGINX
     server {
@@ -170,6 +168,9 @@ details.
             proxy_pass http://$upstream_fitly:80;
         }
     }
+
+Be sure to navigate to your mounted docker path on the host and create your `config.ini` from the `config.ini.example`  
+
 ### Using Your App
 
 ### Strava

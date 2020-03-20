@@ -99,5 +99,5 @@ ENV/
 
 # mypy
 .mypy_cache/
-/fitness.db
-/config.ini
+/config/fitness.db
+/config/config.ini

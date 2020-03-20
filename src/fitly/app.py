@@ -27,11 +27,14 @@ with server.app_context():
     # load the rest of our Dash app
     from . import index
 
+    # Make sure config.ini.example gets written to host
+    file = open('./config.config.ini.example', 'w+')
+    file.close()
+
     # Enable refresh cron
     if config.get('cron', 'hourly_pull').lower() == 'true':
         try:
             from .api.datapull import refresh_database
-
             scheduler = BackgroundScheduler()
             scheduler.add_job(func=refresh_database, trigger="cron", hour='*')
             app.server.logger.info('Starting cron jobs')
