@@ -23,7 +23,7 @@ app.server.logger.addHandler(handler)
 logging.getLogger('werkzeug').setLevel(logging.ERROR)
 
 # Make sure config.ini.example gets written to host
-with open('config/config.ini.example', 'a+') as f:
+with open('./config/config.ini.example', 'a+') as f:
     pass
 
 
