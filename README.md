@@ -96,6 +96,80 @@ you'll need to export the `DASH_DEBUG` environment variable to `true`. See the
 [Dev Tools](https://dash.plot.ly/devtools) section of the Dash Docs for more
 details.
 
+### Deploy with docker-compose
+    version: '3'
+    services:
+      letsencrypt:
+        image: linuxserver/letsencrypt
+        container_name: letsencrypt 
+        cap_add:
+          - NET_ADMIN
+        restart: always
+        ports:
+          - "80:80"
+          - "443:443"
+        environment:
+          - PUID=1000
+          - PGID=100
+          - TZ=America/New_York
+          - EMAIL=<your email>
+          - URL=<website.com>
+          - SUBDOMAINS=fit # this would give a website like fit.website.com
+        volumes:
+          - /share/CACHEDEV2_DATA/Container/LetsEncrypt:/config
+      fitly:
+        build:
+          dockerfile: Dockerfile
+        container_name: fitly
+        restart: always
+        depends_on:
+          - letsencrypt
+        ports:
+          - "8050:80"
+        environment:
+          - MODULE_NAME=src.fitly.app
+          - VARIABLE_NAME=server
+          - TZ=America/New_York
+          - TIMEOUT=1200
+          - PUID=1000
+          - PGID=100
+          - DASH_DEBUG=true
+        volumes:
+          - /share/CACHEDEV2_DATA/Container/Fitly-Slap/fitness.db:/app/fitness.db
+          - /share/CACHEDEV2_DATA/Container/Fitly-Slap/config.ini:/app/config.ini
+          - /share/CACHEDEV2_DATA/Container/Fitly-Slap/log.log:/app/log.log
+          - /share/CACHEDEV2_DATA/Container/Fitly-Slap/gunicorn_conf.py:/gunicorn_conf.py
+          - /share/CACHEDEV2_DATA/Container/LetsEncrypt/keys:/app/keys
+
+### NGINX
+    server {
+        listen 443 ssl;
+        listen [::]:443 ssl;
+    
+        server_name fit.*;
+    
+        include /config/nginx/ssl.conf;
+    
+        client_max_body_size 0;
+    
+        # enable for ldap auth, fill in ldap details in ldap.conf
+        #include /config/nginx/ldap.conf;
+    
+        location / {
+            # enable the next two lines for http auth
+            #auth_basic "Restricted";
+            #auth_basic_user_file /config/nginx/.htpasswd;
+    
+            # enable the next two lines for ldap auth
+            #auth_request /auth;
+            #error_page 401 =200 /login;
+    
+            include /config/nginx/proxy.conf;
+            resolver 127.0.0.11 valid=30s;
+            set $upstream_fitly fitly;
+            proxy_pass http://$upstream_fitly:80;
+        }
+    }
 ### Using Your App
 
 ### Strava
