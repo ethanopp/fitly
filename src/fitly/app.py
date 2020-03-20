@@ -28,7 +28,7 @@ with server.app_context():
     from . import index
 
     # Make sure config.ini.example gets written to host
-    file = open('./config.config.ini.example', 'w+')
+    file = open('./config/config.ini.example', 'w+')
     file.close()
 
     # Enable refresh cron
