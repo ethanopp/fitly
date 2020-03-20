@@ -163,8 +163,7 @@ from datetime import timedelta
 import configparser
 import pytz
 
-config = configparser.ConfigParser()
-config.read('./config/config.ini')
+config = configparser.ConfigParser().read('./config/config.ini')
 
 local_tz = pytz.timezone(config.get('timezone', 'timezone'))
 
@@ -238,7 +237,7 @@ def calc_prev_sunday(d):
 
 def update_config(section, parameter, value):
     config.set(section, parameter, value)
-    with open('config.ini', 'w') as configfile:
+    with open('./config/config.ini', 'w') as configfile:
         config.write(configfile)
 
 def utc_to_local(utc_dt):

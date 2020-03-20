@@ -7,12 +7,8 @@ from sqlalchemy import func, delete
 import datetime
 from ..api.fitlyAPI import *
 import pandas as pd
-import configparser
 from ..app import app
-
-config = configparser.ConfigParser()
-config.read('./config/config.ini')
-
+from ..utils import config
 
 
 def latest_refresh():

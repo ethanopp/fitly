@@ -5,11 +5,11 @@ import plotly.graph_objs as go
 from ..app import app
 from dash.dependencies import Input, Output, State
 from ..api.sqlalchemy_declarative import db_connect, fitbod, fitbod_muscles
-import configparser
 import math
 from datetime import datetime, timedelta, date
 import dash_bootstrap_components as dbc
 import operator
+from ..utils import config
 
 
 def get_layout(**kwargs):
@@ -53,9 +53,6 @@ def get_layout(**kwargs):
         ])
     ])
 
-
-config = configparser.ConfigParser()
-config.read('./config.ini')
 
 white = config.get('oura', 'white')
 teal = config.get('oura', 'teal')

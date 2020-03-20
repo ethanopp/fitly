@@ -12,11 +12,7 @@ from datetime import datetime, timedelta
 from ..api.sqlalchemy_declarative import db_connect, ouraReadinessSummary, ouraActivitySummary, \
     ouraActivitySamples, ouraSleepSamples, ouraSleepSummary, stravaSummary, athlete, withings
 import operator
-from ..utils import calc_next_saturday, calc_prev_sunday, utc_to_local
-import configparser
-
-config = configparser.ConfigParser()
-config.read('./config.ini')
+from ..utils import calc_next_saturday, calc_prev_sunday, utc_to_local, config
 
 transition = int(config.get('dashboard', 'transition'))
 default_icon_color = 'rgb(220, 220, 220)'

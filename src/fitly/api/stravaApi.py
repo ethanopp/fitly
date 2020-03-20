@@ -3,13 +3,12 @@ import datetime
 from datetime import datetime
 from sqlalchemy import delete
 from ..api.sqlalchemy_declarative import db_connect, apiTokens
-import configparser
+from ..utils import config
 from ..app import app
 import ast
 import time
 
-config = configparser.ConfigParser()
-config.read('./config/config.ini')
+
 
 client_id = config.get('strava', 'client_id')
 client_secret = config.get('strava', 'client_secret')

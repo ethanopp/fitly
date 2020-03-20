@@ -14,15 +14,12 @@ from sqlalchemy import delete
 import pandas as pd
 from dateutil.relativedelta import relativedelta
 from datetime import datetime
-import configparser
 import operator
 from ..api.fitlyAPI import hrv_training_workflow
 from ..app import app
 from flask import current_app as server
 import re
-
-config = configparser.ConfigParser()
-config.read('./config.ini')
+from ..utils import config
 
 strava_auth_client = get_strava_client()
 withings_auth_client = NokiaAuth(config.get('withings', 'client_id'), config.get('withings', 'client_secret'),
@@ -61,7 +58,7 @@ def check_oura_connection():
                        size='md')],
                       href=connect_oura_link(oura_auth_client))
     else:
-        return html.H4('Oura Connected!', className='text-center col-lg-12',)
+        return html.H4('Oura Connected!', className='text-center col-lg-12', )
 
 
 def check_strava_connection():
@@ -72,7 +69,7 @@ def check_strava_connection():
                        size='md')],
                       href=connect_strava_link(get_strava_client()))
     else:
-        return html.H4('Strava Connected!', className='text-center col-lg-12',)
+        return html.H4('Strava Connected!', className='text-center col-lg-12', )
 
 
 def check_withings_connection():
@@ -85,7 +82,7 @@ def check_withings_connection():
                           NokiaAuth(config.get('withings', 'client_id'), config.get('withings', 'client_secret'),
                                     callback_uri=config.get('withings', 'redirect_uri'))))
     else:
-        return html.H4('Withings Connected!', className='text-center col-lg-12',)
+        return html.H4('Withings Connected!', className='text-center col-lg-12', )
 
 
 def generate_cycle_power_zone_card():
@@ -950,7 +947,6 @@ def clear_logs(n_clicks):
 def set_log_level(info_n_clicks, error_n_clicks, debug_n_clicks, info_n_clicks_timestamp,
                   error_n_clicks_timestamp,
                   debug_n_clicks_timestamp):
-    config.read('./config.ini')
     info_style, error_style, debug_style = {'marginRight': '1%'}, {'marginRight': '1%'}, {'marginRight': '1%'}
     info_n_clicks_timestamp = 0 if not info_n_clicks_timestamp else info_n_clicks_timestamp
     error_n_clicks_timestamp = 0 if not error_n_clicks_timestamp else error_n_clicks_timestamp
@@ -960,7 +956,7 @@ def set_log_level(info_n_clicks, error_n_clicks, debug_n_clicks, info_n_clicks_t
     if info_n_clicks_timestamp != 0 or error_n_clicks_timestamp != 0 or debug_n_clicks_timestamp != 0:
         latest = max(timestamps.items(), key=operator.itemgetter(1))[0]
         config.set('logger', 'level', latest)
-        with open('./config.ini', 'w') as configfile:
+        with open('./config/config.ini', 'w') as configfile:
             config.write(configfile)
 
         # Set to info to show message in log, then switch to selected level

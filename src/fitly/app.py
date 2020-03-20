@@ -11,10 +11,7 @@ app = create_dash(server)
 # Logging
 import logging
 from logging.handlers import RotatingFileHandler
-import configparser
-
-config = configparser.ConfigParser()
-config.read('./config/config.ini')
+from .utils import config
 
 # Can also use %(pathname)s for full pathname for file instead of %(module)s
 handler = RotatingFileHandler('./log.log', maxBytes=10000000, backupCount=5)

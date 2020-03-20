@@ -2,13 +2,10 @@
 import owncloud
 import os
 from ..api.sqlalchemy_declarative import db_connect
-import configparser
 import pandas as pd
 from ..app import app
 import numpy as np
-
-config = configparser.ConfigParser()
-config.read('./config/config.ini')
+from ..utils import config
 
 
 def pull_fitbod_data():

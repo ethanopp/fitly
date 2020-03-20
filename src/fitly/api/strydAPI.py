@@ -1,11 +1,8 @@
-import configparser
 import requests
 import datetime
 import pandas as pd
 from ..app import app
-
-config = configparser.ConfigParser()
-config.read('./config/config.ini')
+from ..utils import config
 
 def auth_stryd_session():
     requestJSON = {"email": config.get('stryd', 'username'), "password": config.get('stryd', 'password')}

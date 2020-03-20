@@ -5,7 +5,7 @@ import requests
 import decimal
 
 from datetime import datetime, timezone, date, timedelta
-import configparser
+from ..utils import config
 import pandas as pd
 
 # Pulled from
@@ -14,8 +14,7 @@ import pandas as pd
 # Set our base URL location
 _BASE_URL = 'https://api.onepeloton.com'
 
-config = configparser.ConfigParser()
-config.read('./config/config.ini')
+
 # Mandatory credentials
 PELOTON_USERNAME = config.get('peloton', 'username')
 PELOTON_PASSWORD = config.get('peloton', 'password')

@@ -2,10 +2,7 @@ import sys
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, Date, Float, create_engine, BigInteger
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, scoped_session
-import configparser
-
-config = configparser.ConfigParser()
-config.read('./config/config.ini')
+from ..utils import config
 
 Base = declarative_base()
 

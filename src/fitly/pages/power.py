@@ -9,16 +9,13 @@ from ..api.sqlalchemy_declarative import db_connect, stravaSummary, stravaSample
 from ..app import app
 from datetime import datetime, timedelta
 import operator
-import configparser
+from ..utils import config
 from sqlalchemy import func
 import math
 
 # pre_style = {"backgroundColor": "#ddd", "fontSize": 20, "padding": "10px", "margin": "10px"}
 hidden_style = {"display": "none"}
 hidden_inputs = html.Div(id="hidden-inputs", style=hidden_style, children=[])
-
-config = configparser.ConfigParser()
-config.read('./config.ini')
 
 transition = int(config.get('dashboard', 'transition'))
 

@@ -3,13 +3,10 @@ from ..api.sqlalchemy_declarative import db_connect, apiTokens, withings
 from sqlalchemy import func, delete
 from datetime import datetime
 import ast
-import configparser
 import pandas as pd
 import numpy as np
 from ..app import app
-
-config = configparser.ConfigParser()
-config.read('./config/config.ini')
+from ..utils import config
 
 client_id = config.get('withings', 'client_id')
 client_secret = config.get('withings', 'client_secret')

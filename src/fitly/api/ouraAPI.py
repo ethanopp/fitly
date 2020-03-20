@@ -5,11 +5,8 @@ from sqlalchemy import func, delete
 from datetime import datetime, timedelta
 import pandas as pd
 from ..app import app
-import configparser
 import ast
-
-config = configparser.ConfigParser()
-config.read('./config/config.ini')
+from ..utils import config
 
 client_id = config.get('oura', 'client_id')
 client_secret = config.get('oura', 'client_secret')

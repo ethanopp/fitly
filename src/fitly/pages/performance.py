@@ -1,4 +1,3 @@
-import configparser
 import re
 from datetime import datetime, timedelta
 import dash_bootstrap_components as dbc
@@ -15,11 +14,8 @@ from ..app import app
 from ..api.sqlalchemy_declarative import db_insert, db_connect, athlete, stravaSummary, stravaSamples, \
     hrvWorkoutStepLog, \
     ouraSleepSummary, ouraReadinessSummary, annotations
-from ..utils import utc_to_local
+from ..utils import utc_to_local, config
 from ..pages.power import power_curve, zone_chart
-
-config = configparser.ConfigParser()
-config.read('./config.ini')
 
 transition = int(config.get('dashboard', 'transition'))
 
@@ -337,9 +333,6 @@ def get_layout(**kwargs):
         html.Div(id='modal-activity-id-type-metric', style={'display': 'none'}),
     ])
 
-
-config = configparser.ConfigParser()
-config.read('./config.ini')
 
 ctl_color = 'rgb(171, 131, 186)'
 atl_color = 'rgb(245,226,59)'
@@ -1762,6 +1755,7 @@ def workout_details(df_samples, start_seconds=None, end_seconds=None):
                 )
             }
         )])
+
 
 def calculate_splits(df_samples):
     if np.isnan(df_samples['distance'].max()):
