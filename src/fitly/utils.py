@@ -164,7 +164,7 @@ import configparser
 import pytz
 
 config = configparser.ConfigParser()
-config.read('./config.ini')
+config.read('./config/config.ini')
 
 local_tz = pytz.timezone(config.get('timezone', 'timezone'))
 
