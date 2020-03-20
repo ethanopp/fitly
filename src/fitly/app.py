@@ -22,14 +22,15 @@ app.server.logger.addHandler(handler)
 # Suppress WSGI info logs
 logging.getLogger('werkzeug').setLevel(logging.ERROR)
 
+# Make sure config.ini.example gets written to host
+with open('config/config.ini.example', 'a+') as f:
+    pass
+
+
 # Push an application context so we can use Flask's 'current_app'
 with server.app_context():
     # load the rest of our Dash app
     from . import index
-
-    # Make sure config.ini.example gets written to host
-    file = open('./config/config.ini.example', 'w+')
-    file.close()
 
     # Enable refresh cron
     if config.get('cron', 'hourly_pull').lower() == 'true':
