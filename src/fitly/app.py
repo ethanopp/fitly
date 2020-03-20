@@ -23,8 +23,8 @@ app.server.logger.addHandler(handler)
 logging.getLogger('werkzeug').setLevel(logging.ERROR)
 
 # Make sure config.ini.example gets written to host
-import shutil
-shutil.copyfile('./config/config.ini.example', './config/config.ini.example')
+# import shutil
+# shutil.copyfile('./config/config.ini.example', './config/config.ini.example')
 
 # Push an application context so we can use Flask's 'current_app'
 with server.app_context():
