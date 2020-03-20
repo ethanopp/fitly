@@ -232,14 +232,14 @@ def generate_hr_zone_card():
 
 def generate_goal(id, title, value):
     return (
-        html.Div(id=id, className='col', children=[
-            html.H6(title, style={'display': 'inline-block'}),
-            dcc.Input(id=id + '-input', className='goalinput ml-2', type='text', value=value),
+        html.Div(id=id, className='row mb-2 mt-2', children=[
+            html.H6(title, className='col-5  mb-0', style={'display': 'inline-block'}),
+            dcc.Input(id=id + '-input', className=' col-2 goalinput ml-2', type='text', value=value),
 
-            html.Button(id=id + '-input-submit', className='fa fa-upload ml-2',
+            html.Button(id=id + '-input-submit', className='col-2 fa fa-upload ml-2',
                         style={'display': 'inline-block', 'border': '0px'}),
 
-            html.I(id=id + '-input-status', className='fa fa-check ml-2',
+            html.I(id=id + '-input-status', className='col-2 fa fa-check ml-2',
                    style={'display': 'inline-block', 'color': 'rgba(0,0,0,0)',
                           'fontSize': '150%'})
         ])
@@ -256,28 +256,29 @@ def goal_parameters():
     return dbc.Card([
         dbc.CardHeader(html.H4('Goals')),
         dbc.CardBody(className='text-center', children=[
+
             generate_goal(id='min-workout-time-goal', title='Min. Activity Minutes',
                           value=athlete_info.min_non_warmup_workout_time / 60),
             generate_goal(id='weekly-tss-goal', title='Weekly TSS Goal', value=athlete_info.weekly_tss_goal),
             generate_goal(id='rr-max-goal', title='High Ramp Rate Injury Threshold', value=athlete_info.rr_max_goal),
             generate_goal(id='rr-min-goal', title='Low Ramp Rate Injury Threshold', value=athlete_info.rr_min_goal),
 
-            html.Div(className='col', children=[
-                html.H6('Use weekly TSS for fitness goals',
-                        style={'display': 'inline-block', 'paddingRight': '1%'}),
+            html.Div(className='row mb-2 mt-2', children=[
+                html.H6('Use weekly TSS for fitness goals', className='col-5  mb-0',
+                        style={'display': 'inline-block'}),
                 daq.BooleanSwitch(
                     id='use-tss-for-goal-switch',
                     on=use_hrv,
-                    style={'display': 'inline-block'}
+                    className='col-3 offset-2'
                 )
             ]),
-            html.Div(className='col', children=[
-                html.H6('Use readiness for workout / yoga goals',
-                        style={'display': 'inline-block', 'paddingRight': '1%'}),
+            html.Div(className='row mb-2 mt-2', children=[
+                html.H6('Use readiness for workout / yoga goals', className='col-5 mb-0',
+                        style={'display': 'inline-block'}),
                 daq.BooleanSwitch(
                     id='use-readiness-for-goal-switch',
                     on=use_readiness,
-                    style={'display': 'inline-block'}
+                    className='col-3 offset-2'
                 )
             ]),
             generate_goal(id='weekly-workout-goal', title='Weekly Workout Goal',
@@ -294,6 +295,7 @@ def goal_parameters():
                           value=athlete_info.weekly_activity_score_goal)
 
         ])
+
     ])
 
 
@@ -407,8 +409,8 @@ def set_ftp_threshold(n_clicks, value):
         if value == athlete_info.ftp_test_notification_week_threshold:
             engine.dispose()
             session.close()
-            return {'paddingLeft': '1vw', 'paddingRight': '0vw', 'display': 'inline-block', 'border': '0px'}, {
-                'display': 'inline-block', 'color': 'rgb(66,66,66)', 'paddingLeft': '1vw', 'fontSize': '150%'}
+            return {'display': 'inline-block', 'border': '0px'}, {
+                'display': 'inline-block', 'color': 'rgb(66,66,66)',  'fontSize': '150%'}
         else:
             # Update value in db
             try:
@@ -422,10 +424,10 @@ def set_ftp_threshold(n_clicks, value):
             session.close()
             app.server.logger.info('Updated ftp week threshold to {}'.format(value))
             if success:
-                return {'display': 'none'}, {'color': 'green', 'paddingLeft': '1vw', 'fontSize': '150%'}
+                return {'display': 'none'}, {'color': 'green',  'fontSize': '150%'}
             else:
-                return {'paddingLeft': '1vw', 'paddingRight': '0vw', 'display': 'inline-block', 'border': '0px'}, {
-                    'display': 'inline-block', 'color': 'rgb(66,66,66)', 'paddingLeft': '1vw', 'fontSize': '150%'}
+                return {'display': 'inline-block', 'border': '0px'}, {
+                    'display': 'inline-block', 'color': 'rgb(66,66,66)',  'fontSize': '150%'}
 
 
 # Callback for updating sleep goal
@@ -441,8 +443,8 @@ def sleep_goal_status(n_clicks, value):
         if value == athlete_info.daily_sleep_hr_target:
             engine.dispose()
             session.close()
-            return {'paddingLeft': '1vw', 'paddingRight': '0vw', 'display': 'inline-block', 'border': '0px'}, {
-                'display': 'inline-block', 'color': 'rgb(66,66,66)', 'paddingLeft': '1vw', 'fontSize': '150%'}
+            return {'display': 'inline-block', 'border': '0px'}, {
+                'color': 'rgba(0,0,0,0)', 'fontSize': '150%'}
         else:
             # Update value in db
             try:
@@ -456,10 +458,10 @@ def sleep_goal_status(n_clicks, value):
             session.close()
             app.server.logger.info('Updated daily sleep hour goal to {}'.format(value))
             if success:
-                return {'display': 'none'}, {'color': 'green', 'paddingLeft': '1vw', 'fontSize': '150%'}
+                return {'display': 'none'}, {'color': 'green',  'fontSize': '150%'}
             else:
-                return {'paddingLeft': '1vw', 'paddingRight': '0vw', 'display': 'inline-block', 'border': '0px'}, {
-                    'display': 'inline-block', 'color': 'rgb(66,66,66)', 'paddingLeft': '1vw', 'fontSize': '150%'}
+                return {'display': 'inline-block', 'border': '0px'}, {
+                    'display': 'inline-block', 'color': 'rgb(66,66,66)',  'fontSize': '150%'}
 
 
 # Callback for updating min weekly tss goal
@@ -476,8 +478,8 @@ def weekly_tss_goal_status(n_clicks, value):
         if value == athlete_info.weekly_tss_goal:
             engine.dispose()
             session.close()
-            return {'paddingLeft': '1vw', 'paddingRight': '0vw', 'display': 'inline-block', 'border': '0px'}, {
-                'display': 'inline-block', 'color': 'rgb(66,66,66)', 'paddingLeft': '1vw', 'fontSize': '150%'}
+            return {'display': 'inline-block', 'border': '0px'}, {
+                'color': 'rgba(0,0,0,0)', 'fontSize': '150%'}
         else:
             # Update value in db
             try:
@@ -491,10 +493,10 @@ def weekly_tss_goal_status(n_clicks, value):
             engine.dispose()
             session.close()
             if success:
-                return {'display': 'none'}, {'color': 'green', 'paddingLeft': '1vw', 'fontSize': '150%'}
+                return {'display': 'none'}, {'color': 'green',  'fontSize': '150%'}
             else:
-                return {'paddingLeft': '1vw', 'paddingRight': '0vw', 'display': 'inline-block', 'border': '0px'}, {
-                    'display': 'inline-block', 'color': 'rgb(66,66,66)', 'paddingLeft': '1vw', 'fontSize': '150%'}
+                return {'display': 'inline-block', 'border': '0px'}, {
+                    'display': 'inline-block', 'color': 'rgb(66,66,66)',  'fontSize': '150%'}
 
 
 # Callback for updating max rr injury threshold
@@ -511,8 +513,8 @@ def rr_max_goal_status(n_clicks, value):
         if value == athlete_info.rr_max_goal:
             engine.dispose()
             session.close()
-            return {'paddingLeft': '1vw', 'paddingRight': '0vw', 'display': 'inline-block', 'border': '0px'}, {
-                'display': 'inline-block', 'color': 'rgb(66,66,66)', 'paddingLeft': '1vw', 'fontSize': '150%'}
+            return {'display': 'inline-block', 'border': '0px'}, {
+                'color': 'rgba(0,0,0,0)', 'fontSize': '150%'}
         else:
             # Update value in db
             try:
@@ -526,10 +528,10 @@ def rr_max_goal_status(n_clicks, value):
             engine.dispose()
             session.close()
             if success:
-                return {'display': 'none'}, {'color': 'green', 'paddingLeft': '1vw', 'fontSize': '150%'}
+                return {'display': 'none'}, {'color': 'green',  'fontSize': '150%'}
             else:
-                return {'paddingLeft': '1vw', 'paddingRight': '0vw', 'display': 'inline-block', 'border': '0px'}, {
-                    'display': 'inline-block', 'color': 'rgb(66,66,66)', 'paddingLeft': '1vw', 'fontSize': '150%'}
+                return {'display': 'inline-block', 'border': '0px'}, {
+                    'display': 'inline-block', 'color': 'rgb(66,66,66)',  'fontSize': '150%'}
 
 
 # Callback for updating min rr injury threshold
@@ -546,8 +548,8 @@ def rr_min_goal_status(n_clicks, value):
         if value == athlete_info.rr_min_goal:
             engine.dispose()
             session.close()
-            return {'paddingLeft': '1vw', 'paddingRight': '0vw', 'display': 'inline-block', 'border': '0px'}, {
-                'display': 'inline-block', 'color': 'rgb(66,66,66)', 'paddingLeft': '1vw', 'fontSize': '150%'}
+            return {'display': 'inline-block', 'border': '0px'}, {
+                'color': 'rgba(0,0,0,0)', 'fontSize': '150%'}
         else:
             # Update value in db
             try:
@@ -561,10 +563,10 @@ def rr_min_goal_status(n_clicks, value):
             engine.dispose()
             session.close()
             if success:
-                return {'display': 'none'}, {'color': 'green', 'paddingLeft': '1vw', 'fontSize': '150%'}
+                return {'display': 'none'}, {'color': 'green',  'fontSize': '150%'}
             else:
-                return {'paddingLeft': '1vw', 'paddingRight': '0vw', 'display': 'inline-block', 'border': '0px'}, {
-                    'display': 'inline-block', 'color': 'rgb(66,66,66)', 'paddingLeft': '1vw', 'fontSize': '150%'}
+                return {'display': 'inline-block', 'border': '0px'}, {
+                    'display': 'inline-block', 'color': 'rgb(66,66,66)',  'fontSize': '150%'}
 
 
 # Callback for updating min activity time goal
@@ -581,8 +583,8 @@ def min_workout_time_goal_status(n_clicks, value):
         if value == athlete_info.min_non_warmup_workout_time:
             engine.dispose()
             session.close()
-            return {'paddingLeft': '1vw', 'paddingRight': '0vw', 'display': 'inline-block', 'border': '0px'}, {
-                'display': 'inline-block', 'color': 'rgb(66,66,66)', 'paddingLeft': '1vw', 'fontSize': '150%'}
+            return {'display': 'inline-block', 'border': '0px'}, {
+                'color': 'rgba(0,0,0,0)', 'fontSize': '150%'}
         else:
             # Update value in db
             try:
@@ -596,10 +598,10 @@ def min_workout_time_goal_status(n_clicks, value):
             engine.dispose()
             session.close()
             if success:
-                return {'display': 'none'}, {'color': 'green', 'paddingLeft': '1vw', 'fontSize': '150%'}
+                return {'display': 'none'}, {'color': 'green', 'fontSize': '150%'}
             else:
-                return {'paddingLeft': '1vw', 'paddingRight': '0vw', 'display': 'inline-block', 'border': '0px'}, {
-                    'display': 'inline-block', 'color': 'rgb(66,66,66)', 'paddingLeft': '1vw', 'fontSize': '150%'}
+                return {'display': 'inline-block', 'border': '0px'}, {
+                    'display': 'inline-block', 'color': 'rgb(66,66,66)',  'fontSize': '150%'}
 
 
 # Callback for updating workout goal
@@ -615,8 +617,8 @@ def workout_goal_status(n_clicks, value):
         if value == athlete_info.weekly_workout_goal:
             engine.dispose()
             session.close()
-            return {'paddingLeft': '1vw', 'paddingRight': '0vw', 'display': 'inline-block', 'border': '0px'}, {
-                'display': 'inline-block', 'color': 'rgb(66,66,66)', 'paddingLeft': '1vw', 'fontSize': '150%'}
+            return {'display': 'inline-block', 'border': '0px'}, {
+                'color': 'rgba(0,0,0,0)', 'fontSize': '150%'}
         else:
             # Update value in db
             try:
@@ -630,10 +632,10 @@ def workout_goal_status(n_clicks, value):
             engine.dispose()
             session.close()
             if success:
-                return {'display': 'none'}, {'color': 'green', 'paddingLeft': '1vw', 'fontSize': '150%'}
+                return {'display': 'none'}, {'color': 'green',  'fontSize': '150%'}
             else:
-                return {'paddingLeft': '1vw', 'paddingRight': '0vw', 'display': 'inline-block', 'border': '0px'}, {
-                    'display': 'inline-block', 'color': 'rgb(66,66,66)', 'paddingLeft': '1vw', 'fontSize': '150%'}
+                return {'display': 'inline-block', 'border': '0px'}, {
+                    'display': 'inline-block', 'color': 'rgb(66,66,66)',  'fontSize': '150%'}
 
 
 # Callback for updating yoga goal
@@ -649,8 +651,8 @@ def yoga_goal_status(n_clicks, value):
         if value == athlete_info.weekly_yoga_goal:
             engine.dispose()
             session.close()
-            return {'paddingLeft': '1vw', 'paddingRight': '0vw', 'display': 'inline-block', 'border': '0px'}, {
-                'display': 'inline-block', 'color': 'rgb(66,66,66)', 'paddingLeft': '1vw', 'fontSize': '150%'}
+            return {'display': 'inline-block', 'border': '0px'}, {
+                'color': 'rgba(0,0,0,0)', 'fontSize': '150%'}
         else:
             # Update value in db
             try:
@@ -665,10 +667,10 @@ def yoga_goal_status(n_clicks, value):
             engine.dispose()
             session.close()
             if success:
-                return {'display': 'none'}, {'color': 'green', 'paddingLeft': '1vw', 'fontSize': '150%'}
+                return {'display': 'none'}, {'color': 'green',  'fontSize': '150%'}
             else:
-                return {'paddingLeft': '1vw', 'paddingRight': '0vw', 'display': 'inline-block', 'border': '0px'}, {
-                    'display': 'inline-block', 'color': 'rgb(66,66,66)', 'paddingLeft': '1vw', 'fontSize': '150%'}
+                return {'display': 'inline-block', 'border': '0px'}, {
+                    'display': 'inline-block', 'color': 'rgb(66,66,66)',  'fontSize': '150%'}
 
 
 # Callback for updating sleep score goal
@@ -684,8 +686,8 @@ def sleep_score_goal_status(n_clicks, value):
         if value == athlete_info.weekly_sleep_score_goal:
             engine.dispose()
             session.close()
-            return {'paddingLeft': '1vw', 'paddingRight': '0vw', 'display': 'inline-block', 'border': '0px'}, {
-                'display': 'inline-block', 'color': 'rgb(66,66,66)', 'paddingLeft': '1vw', 'fontSize': '150%'}
+            return {'display': 'inline-block', 'border': '0px'}, {
+                'color': 'rgba(0,0,0,0)', 'fontSize': '150%'}
         else:
             # Update value in db
             try:
@@ -699,10 +701,10 @@ def sleep_score_goal_status(n_clicks, value):
             engine.dispose()
             session.close()
             if success:
-                return {'display': 'none'}, {'color': 'green', 'paddingLeft': '1vw', 'fontSize': '150%'}
+                return {'display': 'none'}, {'color': 'green',  'fontSize': '150%'}
             else:
-                return {'paddingLeft': '1vw', 'paddingRight': '0vw', 'display': 'inline-block', 'border': '0px'}, {
-                    'display': 'inline-block', 'color': 'rgb(66,66,66)', 'paddingLeft': '1vw', 'fontSize': '150%'}
+                return {'display': 'inline-block', 'border': '0px'}, {
+                    'display': 'inline-block', 'color': 'rgb(66,66,66)',  'fontSize': '150%'}
 
 
 # Callback for updating readiness score goal
@@ -718,8 +720,8 @@ def readiness_score_goal_status(n_clicks, value):
         if value == athlete_info.weekly_readiness_score_goal:
             engine.dispose()
             session.close()
-            return {'paddingLeft': '1vw', 'paddingRight': '0vw', 'display': 'inline-block', 'border': '0px'}, {
-                'display': 'inline-block', 'color': 'rgb(66,66,66)', 'paddingLeft': '1vw', 'fontSize': '150%'}
+            return {'display': 'inline-block', 'border': '0px'}, {
+                'color': 'rgba(0,0,0,0)', 'fontSize': '150%'}
         else:
             # Update value in db
             try:
@@ -733,10 +735,10 @@ def readiness_score_goal_status(n_clicks, value):
             engine.dispose()
             session.close()
             if success:
-                return {'display': 'none'}, {'color': 'green', 'paddingLeft': '1vw', 'fontSize': '150%'}
+                return {'display': 'none'}, {'color': 'green',  'fontSize': '150%'}
             else:
-                return {'paddingLeft': '1vw', 'paddingRight': '0vw', 'display': 'inline-block', 'border': '0px'}, {
-                    'display': 'inline-block', 'color': 'rgb(66,66,66)', 'paddingLeft': '1vw', 'fontSize': '150%'}
+                return {'display': 'inline-block', 'border': '0px'}, {
+                    'display': 'inline-block', 'color': 'rgb(66,66,66)',  'fontSize': '150%'}
 
 
 # Callback for updating activity score goal
@@ -752,8 +754,8 @@ def activity_score_goal_status(n_clicks, value):
         if value == athlete_info.weekly_activity_score_goal:
             engine.dispose()
             session.close()
-            return {'paddingLeft': '1vw', 'paddingRight': '0vw', 'display': 'inline-block', 'border': '0px'}, {
-                'display': 'inline-block', 'color': 'rgb(66,66,66)', 'paddingLeft': '1vw', 'fontSize': '150%'}
+            return {'display': 'inline-block', 'border': '0px'}, {
+                'color': 'rgba(0,0,0,0)', 'fontSize': '150%'}
         else:
             # Update value in db
             try:
@@ -767,10 +769,10 @@ def activity_score_goal_status(n_clicks, value):
             engine.dispose()
             session.close()
             if success:
-                return {'display': 'none'}, {'color': 'green', 'paddingLeft': '1vw', 'fontSize': '150%'}
+                return {'display': 'none'}, {'color': 'green',  'fontSize': '150%'}
             else:
-                return {'paddingLeft': '1vw', 'paddingRight': '0vw', 'display': 'inline-block', 'border': '0px'}, {
-                    'display': 'inline-block', 'color': 'rgb(66,66,66)', 'paddingLeft': '1vw', 'fontSize': '150%'}
+                return {'display': 'inline-block', 'border': '0px'}, {
+                    'display': 'inline-block', 'color': 'rgb(66,66,66)',  'fontSize': '150%'}
 
 
 # Callback to prevent both readiness/hrv goal settings to be enabled at the same time
@@ -816,7 +818,7 @@ def set_fitness_goals(readiness_dummy, hrv_dummy, readiness_switch, hrv_switch):
         style = {'display': 'none'}
         weekly_workout_goal, weekly_yoga_goal = 100, 100
     else:
-        style = {'display': 'inline-block'}
+        style = {}
         weekly_workout_goal, weekly_yoga_goal = 3, 3
 
     try:
