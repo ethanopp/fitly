@@ -163,7 +163,8 @@ from datetime import timedelta
 import configparser
 import pytz
 
-config = configparser.ConfigParser().read('./config/config.ini')
+config = configparser.ConfigParser()
+config.read('./config/config.ini')
 
 local_tz = pytz.timezone(config.get('timezone', 'timezone'))
 
