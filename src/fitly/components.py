@@ -25,6 +25,15 @@ def make_brand(**kwargs):
 
 @component
 def make_header(**kwargs):
+    navbar_items = dbc.Row(
+        html.Ul(
+            id=server.config["NAVBAR_CONTAINER_ID"], className="navbar-nav"
+        ),
+        no_gutters=True,
+        className="ml-auto flex-nowrap mt-0",
+        align="center",
+    )
+
     return dbc.Navbar(
         id="header",
         className="sticky-top",
@@ -32,9 +41,8 @@ def make_header(**kwargs):
         dark=True,
         children=[
             make_brand(),
-            html.Ul(
-                id=server.config["NAVBAR_CONTAINER_ID"], className="navbar-nav ml-auto"
-            ),
+            dbc.NavbarToggler(id="navbar-toggler"),
+            dbc.Collapse(navbar_items, id="navbar-collapse", navbar=True),
         ],
         **kwargs,
     )

@@ -4,7 +4,7 @@ from .app import app
 from .utils import DashRouter, DashNavBar
 from .pages import home, lifting, performance, power, settings
 from .components import fa
-
+from dash.dependencies import Input, Output, State
 
 # Ordered iterable of routes: tuples of (route, layout), where 'route' is a
 # string corresponding to path of the route (will be prefixed with Dash's
@@ -33,3 +33,15 @@ nav_items = (
 
 router = DashRouter(app, urls)
 navbar = DashNavBar(app, nav_items)
+
+
+# add callback for toggling the collapse on small screens
+@app.callback(
+    Output("navbar-collapse", "is_open"),
+    [Input("navbar-toggler", "n_clicks")],
+    [State("navbar-collapse", "is_open")],
+)
+def toggle_navbar_collapse(n, is_open):
+    if n:
+        return not is_open
+    return is_open
