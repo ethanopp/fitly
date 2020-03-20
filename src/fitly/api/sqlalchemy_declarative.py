@@ -17,7 +17,7 @@ Base = declarative_base()
 #                                                           config.get("database", 'port')
 #                                                           )
 
-db = 'sqlite:///fitness.db'
+db = 'sqlite:///./config/fitness.db'
 
 
 def db_connect(db=db):
