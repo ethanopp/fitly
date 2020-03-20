@@ -14,7 +14,7 @@ from logging.handlers import RotatingFileHandler
 from .utils import config
 
 # Can also use %(pathname)s for full pathname for file instead of %(module)s
-handler = RotatingFileHandler('./log.log', maxBytes=10000000, backupCount=5)
+handler = RotatingFileHandler('./config/log.log', maxBytes=10000000, backupCount=5)
 formatter = logging.Formatter("[%(asctime)s] %(levelname)s from %(module)s line %(lineno)d - %(message)s")
 handler.setFormatter(formatter)
 app.server.logger.setLevel(config.get('logger', 'level'))
