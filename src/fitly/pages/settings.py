@@ -299,7 +299,7 @@ def goal_parameters():
 
 def get_logs():
     logs = ''
-    for line in reversed(open("./log.log").readlines()):
+    for line in reversed(open("./config/log.log").readlines()):
         logs += line
     return html.Div(
         style={'textAlign': 'left', "whiteSpace": "pre-wrap", "width": '100%', 'overflow': 'auto', 'height': '100%'},
@@ -928,7 +928,7 @@ def clear_logs(n):
               [Input('clear-log-button', 'n_clicks')])
 def clear_logs(n_clicks):
     if n_clicks and n_clicks > 0:
-        open('./log.log', 'w').close()
+        open('./config/log.log', 'w').close()
         app.server.logger.debug('Logs manually cleared')
     return 'Logs last cleared at {}'.format(datetime.utcnow())
 
@@ -956,7 +956,7 @@ def set_log_level(info_n_clicks, error_n_clicks, debug_n_clicks, info_n_clicks_t
     if info_n_clicks_timestamp != 0 or error_n_clicks_timestamp != 0 or debug_n_clicks_timestamp != 0:
         latest = max(timestamps.items(), key=operator.itemgetter(1))[0]
         config.set('logger', 'level', latest)
-        with open('./config/config.ini', 'w') as configfile:
+        with open('../config/config.ini', 'w') as configfile:
             config.write(configfile)
 
         # Set to info to show message in log, then switch to selected level
