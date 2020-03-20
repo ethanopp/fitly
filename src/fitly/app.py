@@ -14,7 +14,7 @@ from logging.handlers import RotatingFileHandler
 import configparser
 
 config = configparser.ConfigParser()
-config.read('./config.ini')
+config.read('./config/config.ini')
 
 # Can also use %(pathname)s for full pathname for file instead of %(module)s
 handler = RotatingFileHandler('./log.log', maxBytes=10000000, backupCount=5)

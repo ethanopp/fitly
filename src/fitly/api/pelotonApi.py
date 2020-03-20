@@ -15,7 +15,7 @@ import pandas as pd
 _BASE_URL = 'https://api.onepeloton.com'
 
 config = configparser.ConfigParser()
-config.read("./config.ini")
+config.read('./config/config.ini')
 # Mandatory credentials
 PELOTON_USERNAME = config.get('peloton', 'username')
 PELOTON_PASSWORD = config.get('peloton', 'password')

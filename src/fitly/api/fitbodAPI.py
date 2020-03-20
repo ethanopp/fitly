@@ -8,7 +8,7 @@ from ..app import app
 import numpy as np
 
 config = configparser.ConfigParser()
-config.read('./config.ini')
+config.read('./config/config.ini')
 
 
 def pull_fitbod_data():

@@ -5,7 +5,7 @@ from sqlalchemy.orm import sessionmaker, scoped_session
 import configparser
 
 config = configparser.ConfigParser()
-config.read('./config.ini')
+config.read('./config/config.ini')
 
 Base = declarative_base()
 

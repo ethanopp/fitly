@@ -9,7 +9,7 @@ import configparser
 import ast
 
 config = configparser.ConfigParser()
-config.read('./config.ini')
+config.read('./config/config.ini')
 
 client_id = config.get('oura', 'client_id')
 client_secret = config.get('oura', 'client_secret')

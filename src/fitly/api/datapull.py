@@ -11,7 +11,7 @@ import configparser
 from ..app import app
 
 config = configparser.ConfigParser()
-config.read('./config.ini')
+config.read('./config/config.ini')
 
 
 

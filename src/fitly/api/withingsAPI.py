@@ -9,7 +9,7 @@ import numpy as np
 from ..app import app
 
 config = configparser.ConfigParser()
-config.read('./config.ini')
+config.read('./config/config.ini')
 
 client_id = config.get('withings', 'client_id')
 client_secret = config.get('withings', 'client_secret')

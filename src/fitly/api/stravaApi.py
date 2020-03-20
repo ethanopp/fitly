@@ -9,7 +9,7 @@ import ast
 import time
 
 config = configparser.ConfigParser()
-config.read('./config.ini')
+config.read('./config/config.ini')
 
 client_id = config.get('strava', 'client_id')
 client_secret = config.get('strava', 'client_secret')

@@ -5,7 +5,7 @@ import pandas as pd
 from ..app import app
 
 config = configparser.ConfigParser()
-config.read('./config.ini')
+config.read('./config/config.ini')
 
 def auth_stryd_session():
     requestJSON = {"email": config.get('stryd', 'username'), "password": config.get('stryd', 'password')}
