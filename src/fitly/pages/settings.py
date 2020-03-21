@@ -859,7 +859,7 @@ def update_api_connection_status(n_clicks):
 def refresh(n_clicks):
     if n_clicks > 0:
         app.server.logger.info('Manually refreshing database tables...')
-        refresh_database(process='manual')
+        refresh_database(refresh_method='manual')
         return html.H6('Refresh Complete')
     return ''
 
@@ -903,15 +903,15 @@ def truncate_and_refresh(n_clicks, n_clicks_date, truncateDate):
     if n_clicks > 0:
         app.server.logger.info('Manually truncating and refreshing database tables...')
         try:
-            refresh_database(process='manual', truncate=True)
+            refresh_database(refresh_method='manual', truncate=True)
             return html.H6('Truncate and Load Complete')
-        except:
+        except BaseException as e:
             return html.H6('Error with Truncate and Load')
     elif n_clicks_date > 0:
         app.server.logger.info(
             'Manually truncating and refreshing database tables after {}...'.format(truncateDate))
         try:
-            refresh_database(process='manual', truncateDate=truncateDate)
+            refresh_database(refresh_method='manual', truncateDate=truncateDate)
             return html.H6('Truncate and Load Complete')
         except:
             return html.H6('Error with Truncate and Load')

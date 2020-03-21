@@ -318,7 +318,7 @@ class apiTokens(Base):
 class dbRefreshStatus(Base):
     __tablename__ = 'db_refresh'
     timestamp_utc = Column('timestamp_utc', DateTime(), index=True, primary_key=True)
-    process = Column('process', String(255))
+    refresh_method = Column('refresh_method', String(255))
     truncate = Column('truncate', Boolean(), default=False)
     oura_status = Column('oura_status', String(255))
     strava_status = Column('strava_status', String(255))
@@ -401,7 +401,7 @@ if not db_refresh_record:
 
     dummy_db_refresh_record = dbRefreshStatus(
         timestamp_utc=datetime.utcnow(),
-        process='system',
+        refresh_method='system',
         oura_status='System Startup',
         strava_status='System Startup',
         withings_status='System Startup',

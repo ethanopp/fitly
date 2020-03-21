@@ -19,7 +19,7 @@ def latest_refresh():
     return latest_date
 
 
-def refresh_database(process='system', truncate=False, truncateDate=None):
+def refresh_database(refresh_method='system', truncate=False, truncateDate=None):
     # If either truncate parameter is passed
     if truncate or truncateDate:
         session, engine = db_connect()
@@ -155,7 +155,7 @@ def refresh_database(process='system', truncate=False, truncateDate=None):
     record = dbRefreshStatus(timestamp_utc=datetime.utcnow(), oura_status=oura_status,
                              fitbod_status=fitbod_status,
                              strava_status=strava_status, withings_status=withings_status, truncate=truncate,
-                             process=process)
+                             refresh_method=refresh_method)
     # Insert and commit
     try:
         session.add(record)
