@@ -126,7 +126,7 @@ def get_layout(**kwargs):
 
                                  html.Div(id='pmd-kpi'),
                                  html.Div(id='pmc-controls', className='row text-center mb-2', children=[
-                                     html.Div(className='col-lg-6 offset-lg-2', children=[
+                                     html.Div(className='col-lg-8 offset-lg-1', children=[
                                          html.Div(className='row', children=[
 
                                              html.Div(id='ride-pmc', className='col-3',
