@@ -129,9 +129,7 @@ def get_layout(**kwargs):
                                      html.Div(className='col-lg-6 offset-lg-2', children=[
                                          html.Div(className='row', children=[
 
-                                             html.Div(id='ride-pmc', className='col-lg-3',
-                                                      style={'display': 'inline-block', 'paddingLeft': '0',
-                                                             'paddingRight': '0'},
+                                             html.Div(id='ride-pmc', className='col-3',
                                                       children=[
                                                           daq.BooleanSwitch(
                                                               id='ride-pmc-switch',
@@ -147,9 +145,7 @@ def get_layout(**kwargs):
                                                  'Include cycling workouts in Fitness trend.',
                                                  target="ride-pmc"),
 
-                                             html.Div(id='run-pmc', className='col-lg-3',
-                                                      style={'display': 'inline-block', 'paddingLeft': '0',
-                                                             'paddingRight': '0'},
+                                             html.Div(id='run-pmc', className='col-3',
                                                       children=[
                                                           daq.BooleanSwitch(
                                                               id='run-pmc-switch',
@@ -165,9 +161,7 @@ def get_layout(**kwargs):
                                                  'Include running workouts in Fitness trend.',
                                                  target="run-pmc"),
 
-                                             html.Div(id='all-pmc', className='col-lg-3',
-                                                      style={'display': 'inline-block', 'paddingLeft': '0',
-                                                             'paddingRight': '0'},
+                                             html.Div(id='all-pmc', className='col-3',
                                                       children=[
                                                           daq.BooleanSwitch(
                                                               id='all-pmc-switch',
@@ -183,9 +177,7 @@ def get_layout(**kwargs):
                                                  'Include all other workouts in Fitness trend.',
                                                  target="all-pmc"),
 
-                                             html.Div(className='col-lg-3',
-                                                      style={'display': 'inline-block', 'paddingLeft': '0',
-                                                             'paddingRight': '0'},
+                                             html.Div(className='col-3',
                                                       children=[
                                                           html.Button(id="open-annotation-modal-button",
                                                                       className='fa fa-comment-alt',

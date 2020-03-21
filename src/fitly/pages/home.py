@@ -208,10 +208,7 @@ def generate_daily_movement_chart(date):
     df['movement_tooltip'] = ['<b>{}:</b> {} MET'.format(x, y) for (x, y) in zip(df['action'], df['met_1min'])]
 
     return dcc.Graph(id='daily-movement-chart', className='col-lg-12',
-                     style={'paddingLeft': '0vw', 'paddingRight': '0vw', 'height': '100%'},
-                     config={
-                         'displayModeBar': False,
-                     },
+                     config={'displayModeBar': False},
                      figure={
                          'data': [
                              go.Bar(
@@ -701,74 +698,72 @@ def generate_content_kpi_trend(df_name, metric):
         ])
         margin = {'l': 35, 'b': 30, 't': 0, 'r': 35}
 
-    return html.Div(id=metric + '-kpi-title', className='col-lg-12 text-center',
-                    style={'paddingRight': 0, 'paddingLeft': 0}, children=[
-            html.H6(children=[metricTitle[metric]]),
-
-            dcc.Graph(id=metric + '-kpi-trend', config={'displayModeBar': False},
-                      figure={
-                          'data': [
-                              go.Scatter(
-                                  x=df.index,
-                                  y=df[metric],
-                                  mode='lines',
-                                  text=metricTooltip,
-                                  hoverinfo='x+text',
-                                  opacity=0.7,
-                                  line={'shape': 'spline', 'color': teal}),
-                              go.Scatter(
-                                  x=df.index,
-                                  y=metricAvg,
-                                  mode='lines',
-                                  text=metricAvgTooltip,
-                                  hoverinfo='x+text',
-                                  opacity=0.7,
-                                  line={'dash': 'dot',
-                                        'color': white,
-                                        'width': 2},
-                              )
-                          ],
-                          'layout': go.Layout(
-                              height=150,
-                              transition=dict(duration=transition),
-                              font=dict(
-                                  color='rgb(220,220,220)',
-                                  size=10,
-                              ),
-                              # hoverlabel={'font': {'size': 10}},
-                              xaxis=dict(
-                                  showline=True,
-                                  color='rgb(220,220,220)',
-                                  showgrid=False,
-                                  showticklabels=True,
-                                  tickformat='%b %d',
-                                  # Specify range to get rid of auto x-axis padding when using scatter markers
-                                  range=[df.index.max() - timedelta(days=41),
-                                         df.index.max()],
-                                  rangeselector=dict(
-                                      # bgcolor='rgba(66, 66, 66)',
-                                      # bordercolor='#d4d4d4',
-                                      borderwidth=.5,
-                                      buttons=buttons,
-                                      xanchor='center',
-                                      x=.5,
-                                      y=1,
-                                  ),
-                              ),
-                              yaxis=dict(
-                                  showgrid=False,
-                                  showticklabels=False,
-                                  gridcolor='rgb(73, 73, 73)',
-                                  gridwidth=.5,
-
-                              ),
-                              margin=margin,
-                              showlegend=False,
-                              hovermode='x',
-                              autosize=True,
+    return html.Div(id=metric + '-kpi-title', className='col-lg-12 text-center', children=[
+        html.H6(children=[metricTitle[metric]]),
+        dcc.Graph(id=metric + '-kpi-trend', config={'displayModeBar': False},
+                  figure={
+                      'data': [
+                          go.Scatter(
+                              x=df.index,
+                              y=df[metric],
+                              mode='lines',
+                              text=metricTooltip,
+                              hoverinfo='x+text',
+                              opacity=0.7,
+                              line={'shape': 'spline', 'color': teal}),
+                          go.Scatter(
+                              x=df.index,
+                              y=metricAvg,
+                              mode='lines',
+                              text=metricAvgTooltip,
+                              hoverinfo='x+text',
+                              opacity=0.7,
+                              line={'dash': 'dot',
+                                    'color': white,
+                                    'width': 2},
                           )
-                      })
-        ])
+                      ],
+                      'layout': go.Layout(
+                          height=150,
+                          transition=dict(duration=transition),
+                          font=dict(
+                              color='rgb(220,220,220)',
+                              size=10,
+                          ),
+                          # hoverlabel={'font': {'size': 10}},
+                          xaxis=dict(
+                              showline=True,
+                              color='rgb(220,220,220)',
+                              showgrid=False,
+                              showticklabels=True,
+                              tickformat='%b %d',
+                              # Specify range to get rid of auto x-axis padding when using scatter markers
+                              range=[df.index.max() - timedelta(days=41),
+                                     df.index.max()],
+                              rangeselector=dict(
+                                  # bgcolor='rgba(66, 66, 66)',
+                                  # bordercolor='#d4d4d4',
+                                  borderwidth=.5,
+                                  buttons=buttons,
+                                  xanchor='center',
+                                  x=.5,
+                                  y=1,
+                              ),
+                          ),
+                          yaxis=dict(
+                              showgrid=False,
+                              showticklabels=False,
+                              gridcolor='rgb(73, 73, 73)',
+                              gridwidth=.5,
+
+                          ),
+                          margin=margin,
+                          showlegend=False,
+                          hovermode='x',
+                          autosize=True,
+                      )
+                  })
+    ])
 
 
 def update_kpis(date, days=7):
@@ -1422,7 +1417,6 @@ def generate_oura_sleep_content(date):
                 html.Div(id='sleep-stages-day-trend', className='col', children=[
                     html.H6('Sleep Stages', style={'display': 'inline-block', 'marginBottom': '0%'}),
                     html.Div(id='sleep-stages-chart-container', className='col',
-                             style={'paddingRight': 0, 'paddingLeft': 0},
                              children=generate_sleep_stages_chart(date)),
                 ])
             ]),
@@ -1984,7 +1978,6 @@ def generate_oura_readiness_content(date):
                 html.Div(id='resting-heart-rate-day-trend', className='col', children=[
                     html.H6('Resting Heart Rate', style={'display': 'inline-block', 'marginBottom': '0%'}),
                     html.Div(id='resting-heart-rate-chart-conainer', className='col',
-                             style={'paddingRight': 0, 'paddingLeft': 0},
                              children=generate_rhr_day_chart(date)),
                 ])
             ]),
@@ -2542,7 +2535,6 @@ def generate_oura_activity_content(date):
                 html.Div(id='daily-movement-day-trend', className='col', children=[
                     html.H6('Daily Movement', style={'display': 'inline-block', 'marginBottom': '0%'}),
                     html.Div(id='daily-movement-chart-conainer', className='col',
-                             style={'paddingRight': 0, 'paddingLeft': 0},
                              children=generate_daily_movement_chart(date)),
                 ])
             ]),
@@ -3323,7 +3315,7 @@ def get_layout(**kwargs):
                  children=[
                      html.Div(className='col-lg-12 text-center', children=[
                          dbc.Card([
-                             dbc.CardBody(style={'padding': '0'}, children=[
+                             dbc.CardBody(style={'paddingTop': '0', 'paddingBottom': '0'}, children=[
 
                                  html.Div(className='col-lg-12 text-center', children=[
                                      html.P('Week Ending', className='mb-0',
@@ -3463,7 +3455,6 @@ def get_layout(**kwargs):
                                      ]),
                                      html.Div(className='row', children=[
                                          dcc.Graph(id='readiness-scatter', className='col-lg-12',
-                                                   style={'paddingLeft': '0vw', 'paddingRight': '0vw'},  # TODO: delete?
                                                    config={'displayModeBar': False},
                                                    )
 
