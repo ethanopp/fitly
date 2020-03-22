@@ -87,7 +87,7 @@ def refresh_database(refresh_method='system', truncate=False, truncateDate=None)
         withings_status = 'Successful'
     except BaseException as e:
         app.server.logger.error('Error pulling withings data: {}'.format(e))
-        withings_status = e
+        withings_status = str(e)
 
     # Pull Fitbod Data
     try:
@@ -96,7 +96,7 @@ def refresh_database(refresh_method='system', truncate=False, truncateDate=None)
         fitbod_status = 'Successful'
     except BaseException as e:
         app.server.logger.error('Error pulling withings data: {}'.format(e))
-        fitbod_status = e
+        fitbod_status = str(e)
 
     # Pull Oura Data before strava because resting heart rate used in strava sample heart rate zones
     try:
@@ -105,7 +105,7 @@ def refresh_database(refresh_method='system', truncate=False, truncateDate=None)
         oura_status = 'Successful' if oura_status else 'Oura cloud not yet updated'
     except BaseException as e:
         app.server.logger.error('Error pulling oura data: {}'.format(e))
-        oura_status = e
+        oura_status = str(e)
 
     # Only pull strava data if oura cloud has been updated with latest day
 
