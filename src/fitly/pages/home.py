@@ -903,13 +903,13 @@ def update_kpis(date, days=7):
                    ]
 
     if withings_credentials_supplied:
-        main_donuts.append(
+        main_donuts.extend([
             html.Div(id='weight-trend', className=class_name,
                      children=generate_content_kpi_trend('withings', 'weight')),
             html.Div(id='body-fat-trend', className='col-lg-2',
                      children=generate_content_kpi_trend('withings', 'fat_ratio'))
 
-        )
+        ])
 
     return html.Div(className='col-lg-12', children=[
         dbc.Card([
