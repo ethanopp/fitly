@@ -16,7 +16,7 @@ def pull_fitbod_data():
     oc.login(config.get('nextcloud', 'username'), config.get('nextcloud', 'password'))
     # Get filename
     try:
-        filepath = oc.list(config.get('fitbod', 'path'))[0].path
+        filepath = oc.list(config.get('nextcloud', 'fitbod_path'))[0].path
         app.server.logger.debug('Fitbod file found')
     except:
         app.server.logger.debug('No fitbod file found on nextcloud')

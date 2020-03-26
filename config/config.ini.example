@@ -52,12 +52,10 @@ client_secret =
 url =
 username =
 password =
+fitbod_path =
 
 [timezone]
 timezone = America/New_York
-
-[fitbod]
-path =
 
 [dashboard]
 transition=2000
