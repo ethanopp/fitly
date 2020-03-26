@@ -14,7 +14,7 @@ from ..app import app
 from ..api.sqlalchemy_declarative import db_insert, db_connect, athlete, stravaSummary, stravaSamples, \
     hrvWorkoutStepLog, \
     ouraSleepSummary, ouraReadinessSummary, annotations
-from ..utils import utc_to_local, config
+from ..utils import utc_to_local, config, oura_credentials_supplied
 from ..pages.power import power_curve, zone_chart
 
 transition = int(config.get('dashboard', 'transition'))
@@ -761,43 +761,49 @@ def create_fitness_chart(run_status, ride_status, all_status):
     ) for (x, y) in zip(df_annotations.index, df_annotations.annotation)
     ]
 
-    # Resample hrv to fill any missing dates so rolling is always done at the correct # of days
-    hrv_df.set_index(pd.to_datetime(hrv_df.index), inplace=True)
-    hrv_df = hrv_df.resample('D').mean()
-    # Any changes to this code will have to be done in strava api hrv_workout_cycle() and hrv_workout_step_log would need to be truncated
-    # Recalculating here to plot on PMC (same calcs as in datapull.py)
+    if oura_credentials_supplied:
+        # Resample hrv to fill any missing dates so rolling is always done at the correct # of days
+        hrv_df.set_index(pd.to_datetime(hrv_df.index), inplace=True)
+        hrv_df = hrv_df.resample('D').mean()
+        # Any changes to this code will have to be done in strava api hrv_workout_cycle() and hrv_workout_step_log would need to be truncated
+        # Recalculating here to plot on PMC (same calcs as in datapull.py)
 
-    # hrv_df['rmssd_7'] = hrv_df['rmssd'].ewm(7, min_periods=0).mean()
-    hrv_df['rmssd_7'] = hrv_df['rmssd'].rolling(7, min_periods=0).mean()
-    # hrv_df['rmssd_30'] = hrv_df['rmssd'].ewm(30, min_periods=0).mean()
-    hrv_df['rmssd_30'] = hrv_df['rmssd'].rolling(30, min_periods=0).mean()
-    # hrv_df['stdev_rmssd_30_threshold'] = hrv_df['rmssd'].ewm(30, min_periods=0).std() * .5
-    hrv_df['stdev_rmssd_30_threshold'] = hrv_df['rmssd'].rolling(30, min_periods=0).std() * .5
-    hrv_df['swc_upper'] = hrv_df['rmssd_30'] + hrv_df['stdev_rmssd_30_threshold']
-    hrv_df['swc_lower'] = hrv_df['rmssd_30'] - hrv_df['stdev_rmssd_30_threshold']
+        # hrv_df['rmssd_7'] = hrv_df['rmssd'].ewm(7, min_periods=0).mean()
+        hrv_df['rmssd_7'] = hrv_df['rmssd'].rolling(7, min_periods=0).mean()
+        # hrv_df['rmssd_30'] = hrv_df['rmssd'].ewm(30, min_periods=0).mean()
+        hrv_df['rmssd_30'] = hrv_df['rmssd'].rolling(30, min_periods=0).mean()
+        # hrv_df['stdev_rmssd_30_threshold'] = hrv_df['rmssd'].ewm(30, min_periods=0).std() * .5
+        hrv_df['stdev_rmssd_30_threshold'] = hrv_df['rmssd'].rolling(30, min_periods=0).std() * .5
+        hrv_df['swc_upper'] = hrv_df['rmssd_30'] + hrv_df['stdev_rmssd_30_threshold']
+        hrv_df['swc_lower'] = hrv_df['rmssd_30'] - hrv_df['stdev_rmssd_30_threshold']
 
     # Create flag to color tss bars when ftp test - use number so column remains through resample
     df_new_run_ftp = df_summary[df_summary['type'].str.lower().str.contains('run')]
-    df_new_run_ftp['previous_ftp'] = df_new_run_ftp['ftp'].shift(1)
-    df_new_run_ftp = df_new_run_ftp[~np.isnan(df_new_run_ftp['previous_ftp'])]
-    df_new_run_ftp.loc[df_new_run_ftp['previous_ftp'] > df_new_run_ftp['ftp'], 'new_run_ftp_flag'] = -1
-    df_new_run_ftp.loc[df_new_run_ftp['previous_ftp'] < df_new_run_ftp['ftp'], 'new_run_ftp_flag'] = 1
-    # Highlight the workout which caused the new FTP to be set
-    df_new_run_ftp['new_run_ftp_flag'] = df_new_run_ftp['new_run_ftp_flag'].shift(-1)
+    df_new_run_ftp['new_run_ftp_flag'] = 0
+    if len(df_new_run_ftp) > 0:
+        df_new_run_ftp['previous_ftp'] = df_new_run_ftp['ftp'].shift(1)
+        df_new_run_ftp = df_new_run_ftp[~np.isnan(df_new_run_ftp['previous_ftp'])]
+        df_new_run_ftp.loc[df_new_run_ftp['previous_ftp'] > df_new_run_ftp['ftp'], 'new_run_ftp_flag'] = -1
+        df_new_run_ftp.loc[df_new_run_ftp['previous_ftp'] < df_new_run_ftp['ftp'], 'new_run_ftp_flag'] = 1
+        # Highlight the workout which caused the new FTP to be set
+        df_new_run_ftp['new_run_ftp_flag'] = df_new_run_ftp['new_run_ftp_flag'].shift(-1)
 
     df_new_ride_ftp = df_summary[df_summary['type'].str.lower().str.contains('ride')]
-    df_new_ride_ftp['previous_ftp'] = df_new_ride_ftp['ftp'].shift(1)
-    df_new_ride_ftp = df_new_ride_ftp[~np.isnan(df_new_ride_ftp['previous_ftp'])]
-    df_new_ride_ftp.loc[df_new_ride_ftp['previous_ftp'] > df_new_ride_ftp['ftp'], 'new_ride_ftp_flag'] = -1
-    df_new_ride_ftp.loc[df_new_ride_ftp['previous_ftp'] < df_new_ride_ftp['ftp'], 'new_ride_ftp_flag'] = 1
-    # Highlight the workout which caused the new FTP to be set
-    df_new_ride_ftp['new_ride_ftp_flag'] = df_new_ride_ftp['new_ride_ftp_flag'].shift(-1)
+    df_new_ride_ftp['new_ride_ftp_flag'] = 0
+    if len(df_new_ride_ftp) > 0:
+        df_new_ride_ftp['previous_ftp'] = df_new_ride_ftp['ftp'].shift(1)
+        df_new_ride_ftp = df_new_ride_ftp[~np.isnan(df_new_ride_ftp['previous_ftp'])]
+        df_new_ride_ftp.loc[df_new_ride_ftp['previous_ftp'] > df_new_ride_ftp['ftp'], 'new_ride_ftp_flag'] = -1
+        df_new_ride_ftp.loc[df_new_ride_ftp['previous_ftp'] < df_new_ride_ftp['ftp'], 'new_ride_ftp_flag'] = 1
+        # Highlight the workout which caused the new FTP to be set
+        df_new_ride_ftp['new_ride_ftp_flag'] = df_new_ride_ftp['new_ride_ftp_flag'].shift(-1)
 
     # Add flags back to main df
     df_summary = df_summary.merge(df_new_run_ftp['new_run_ftp_flag'].to_frame(), how='left', left_index=True,
                                   right_index=True)
     df_summary = df_summary.merge(df_new_ride_ftp['new_ride_ftp_flag'].to_frame(), how='left', left_index=True,
                                   right_index=True)
+
     df_summary.loc[df_summary['new_run_ftp_flag'] == 1, 'tss_flag'] = 1
     df_summary.loc[df_summary['new_run_ftp_flag'] == -1, 'tss_flag'] = -1
     df_summary.loc[df_summary['new_ride_ftp_flag'] == 1, 'tss_flag'] = 1
@@ -881,18 +887,19 @@ def create_fitness_chart(run_status, ride_status, all_status):
     pmd = pmd[42:]
     actual = actual[42:]
     latest = actual.loc[actual.index.max()]
-    # Merge hrv data into actual df
-    actual = actual.merge(hrv_df, how='left', left_index=True, right_index=True)
-    # Merge hrv plan redommendation
-    actual = actual.merge(df_plan, how='left', left_index=True, right_index=True)
-    # Merge readiness for kpis
-    actual = actual.merge(df_readiness, how='left', left_index=True, right_index=True)
+    if oura_credentials_supplied:
+        # Merge hrv data into actual df
+        actual = actual.merge(hrv_df, how='left', left_index=True, right_index=True)
+        # Merge hrv plan redommendation
+        actual = actual.merge(df_plan, how='left', left_index=True, right_index=True)
+        # Merge readiness for kpis
+        actual = actual.merge(df_readiness, how='left', left_index=True, right_index=True)
 
-    actual['workout_plan'] = 'rec_' + actual['hrv_workout_step_desc'] + '-' + actual['rationale'] + '-' + actual[
-        'score'].fillna(0).apply(
-        readiness_score_recommendation) + '-' + actual['score'].fillna(0).astype('int').astype('str')
+        actual['workout_plan'] = 'rec_' + actual['hrv_workout_step_desc'] + '-' + actual['rationale'] + '-' + actual[
+            'score'].fillna(0).apply(
+            readiness_score_recommendation) + '-' + actual['score'].fillna(0).astype('int').astype('str')
 
-    hover_rec = actual['workout_plan'].tail(1).values[0]
+        hover_rec = actual['workout_plan'].tail(1).values[0]
 
     ### Start Graph ###
     hoverData = {'points': [{'x': actual.index.max().date(),
@@ -903,10 +910,10 @@ def create_fitness_chart(run_status, ride_status, all_status):
                             {'y': rr_min_threshold, 'text': 'RR Low'},
                             {'y': latest['ATL'].max(), 'text': 'Fatigue'},
                             {'y': latest['TSB'].max(), 'text': 'Form'},
-                            {'text': hover_rec},
-                            {'y': hrv_df.tail(1)['rmssd_7'].values[0], 'text': '7 Day'},
                             ]
                  }
+
+
 
     figure = {
         'data': [
@@ -972,47 +979,6 @@ def create_fitness_chart(run_status, ride_status, all_status):
                 opacity=0.7,
                 line={'color': tsb_color, 'dash': 'dot'},
                 showlegend=False,
-            ),
-            go.Scatter(
-                name='HRV SWC (Upper)',
-                x=actual.index,
-                y=actual['swc_upper'],
-                text='swc upper',
-                yaxis='y3',
-                mode='lines',
-                hoverinfo='none',
-                line={'color': dark_blue},
-            ),
-            go.Scatter(
-                name='HRV SWC (Lower)',
-                x=actual.index,
-                y=actual['swc_lower'],
-                text='swc lower',
-                yaxis='y3',
-                mode='lines',
-                hoverinfo='none',
-                fill='tonexty',
-                line={'color': dark_blue},
-            ),
-            go.Scatter(
-                name='HRV Baseline',
-                x=actual.index,
-                y=actual['rmssd_7'],
-                yaxis='y3',
-                mode='lines',
-                text=['7 Day HRV Avg: <b>{:.0f} ({}{:.1f})'.format(x, '+' if x - y > 0 else '', x - y)
-                      for (x, y) in zip(actual['rmssd_7'], actual['rmssd_7'].shift(1))],
-                hoverinfo='text',
-                line={'color': teal},
-            ),
-            # Dummy scatter to store hrv plan recommendation so hovering data can be stored in hoverdata
-            go.Scatter(
-                name='Workout Plan Recommendation',
-                x=actual.index,
-                y=[0 for x in actual.index],
-                text=actual['workout_plan'],
-                hoverinfo='none',
-                marker={'color': 'rgba(0, 0, 0, 0)'}
             ),
             go.Bar(
                 name='Stress',
@@ -1215,15 +1181,6 @@ def create_fitness_chart(run_status, ride_status, all_status):
                 overlaying='y',
                 # layer='above traces'
             ),
-            yaxis3=dict(
-                # domain=[.85, 1],
-                range=[actual['rmssd_7'].min() * -1.5, actual['rmssd_7'].max() * 1.05],
-                showgrid=False,
-                showticklabels=False,
-                anchor='x',
-                side='right',
-                overlaying='y',
-            ),
             yaxis4=dict(
                 # domain=[.85, 1],
                 range=[0, 3],
@@ -1239,6 +1196,63 @@ def create_fitness_chart(run_status, ride_status, all_status):
             bargap=.75,
         )
     }
+
+    # If Oura data supplied, incorporate data into performance management chart
+    if oura_credentials_supplied:
+        hoverData['points'].extend([{'text': hover_rec},
+                                   {'y': hrv_df.tail(1)['rmssd_7'].values[0], 'text': '7 Day'}])
+        figure['data'].extend([
+            go.Scatter(
+                name='HRV SWC (Upper)',
+                x=actual.index,
+                y=actual['swc_upper'],
+                text='swc upper',
+                yaxis='y3',
+                mode='lines',
+                hoverinfo='none',
+                line={'color': dark_blue},
+            ),
+            go.Scatter(
+                name='HRV SWC (Lower)',
+                x=actual.index,
+                y=actual['swc_lower'],
+                text='swc lower',
+                yaxis='y3',
+                mode='lines',
+                hoverinfo='none',
+                fill='tonexty',
+                line={'color': dark_blue},
+            ),
+            go.Scatter(
+                name='HRV Baseline',
+                x=actual.index,
+                y=actual['rmssd_7'],
+                yaxis='y3',
+                mode='lines',
+                text=['7 Day HRV Avg: <b>{:.0f} ({}{:.1f})'.format(x, '+' if x - y > 0 else '', x - y)
+                      for (x, y) in zip(actual['rmssd_7'], actual['rmssd_7'].shift(1))],
+                hoverinfo='text',
+                line={'color': teal},
+            ),
+            # Dummy scatter to store hrv plan recommendation so hovering data can be stored in hoverdata
+            go.Scatter(
+                name='Workout Plan Recommendation',
+                x=actual.index,
+                y=[0 for x in actual.index],
+                text=actual['workout_plan'],
+                hoverinfo='none',
+                marker={'color': 'rgba(0, 0, 0, 0)'}
+            )
+        ])
+        figure['layout']['yaxis3'] = dict(
+            # domain=[.85, 1],
+            range=[actual['rmssd_7'].min() * -1.5, actual['rmssd_7'].max() * 1.05],
+            showgrid=False,
+            showticklabels=False,
+            anchor='x',
+            side='right',
+            overlaying='y',
+        )
 
     return figure, hoverData
 

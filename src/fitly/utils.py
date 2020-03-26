@@ -153,8 +153,6 @@ def get_url(path):
     return f"{server.config['ROUTES_PATHNAME_PREFIX']}{path}"
 
 
-
-
 ## Fitly specific Util ##
 
 
@@ -167,6 +165,18 @@ config = configparser.ConfigParser()
 config.read('./config/config.ini')
 
 local_tz = pytz.timezone(config.get('timezone', 'timezone'))
+
+oura_credentials_supplied = True if config.get('oura', 'client_id') and config.get('oura', 'client_secret') else False
+peloton_credentials_supplied = True if config.get('peloton', 'username') and config.get('peloton',
+                                                                                        'password') else False
+withings_credentials_supplied = True if config.get('withings', 'client_id') and config.get('withings',
+                                                                                           'client_secret') else False
+
+stryd_credentials_supplied = True if config.get('stryd', 'username') and config.get('stryd', 'password') else False
+
+nextcloud_credentials_supplied = True if config.get('nextcloud', 'username') and config.get('nextcloud',
+                                                                                            'password') and config.get(
+    'nextcloud', 'fitbod_path') else False
 
 A_OK_HTTP_CODES = [
     200,
@@ -187,6 +197,7 @@ A_ERROR_HTTP_CODES = {
     503: "API currently unavailable",
     523: "API currently unavailable"
 }
+
 
 ##############################
 # Main
@@ -241,6 +252,7 @@ def update_config(section, parameter, value):
     with open('./config/config.ini', 'w') as configfile:
         config.write(configfile)
 
+
 def utc_to_local(utc_dt):
     local_dt = utc_dt.replace(tzinfo=pytz.utc).astimezone(local_tz)
-    return local_tz.normalize(local_dt).replace(tzinfo=None)#.tz_localize(None)  # .normalize might be unnecessary
+    return local_tz.normalize(local_dt).replace(tzinfo=None)  # .tz_localize(None)  # .normalize might be unnecessary

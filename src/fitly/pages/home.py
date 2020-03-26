@@ -12,7 +12,8 @@ from datetime import datetime, timedelta
 from ..api.sqlalchemy_declarative import db_connect, ouraReadinessSummary, ouraActivitySummary, \
     ouraActivitySamples, ouraSleepSamples, ouraSleepSummary, stravaSummary, athlete, withings
 import operator
-from ..utils import calc_next_saturday, calc_prev_sunday, utc_to_local, config
+from ..utils import calc_next_saturday, calc_prev_sunday, utc_to_local, config, oura_credentials_supplied, \
+    withings_credentials_supplied
 
 transition = int(config.get('dashboard', 'transition'))
 default_icon_color = 'rgb(220, 220, 220)'
@@ -898,12 +899,17 @@ def update_kpis(date, days=7):
                             children=generate_kpi_donut(kpi_name='Activity', metric=df_activity.shape[0],
                                                         goal=athlete_info.weekly_activity_score_goal,
                                                         current_streak=current_activity_streak,
-                                                        best_streak=best_activity_streak)),
-                   html.Div(id='weight-trend', className=class_name,
-                            children=generate_content_kpi_trend('withings', 'weight')),
-                   html.Div(id='body-fat-trend', className='col-lg-2',
-                            children=generate_content_kpi_trend('withings', 'fat_ratio'))
+                                                        best_streak=best_activity_streak))
                    ]
+
+    if withings_credentials_supplied:
+        main_donuts.append(
+            html.Div(id='weight-trend', className=class_name,
+                     children=generate_content_kpi_trend('withings', 'weight')),
+            html.Div(id='body-fat-trend', className='col-lg-2',
+                     children=generate_content_kpi_trend('withings', 'fat_ratio'))
+
+        )
 
     return html.Div(className='col-lg-12', children=[
         dbc.Card([
@@ -3310,218 +3316,223 @@ def activity_modal_content(is_open, year_n_clicks, month_n_clicks, week_n_clicks
 
 
 def get_layout(**kwargs):
-    return html.Div([
-        html.Div(id='week-selection', className='row mt-2 mb-2',
-                 children=[
-                     html.Div(className='col-lg-12 text-center', children=[
-                         dbc.Card([
-                             dbc.CardBody(style={'paddingTop': '0', 'paddingBottom': '0'}, children=[
+    # Oura data required for home page
+    if not oura_credentials_supplied:
+        return html.H1('Please provide oura credentials in config', className='text-center')
+    else:
+        return html.Div([
+            html.Div(id='week-selection', className='row mt-2 mb-2',
+                     children=[
+                         html.Div(className='col-lg-12 text-center', children=[
+                             dbc.Card([
+                                 dbc.CardBody(style={'paddingTop': '0', 'paddingBottom': '0'}, children=[
 
-                                 html.Div(className='col-lg-12 text-center', children=[
-                                     html.P('Week Ending', className='mb-0',
-                                            style={'color': teal, 'fontSize': '1rem'}),
-                                 ]),
-                                 html.Div(className='col-lg-12 text-center', children=[
-                                     html.Button(id='back-week', className='fa fa-arrow-left mr-2', n_clicks=0),
-                                     html.H4(id='week-ending', style={'display': 'inline-block'}),
-                                     html.Button(id='forward-week', className='fa fa-arrow-right ml-2'),
+                                     html.Div(className='col-lg-12 text-center', children=[
+                                         html.P('Week Ending', className='mb-0',
+                                                style={'color': teal, 'fontSize': '1rem'}),
+                                     ]),
+                                     html.Div(className='col-lg-12 text-center', children=[
+                                         html.Button(id='back-week', className='fa fa-arrow-left mr-2', n_clicks=0),
+                                         html.H4(id='week-ending', style={'display': 'inline-block'}),
+                                         html.Button(id='forward-week', className='fa fa-arrow-right ml-2'),
+                                     ])
                                  ])
                              ])
                          ])
-                     ])
-                 ]),
+                     ]),
 
-        dcc.Loading(
+            dcc.Loading(
 
-            html.Div(id='kpi-shelf', className='row mt-2 mb-2')
+                html.Div(id='kpi-shelf', className='row mt-2 mb-2')
 
-        ),
+            ),
 
-        html.Div(id='oura-containers', className='row', children=[
-            dbc.Modal(id="oura-sleep-summary-modal", centered=True, fade=False, autoFocus=True, backdrop=True,
-                      size='xl',
-                      children=[
-                          dbc.ModalHeader("Sleep Summary"),
-                          dbc.ModalBody(id="oura-sleep-summary-modal-body"),
-                          dbc.ModalFooter(
-                              dbc.Button("Close", id="close-sleep-summary-modal-button", className="ml-auto",
-                                         n_clicks=0)
-                          ),
-                      ]),
+            html.Div(id='oura-containers', className='row', children=[
+                dbc.Modal(id="oura-sleep-summary-modal", centered=True, fade=False, autoFocus=True, backdrop=True,
+                          size='xl',
+                          children=[
+                              dbc.ModalHeader("Sleep Summary"),
+                              dbc.ModalBody(id="oura-sleep-summary-modal-body"),
+                              dbc.ModalFooter(
+                                  dbc.Button("Close", id="close-sleep-summary-modal-button", className="ml-auto",
+                                             n_clicks=0)
+                              ),
+                          ]),
 
-            dbc.Modal(id="oura-readiness-summary-modal", centered=True, fade=False, autoFocus=True, backdrop=True,
-                      size='xl',
-                      children=[
-                          dbc.ModalHeader("Readiness Summary"),
-                          dbc.ModalBody(html.Div(id="oura-readiness-summary-modal-body")),
-                          dbc.ModalFooter(
-                              dbc.Button("Close", id="close-readiness-summary-modal-button", className="ml-auto",
-                                         n_clicks=0)
-                          ),
-                      ]),
+                dbc.Modal(id="oura-readiness-summary-modal", centered=True, fade=False, autoFocus=True, backdrop=True,
+                          size='xl',
+                          children=[
+                              dbc.ModalHeader("Readiness Summary"),
+                              dbc.ModalBody(html.Div(id="oura-readiness-summary-modal-body")),
+                              dbc.ModalFooter(
+                                  dbc.Button("Close", id="close-readiness-summary-modal-button", className="ml-auto",
+                                             n_clicks=0)
+                              ),
+                          ]),
 
-            dbc.Modal(id="oura-activity-summary-modal", centered=True, fade=False, autoFocus=True, backdrop=True,
-                      size='xl',
-                      children=[
-                          dbc.ModalHeader("Activity Summary"),
-                          dbc.ModalBody(html.Div(id="oura-activity-summary-modal-body")),
-                          dbc.ModalFooter(
-                              dbc.Button("Close", id="close-activity-summary-modal-button", className="ml-auto",
-                                         n_clicks=0)
-                          ),
-                      ]),
+                dbc.Modal(id="oura-activity-summary-modal", centered=True, fade=False, autoFocus=True, backdrop=True,
+                          size='xl',
+                          children=[
+                              dbc.ModalHeader("Activity Summary"),
+                              dbc.ModalBody(html.Div(id="oura-activity-summary-modal-body")),
+                              dbc.ModalFooter(
+                                  dbc.Button("Close", id="close-activity-summary-modal-button", className="ml-auto",
+                                             n_clicks=0)
+                              ),
+                          ]),
 
-            ## TODO: Finish cleaning card for sleep, fix callbacks, replicate for readiness and activity
-            html.Div(className='col-lg-4', children=[
-                dbc.Card([
-                    dbc.CardBody(id='oura-sleep-container',
-                                 children=[
-                                     html.Div(className='row', children=[
-                                         html.Div(id='oura-sleep-kpi', className='col-lg-12 text-center',
-                                                  children=[
-                                                      html.P(id='sleep-date', className='mb-0',
-                                                             style={'display': 'inline-block',
-                                                                    'fontSize': '1rem',
-                                                                    'color': teal}),
-                                                      html.I(id='sleep-exclamation',
-                                                             className='fa fa-exclamation-circle',
-                                                             style={'display': 'none'}),
-                                                      dbc.Tooltip(
-                                                          "Latest sleep data not yet posted to Oura cloud",
-                                                          target='sleep-exclamation'),
+                ## TODO: Finish cleaning card for sleep, fix callbacks, replicate for readiness and activity
+                html.Div(className='col-lg-4', children=[
+                    dbc.Card([
+                        dbc.CardBody(id='oura-sleep-container',
+                                     children=[
+                                         html.Div(className='row', children=[
+                                             html.Div(id='oura-sleep-kpi', className='col-lg-12 text-center',
+                                                      children=[
+                                                          html.P(id='sleep-date', className='mb-0',
+                                                                 style={'display': 'inline-block',
+                                                                        'fontSize': '1rem',
+                                                                        'color': teal}),
+                                                          html.I(id='sleep-exclamation',
+                                                                 className='fa fa-exclamation-circle',
+                                                                 style={'display': 'none'}),
+                                                          dbc.Tooltip(
+                                                              "Latest sleep data not yet posted to Oura cloud",
+                                                              target='sleep-exclamation'),
 
-                                                  ])
+                                                      ])
+                                         ]),
+
+                                         html.Div(className='row', children=[
+                                             dbc.Button(id='sleep-kpi-summary-button', className='col-4 offset-4',
+                                                        color='primary', n_clicks=0, size='sm',
+                                                        style={'height': '100%', 'text-transform': 'inherit'},
+                                                        children=[
+                                                            html.H6('Sleep', style={'lineHeight': 1},
+                                                                    className='col mb-0'),
+                                                            html.H2(id='sleep-kpi', className='col mb-0',
+                                                                    style={'lineHeight': 1})
+                                                        ])
+                                         ]),
+                                         html.Div(className='row', children=[
+                                             dcc.Graph(id='sleep-trend', className='col-lg-12',
+                                                       config={'displayModeBar': False}
+                                                       ),
+
+                                             html.Div(id='oura-sleep-header', className='col-lg-12',
+                                                      # style={'height': '20%'}
+                                                      )
+                                         ]),
+                                         html.Div(className='row', children=[
+                                             html.Div(id='oura-sleep-content', className='col-lg-12',
+                                                      style={'height': '65%'})])
                                      ]),
 
-                                     html.Div(className='row', children=[
-                                         dbc.Button(id='sleep-kpi-summary-button', className='col-4 offset-4',
-                                                    color='primary', n_clicks=0, size='sm',
-                                                    style={'height': '100%', 'text-transform': 'inherit'},
-                                                    children=[
-                                                        html.H6('Sleep', style={'lineHeight': 1}, className='col mb-0'),
-                                                        html.H2(id='sleep-kpi', className='col mb-0',
-                                                                style={'lineHeight': 1})
-                                                    ])
-                                     ]),
-                                     html.Div(className='row', children=[
-                                         dcc.Graph(id='sleep-trend', className='col-lg-12',
-                                                   config={'displayModeBar': False}
-                                                   ),
+                    ])
+                ]),
 
-                                         html.Div(id='oura-sleep-header', className='col-lg-12',
-                                                  # style={'height': '20%'}
-                                                  )
-                                     ]),
-                                     html.Div(className='row', children=[
-                                         html.Div(id='oura-sleep-content', className='col-lg-12',
-                                                  style={'height': '65%'})])
-                                 ]),
+                html.Div(className='col-lg-4', children=[
+                    dbc.Card([
+                        dbc.CardBody(id='oura-readiness-container',
+                                     children=[
+                                         html.Div(className='row', children=[
+                                             html.Div(id='oura-readiness-kpi', className='col-lg-12 text-center',
+                                                      children=[
 
-                ])
-            ]),
+                                                          html.P(id='readiness-date', className='mb-0',
+                                                                 style={'display': 'inline-block',
+                                                                        'fontSize': '1rem',
+                                                                        'color': teal}),
+                                                          html.I(id='readiness-exclamation',
+                                                                 className='fa fa-exclamation-circle',
+                                                                 style={'display': 'none'}),
+                                                          dbc.Tooltip(
+                                                              "Latest readiness data not yet posted to Oura cloud",
+                                                              target='readiness-exclamation'),
 
-            html.Div(className='col-lg-4', children=[
-                dbc.Card([
-                    dbc.CardBody(id='oura-readiness-container',
-                                 children=[
-                                     html.Div(className='row', children=[
-                                         html.Div(id='oura-readiness-kpi', className='col-lg-12 text-center',
-                                                  children=[
+                                                      ])
+                                         ]),
 
-                                                      html.P(id='readiness-date', className='mb-0',
-                                                             style={'display': 'inline-block',
-                                                                    'fontSize': '1rem',
-                                                                    'color': teal}),
-                                                      html.I(id='readiness-exclamation',
-                                                             className='fa fa-exclamation-circle',
-                                                             style={'display': 'none'}),
-                                                      dbc.Tooltip(
-                                                          "Latest readiness data not yet posted to Oura cloud",
-                                                          target='readiness-exclamation'),
+                                         html.Div(className='row', children=[
+                                             dbc.Button(id='readiness-kpi-summary-button', className='col-4 offset-4',
+                                                        color='primary', n_clicks=0, size='sm',
+                                                        style={'height': '100%', 'text-transform': 'inherit'},
+                                                        children=[
+                                                            html.H6('Readiness', style={'lineHeight': 1},
+                                                                    className='col mb-0'),
+                                                            html.H2(id='readiness-kpi', className='col mb-0',
+                                                                    style={'lineHeight': 1})
+                                                        ])
+                                         ]),
+                                         html.Div(className='row', children=[
+                                             dcc.Graph(id='readiness-scatter', className='col-lg-12',
+                                                       config={'displayModeBar': False},
+                                                       )
 
-                                                  ])
+                                         ]),
+                                         html.Div(className='row', children=[
+                                             html.Div(id='oura-readiness-content', className='col-lg-12',
+                                                      style={'height': '65%'})])
                                      ]),
 
-                                     html.Div(className='row', children=[
-                                         dbc.Button(id='readiness-kpi-summary-button', className='col-4 offset-4',
-                                                    color='primary', n_clicks=0, size='sm',
-                                                    style={'height': '100%', 'text-transform': 'inherit'},
-                                                    children=[
-                                                        html.H6('Readiness', style={'lineHeight': 1},
-                                                                className='col mb-0'),
-                                                        html.H2(id='readiness-kpi', className='col mb-0',
-                                                                style={'lineHeight': 1})
-                                                    ])
+                    ])
+                ]),
+
+                html.Div(className='col-lg-4', children=[
+                    dbc.Card([
+                        dbc.CardBody(id='oura-activity-container',
+                                     children=[
+                                         html.Div(className='row', children=[
+                                             html.Div(id='oura-activity-kpi', className='col-lg-12 text-center',
+                                                      children=[
+
+                                                          html.P(id='activity-date', className='mb-0',
+                                                                 style={'display': 'inline-block',
+                                                                        'fontSize': '1rem',
+                                                                        'color': teal}),
+                                                          html.I(id='activity-exclamation',
+                                                                 className='fa fa-exclamation-circle',
+                                                                 style={'display': 'none'}),
+                                                          dbc.Tooltip(
+                                                              "Latest activity data not yet posted to Oura cloud",
+                                                              target='activity-exclamation'),
+
+                                                      ])
+                                         ]),
+
+                                         html.Div(className='row', children=[
+                                             dbc.Button(id='activity-kpi-summary-button', className='col-4 offset-4',
+                                                        color='primary', n_clicks=0, size='sm',
+                                                        style={'height': '100%', 'text-transform': 'inherit'},
+                                                        children=[
+                                                            html.H6('Activity', style={'lineHeight': 1},
+                                                                    className='col mb-0'),
+                                                            html.H2(id='activity-kpi', className='col mb-0',
+                                                                    style={'lineHeight': 1})
+                                                        ])
+                                         ]),
+                                         html.Div(className='row', children=[
+                                             dcc.Graph(id='activity-bars', className='col-lg-12',
+                                                       config={'displayModeBar': False},
+                                                       )
+
+                                         ]),
+                                         html.Div(className='row', children=[
+                                             html.Div(id='oura-activity-content', className='col-lg-12',
+                                                      style={'height': '65%'})])
                                      ]),
-                                     html.Div(className='row', children=[
-                                         dcc.Graph(id='readiness-scatter', className='col-lg-12',
-                                                   config={'displayModeBar': False},
-                                                   )
 
-                                     ]),
-                                     html.Div(className='row', children=[
-                                         html.Div(id='oura-readiness-content', className='col-lg-12',
-                                                  style={'height': '65%'})])
-                                 ]),
+                    ])
+                ]),
 
-                ])
-            ]),
-
-            html.Div(className='col-lg-4', children=[
-                dbc.Card([
-                    dbc.CardBody(id='oura-activity-container',
-                                 children=[
-                                     html.Div(className='row', children=[
-                                         html.Div(id='oura-activity-kpi', className='col-lg-12 text-center',
-                                                  children=[
-
-                                                      html.P(id='activity-date', className='mb-0',
-                                                             style={'display': 'inline-block',
-                                                                    'fontSize': '1rem',
-                                                                    'color': teal}),
-                                                      html.I(id='activity-exclamation',
-                                                             className='fa fa-exclamation-circle',
-                                                             style={'display': 'none'}),
-                                                      dbc.Tooltip(
-                                                          "Latest activity data not yet posted to Oura cloud",
-                                                          target='activity-exclamation'),
-
-                                                  ])
-                                     ]),
-
-                                     html.Div(className='row', children=[
-                                         dbc.Button(id='activity-kpi-summary-button', className='col-4 offset-4',
-                                                    color='primary', n_clicks=0, size='sm',
-                                                    style={'height': '100%', 'text-transform': 'inherit'},
-                                                    children=[
-                                                        html.H6('Activity', style={'lineHeight': 1},
-                                                                className='col mb-0'),
-                                                        html.H2(id='activity-kpi', className='col mb-0',
-                                                                style={'lineHeight': 1})
-                                                    ])
-                                     ]),
-                                     html.Div(className='row', children=[
-                                         dcc.Graph(id='activity-bars', className='col-lg-12',
-                                                   config={'displayModeBar': False},
-                                                   )
-
-                                     ]),
-                                     html.Div(className='row', children=[
-                                         html.Div(id='oura-activity-content', className='col-lg-12',
-                                                  style={'height': '65%'})])
-                                 ]),
-
-                ])
-            ]),
-
-            # Dummy divs for controlling which over happened last to update all containers
-            html.Div(id='last-chart-clicked', style={'display': 'none'}),
-            html.Div(id='sleepClick-timestamp', style={'display': 'none'}, children=datetime.utcnow()),
-            html.Div(id='readinessClick-timestamp', style={'display': 'none'}, children=datetime.utcnow()),
-            html.Div(id='activityClick-timestamp', style={'display': 'none'}, children=datetime.utcnow()),
-            # Dummy divs for controlling show/hide of content kpi trend
-            html.Div(id='current-sleep-content-trend', style={'display': 'none'}),
-            html.Div(id='current-readiness-content-trend', style={'display': 'none'}),
-            html.Div(id='current-activity-content-trend', style={'display': 'none'})
+                # Dummy divs for controlling which over happened last to update all containers
+                html.Div(id='last-chart-clicked', style={'display': 'none'}),
+                html.Div(id='sleepClick-timestamp', style={'display': 'none'}, children=datetime.utcnow()),
+                html.Div(id='readinessClick-timestamp', style={'display': 'none'}, children=datetime.utcnow()),
+                html.Div(id='activityClick-timestamp', style={'display': 'none'}, children=datetime.utcnow()),
+                # Dummy divs for controlling show/hide of content kpi trend
+                html.Div(id='current-sleep-content-trend', style={'display': 'none'}),
+                html.Div(id='current-readiness-content-trend', style={'display': 'none'}),
+                html.Div(id='current-activity-content-trend', style={'display': 'none'})
+            ])
         ])
-    ])

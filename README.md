@@ -1,6 +1,4 @@
 # Fit.ly
-**This repo is still currently under development. Not all functionality will work for everyone yet as we are still cleaning base code.**
-
 Web analytics for endurance athletes
 ![Image description](https://i.imgur.com/CENhmnq.png)
 ![Image description](https://i.imgur.com/sWtC3aJ.png)

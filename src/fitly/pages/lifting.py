@@ -9,49 +9,53 @@ import math
 from datetime import datetime, timedelta, date
 import dash_bootstrap_components as dbc
 import operator
-from ..utils import config
+from ..utils import config, nextcloud_credentials_supplied
 
 
 def get_layout(**kwargs):
-    return html.Div([
-        html.Div(className='row', children=[
-            html.Div(className='col-lg-12 text-center mt-2 mb-2', children=[
-                html.Div(id='lifting-date-buttons', children=[
-                    dbc.Button('All Time', id='all-button', color='primary'),
-                    dbc.Button('Year to Date', id='ytd-button', color='primary'),
-                    dbc.Button('Last 6 Weeks', id='l6w-button', color='primary'),
+    # Oura data required for home page
+    if not nextcloud_credentials_supplied:
+        return html.H1('Please provide nextcloud credentials in config', className='text-center')
+    else:
+        return html.Div([
+            html.Div(className='row', children=[
+                html.Div(className='col-lg-12 text-center mt-2 mb-2', children=[
+                    html.Div(id='lifting-date-buttons', children=[
+                        dbc.Button('All Time', id='all-button', color='primary'),
+                        dbc.Button('Year to Date', id='ytd-button', color='primary'),
+                        dbc.Button('Last 6 Weeks', id='l6w-button', color='primary'),
+                    ]),
                 ]),
             ]),
-        ]),
-        html.Div(id='lifting-header', className='row', children=[
-            html.Div(className='col-lg-6 offset-md-3 align-self-center text-center mt-2 mb-2', children=[
+            html.Div(id='lifting-header', className='row', children=[
+                html.Div(className='col-lg-6 offset-md-3 align-self-center text-center mt-2 mb-2', children=[
 
-                dcc.Dropdown(id='muscle-options', className='bg-light',
-                             style={'backgroundColor': 'rgba(0,0,0,0)'},
-                             options=[
-                                 {'label': 'Abs', 'value': 'Abs'},
-                                 {'label': 'Back', 'value': 'Back'},
-                                 {'label': 'Biceps', 'value': 'Biceps'},
-                                 {'label': 'Chest', 'value': 'Chest'},
-                                 {'label': 'Hamstrings', 'value': 'Hamstrings'},
-                                 {'label': 'Lower Back', 'value': 'Lower Back'},
-                                 {'label': 'Quadriceps', 'value': 'Quadriceps'},
-                                 {'label': 'Shoulders', 'value': 'Shoulders'},
-                                 {'label': 'Triceps', 'value': 'Triceps'}
-                             ],
-                             value=['Abs', 'Back', 'Biceps', 'Chest', 'Hamstrings', 'Lower Back', 'Quadriceps',
-                                    'Shoulders', 'Triceps'],
-                             multi=True,
-                             placeholder='Select Muscle(s)...'
-                             )
+                    dcc.Dropdown(id='muscle-options', className='bg-light',
+                                 style={'backgroundColor': 'rgba(0,0,0,0)'},
+                                 options=[
+                                     {'label': 'Abs', 'value': 'Abs'},
+                                     {'label': 'Back', 'value': 'Back'},
+                                     {'label': 'Biceps', 'value': 'Biceps'},
+                                     {'label': 'Chest', 'value': 'Chest'},
+                                     {'label': 'Hamstrings', 'value': 'Hamstrings'},
+                                     {'label': 'Lower Back', 'value': 'Lower Back'},
+                                     {'label': 'Quadriceps', 'value': 'Quadriceps'},
+                                     {'label': 'Shoulders', 'value': 'Shoulders'},
+                                     {'label': 'Triceps', 'value': 'Triceps'}
+                                 ],
+                                 value=['Abs', 'Back', 'Biceps', 'Chest', 'Hamstrings', 'Lower Back', 'Quadriceps',
+                                        'Shoulders', 'Triceps'],
+                                 multi=True,
+                                 placeholder='Select Muscle(s)...'
+                                 )
+                ]),
             ]),
-        ]),
 
-        html.Div(className='row', children=[
-            html.Div(id='exercise-containers', className='col-lg-12')
+            html.Div(className='row', children=[
+                html.Div(id='exercise-containers', className='col-lg-12')
 
+            ])
         ])
-    ])
 
 
 white = config.get('oura', 'white')

@@ -362,10 +362,10 @@ athlete_exists = True if len(session.query(athlete).all()) > 0 else False
 # If no athlete created in db, create one
 if not athlete_exists:
     from datetime import datetime
-
+#TODO: Force user to enter certain athlete details prior to being able to pull data (i.e. weight, sex, rest_hr, etc.)
     dummy_athlete = athlete(
         name='Athelte Name',
-        birthday=datetime.now(),
+        birthday=datetime.now().date(),
         sex='M',
         weight_lbs=150,
         resting_hr=50,

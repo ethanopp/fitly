@@ -14,7 +14,7 @@ from ..api.pelotonApi import peloton_mapping_df, roundTime
 from ..api.strydAPI import get_stryd_df_summary
 from dateutil.relativedelta import relativedelta
 from ..app import app
-from ..utils import config
+from ..utils import peloton_credentials_supplied, stryd_credentials_supplied
 
 types = ['time', 'latlng', 'distance', 'altitude', 'velocity_smooth', 'heartrate', 'cadence', 'watts', 'temp',
          'moving', 'grade_smooth']
@@ -44,8 +44,7 @@ class FitlyActivity(stravalib.model.Activity):
         # Build activity summary df
         app.server.logger.debug('Activity id "{}": Building df_summary'.format(self.id))
         self.build_df_summary()
-
-        if config.get('peloton', 'username') and config.get('peloton', 'password'):
+        if peloton_credentials_supplied:
             # Update strava names of peloton workouts
             app.server.logger.debug('Activity id "{}": Pulling peloton title'.format(self.id))
             self.write_peloton_title_to_strava()
@@ -77,33 +76,34 @@ class FitlyActivity(stravalib.model.Activity):
         app.server.logger.debug('Activity id "{}": Writing df_summary and df_samples to DB'.format(self.id))
         self.write_dfs_to_db()
 
+
     def assign_athlete(self, athlete_id):
         session, engine = db_connect()
-        self.athlete = session.query(athlete).filter(athlete.athlete_id == athlete_id).first()
+        self.Athlete = session.query(athlete).filter(athlete.athlete_id == athlete_id).first()
         engine.dispose()
         session.close()
 
         self.hearrate_zones = {
-            1: float(self.athlete.hr_zone_threshold_1),
-            2: float(self.athlete.hr_zone_threshold_2),
-            3: float(self.athlete.hr_zone_threshold_3),
-            4: float(self.athlete.hr_zone_threshold_4)
+            1: float(self.Athlete.hr_zone_threshold_1),
+            2: float(self.Athlete.hr_zone_threshold_2),
+            3: float(self.Athlete.hr_zone_threshold_3),
+            4: float(self.Athlete.hr_zone_threshold_4)
         }
         if 'ride' in self.type.lower():
             self.power_zones = {
-                1: float(self.athlete.cycle_power_zone_threshold_1),
-                2: float(self.athlete.cycle_power_zone_threshold_2),
-                3: float(self.athlete.cycle_power_zone_threshold_3),
-                4: float(self.athlete.cycle_power_zone_threshold_4),
-                5: float(self.athlete.cycle_power_zone_threshold_5),
-                6: float(self.athlete.cycle_power_zone_threshold_6)
+                1: float(self.Athlete.cycle_power_zone_threshold_1),
+                2: float(self.Athlete.cycle_power_zone_threshold_2),
+                3: float(self.Athlete.cycle_power_zone_threshold_3),
+                4: float(self.Athlete.cycle_power_zone_threshold_4),
+                5: float(self.Athlete.cycle_power_zone_threshold_5),
+                6: float(self.Athlete.cycle_power_zone_threshold_6)
             }
         elif 'run' in self.type.lower():
             self.power_zones = {
-                1: float(self.athlete.run_power_zone_threshold_1),
-                2: float(self.athlete.run_power_zone_threshold_2),
-                3: float(self.athlete.run_power_zone_threshold_3),
-                4: float(self.athlete.run_power_zone_threshold_4)
+                1: float(self.Athlete.run_power_zone_threshold_1),
+                2: float(self.Athlete.run_power_zone_threshold_2),
+                3: float(self.Athlete.run_power_zone_threshold_3),
+                4: float(self.Athlete.run_power_zone_threshold_4)
             }
 
     def write_peloton_title_to_strava(self):
@@ -119,43 +119,46 @@ class FitlyActivity(stravalib.model.Activity):
             client.update_activity(activity_id=self.id, name=self.peloton_title)
 
     def get_rest_hr(self):
-        # TODO: Build this out so hearrate data can be pulled from other data sources, and resort to athlete table if no source is connected that contains weight data
+        # TODO: Build this out so hearrate data can be pulled from other data sources
         # Assign rhr to activities by their start date
         session, engine = db_connect()
         # Try grabbing last resting heartrate from oura
         hr_lowest = session.query(ouraSleepSummary.hr_lowest).filter(
             ouraSleepSummary.report_date <= self.start_date.date()).order_by(
             ouraSleepSummary.report_date.desc()).first()
-
         # If activity is prior to first oura data record, use first oura data record
         if not hr_lowest:
-            hr_lowest = session.query(ouraSleepSummary.hr_lowest).order_by(ouraSleepSummary.report_date.asc()).first()
-
-        # Resort to manaully entered static athlete resting heartrate if no data source to pull from
-        if not hr_lowest:
-            hr_lowest = session.query(athlete.resting_hr).filter(athlete.athlete_id == self.athlete.athlete_id).first()
-
+            hr_lowest = \
+                session.query(ouraSleepSummary.hr_lowest).order_by(ouraSleepSummary.report_date.asc()).first()
         engine.dispose()
         session.close()
-        self.hr_lowest = hr_lowest[0]
+
+        if hr_lowest:
+            self.hr_lowest = hr_lowest[0]
+        # Resort to manaully entered static athlete resting heartrate if no data source to pull from
+        else:
+            self.hr_lowest = self.Athlete.resting_hr
 
     def get_weight(self):
-        # TODO: Build this out so weight data can be pulled from other data sources, and resort to athlete table if no source is connected that contains weight data
+        # TODO: Build this out so weight data can be pulled from other data sources
         session, engine = db_connect()
-
         # Try grabbing last weight in withings before current workout
         weight = session.query(withings.weight).filter(withings.date_utc <= self.start_date).order_by(
             withings.date_utc.desc()).first()
         # Else try getting most recent weight from withings
         if not weight:
             weight = session.query(withings.weight).order_by(withings.date_utc.asc()).first()
-        # If no weights in withings, resort to manually entered static weight from athlete table
-        if not weight:
-            weight = session.query(athlete.weight_lbs).filter(athlete.athlete_id == self.athlete.athlete_id).first()
+
         engine.dispose()
         session.close()
 
-        weight = float(weight[0])
+        if weight:
+            weight = float(weight[0])
+        # If no weights in withings, resort to manually entered static weight from athlete table
+
+        if not weight:
+            weight = self.Athlete.weight_lbs
+
         self.weight = weight
         self.kg = weight * 0.453592
 
@@ -164,16 +167,16 @@ class FitlyActivity(stravalib.model.Activity):
         if 'run' in self.type.lower():
 
             # If stryd credentials in config, grab ftp from stryd
-            if config.get('stryd', 'username') and config.get('stryd', 'password'):
+            if stryd_credentials_supplied:
                 stryd_df = get_stryd_df_summary()
                 stryd_df = stryd_df[stryd_df.index <= self.start_date_local]
                 try:
                     self.ftp = stryd_df.loc[stryd_df.index.max()].stryd_ftp
                 except:
                     # If no FTP test prior to current activity
-                    self.ftp = self.athlete.run_ftp
+                    self.ftp = self.Athlete.run_ftp
             else:
-                self.ftp = self.athlete.run_ftp
+                self.ftp = self.Athlete.run_ftp
 
         elif 'ride' in self.type.lower():
             # TODO: Switch over to using Critical Power for everything once we get the critical power model working
@@ -186,7 +189,7 @@ class FitlyActivity(stravalib.model.Activity):
                         stravaSummary.name.ilike('%ftp test%')).first()[0]) * .95
             except:
                 # If no FTP test prior to current activity
-                self.ftp = self.athlete.ride_ftp
+                self.ftp = self.Athlete.ride_ftp
 
         else:
             self.ftp = None
@@ -485,7 +488,7 @@ class FitlyActivity(stravalib.model.Activity):
 
     def calculate_heartate_zones(self):
         if self.max_heartrate is not None:
-            age = relativedelta(datetime.today(), self.athlete.birthday).years
+            age = relativedelta(datetime.today(), self.Athlete.birthday).years
             self.athlete_max_hr = 220 - age
             self.rhr = self.hr_lowest
             self.hrr = self.athlete_max_hr - self.rhr
@@ -577,7 +580,7 @@ class FitlyActivity(stravalib.model.Activity):
                 df['watts_per_kg'] = df['mmp'] / self.kg
                 df['timestamp_local'] = df.index
                 df['type'] = self.type
-                df['athlete_id'] = self.athlete.athlete_id
+                df['athlete_id'] = self.Athlete.athlete_id
                 df.set_index(['activity_id', 'interval'], inplace=True)
                 db_insert(df, 'strava_best_samples')
 
@@ -588,7 +591,7 @@ class FitlyActivity(stravalib.model.Activity):
 
     def write_dfs_to_db(self):
         # Add athlete_id to df_summary
-        self.df_summary['athlete_id'] = [self.athlete.athlete_id]
+        self.df_summary['athlete_id'] = [self.Athlete.athlete_id]
         self.df_summary['ftp'] = [self.ftp]
         self.df_summary['trimp'] = [self.trimp]
         self.df_summary['hrss'] = [self.hrss]
@@ -600,7 +603,7 @@ class FitlyActivity(stravalib.model.Activity):
         self.df_summary['weight'] = [self.weight]
         # Add other columns to samples df
         self.df_samples['type'] = self.type
-        self.df_samples['athlete_id'] = self.athlete.athlete_id
+        self.df_samples['athlete_id'] = self.Athlete.athlete_id
 
         db_insert(self.df_summary.fillna(np.nan), 'strava_summary')
         db_insert(self.df_samples.fillna(np.nan), 'strava_samples')

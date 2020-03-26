@@ -8,7 +8,8 @@ import datetime
 from ..api.fitlyAPI import *
 import pandas as pd
 from ..app import app
-from ..utils import config
+from ..utils import config, withings_credentials_supplied, oura_credentials_supplied, nextcloud_credentials_supplied
+
 
 
 def latest_refresh():
@@ -80,37 +81,52 @@ def refresh_database(refresh_method='system', truncate=False, truncateDate=None)
         engine.dispose()
         session.close()
 
-    # Pull Weight Data
-    try:
-        app.server.logger.info('Pulling withings data...')
-        pull_withings_data()
-        withings_status = 'Successful'
-    except BaseException as e:
-        app.server.logger.error('Error pulling withings data: {}'.format(e))
-        withings_status = str(e)
+    ### Pull Weight Data ###
 
-    # Pull Fitbod Data
-    try:
-        app.server.logger.info('Pulling fitbod data...')
-        pull_fitbod_data()
-        fitbod_status = 'Successful'
-    except BaseException as e:
-        app.server.logger.error('Error pulling withings data: {}'.format(e))
-        fitbod_status = str(e)
+    # If withings credentials in config.ini, populate withings table
+    if withings_credentials_supplied:
+        try:
+            app.server.logger.info('Pulling withings data...')
+            pull_withings_data()
+            withings_status = 'Successful'
+        except BaseException as e:
+            app.server.logger.error('Error pulling withings data: {}'.format(e))
+            withings_status = str(e)
+    else:
+        withings_status = 'No Credentials'
 
-    # Pull Oura Data before strava because resting heart rate used in strava sample heart rate zones
-    try:
-        app.server.logger.info('Pulling oura data...')
-        oura_status = pull_oura_data()
-        oura_status = 'Successful' if oura_status else 'Oura cloud not yet updated'
-    except BaseException as e:
-        app.server.logger.error('Error pulling oura data: {}'.format(e))
-        oura_status = str(e)
+    ### Pull Fitbod Data ###
 
-    # Only pull strava data if oura cloud has been updated with latest day
+    # If nextcloud credentials in config.ini, pull fitbod data from nextcloud location
+    if nextcloud_credentials_supplied:
+        try:
+            app.server.logger.info('Pulling fitbod data...')
+            pull_fitbod_data()
+            fitbod_status = 'Successful'
+        except BaseException as e:
+            app.server.logger.error('Error pulling withings data: {}'.format(e))
+            fitbod_status = str(e)
+    else:
+        fitbod_status = 'No Credentials'
 
-    # Pull Strava Data
-    if oura_status == 'Successful':
+    ### Pull Oura Data ###
+
+    if oura_credentials_supplied:
+        # Pull Oura Data before strava because resting heart rate used in strava sample heart rate zones
+        try:
+            app.server.logger.info('Pulling oura data...')
+            oura_status = pull_oura_data()
+            oura_status = 'Successful' if oura_status else 'Oura cloud not yet updated'
+        except BaseException as e:
+            app.server.logger.error('Error pulling oura data: {}'.format(e))
+            oura_status = str(e)
+    else:
+        oura_status = 'No Credentials'
+
+    ### Pull Strava Data ###
+
+    # Only pull strava data if oura cloud has been updated with latest day, or no oura credentials so strava will use athlete static resting hr
+    if oura_status == 'Successful' or oura_status == 'No Credentials':
         try:
             app.server.logger.info('Pulling strava data...')
 
@@ -139,21 +155,22 @@ def refresh_database(refresh_method='system', truncate=False, truncateDate=None)
                 if len(new_activities) > 0:
                     for fitly_act in new_activities:
                         fitly_act.stravaScrape(athlete_id=athlete_id)
-                hrv_training_workflow(min_non_warmup_workout_time=min_non_warmup_workout_time)
+                # Only run hrv training workflow if oura connection available to use hrv data
+                if oura_status == 'Successful':
+                    hrv_training_workflow(min_non_warmup_workout_time=min_non_warmup_workout_time)
 
             app.server.logger.debug('stravaScrape() complete...')
             strava_status = 'Successful'
         except BaseException as e:
             app.server.logger.error('Error pulling strava data: {}'.format(e))
-            strava_status = e
+            strava_status = str(e)
     else:
         app.server.logger.info('Oura cloud not yet updated. Waiting to pull Strava data')
         strava_status = 'Awaiting oura cloud update'
 
     session, engine = db_connect()
     run_time = datetime.utcnow()
-    record = dbRefreshStatus(timestamp_utc=datetime.utcnow(), oura_status=oura_status,
-                             fitbod_status=fitbod_status,
+    record = dbRefreshStatus(timestamp_utc=datetime.utcnow(), oura_status=oura_status, fitbod_status=fitbod_status,
                              strava_status=strava_status, withings_status=withings_status, truncate=truncate,
                              refresh_method=refresh_method)
     # Insert and commit
