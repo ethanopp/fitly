@@ -14,6 +14,7 @@ from ..api.pelotonApi import peloton_mapping_df, roundTime
 from ..api.strydAPI import get_stryd_df_summary
 from dateutil.relativedelta import relativedelta
 from ..app import app
+from ..utils import config
 
 types = ['time', 'latlng', 'distance', 'altitude', 'velocity_smooth', 'heartrate', 'cadence', 'watts', 'temp',
          'moving', 'grade_smooth']
@@ -43,9 +44,11 @@ class FitlyActivity(stravalib.model.Activity):
         # Build activity summary df
         app.server.logger.debug('Activity id "{}": Building df_summary'.format(self.id))
         self.build_df_summary()
-        # Update strava names of peloton workouts
-        app.server.logger.debug('Activity id "{}": Pulling peloton title'.format(self.id))
-        self.write_peloton_title_to_strava()
+
+        if config.get('peloton', 'username') and config.get('peloton', 'password'):
+            # Update strava names of peloton workouts
+            app.server.logger.debug('Activity id "{}": Pulling peloton title'.format(self.id))
+            self.write_peloton_title_to_strava()
         # Get FTP
         app.server.logger.debug('Activity id "{}": Pulling ftp'.format(self.id))
         self.get_ftp()
