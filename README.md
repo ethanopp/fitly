@@ -112,7 +112,7 @@ details.
           - URL=<website.com>
           - SUBDOMAINS=fit # this would give a website like fit.website.com
         volumes:
-          - /share/CACHEDEV2_DATA/Container/LetsEncrypt:/config
+          - <host config dir>:/config
       fitly:
         build:
           dockerfile: Dockerfile
@@ -131,8 +131,8 @@ details.
           - PGID=100
           - DASH_DEBUG=true
         volumes:
-          - /share/CACHEDEV2_DATA/Container/Fitly-Slap:/app/config
-          - /share/CACHEDEV2_DATA/Container/LetsEncrypt/keys:/app/keys
+          - <host config dir>:/app/config
+          - <path to letsencrypt host config dir>/keys:/app/keys
 
 
 ### NGINX (subdomain example)
