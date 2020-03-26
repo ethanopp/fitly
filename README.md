@@ -171,14 +171,23 @@ details.
 
 Be sure to navigate to your mounted docker path on the host and create your `config.ini` from the `config.ini.example`  
 
-### Using Your App
+# Configuring Your App
+
+## Required Data Sources
 
 ### Strava
 Copy your client key and secret into your config.ini file.
 
 In your strava settings click "My Api Application" and set the autorization callback to **127.0.0.1:8050?strava**. All other fields you can update as you'd like.
 
+## Optional data sources
+Some charts will not work unless these data sources are provided, or until new data sources are added that can pull similar data
+
 ### Oura
+The oura connections is currently required to generate the home page.
+
+In addition to the home page, data points from oura will be use to make performance analytics more accurate. If oura data is not provided, performance analytics will rely on statically defined metrics in the athlete table (i.e. resting heartrate)
+
 Create a developer account at https://cloud.ouraring.com/oauth/applications
 
 Copy your client key and secret into your config.ini file.
@@ -188,11 +197,28 @@ Set the redirect URI to: http://127.0.0.1:8050/settings?oura
 ### Withings
 Sign up for a withings developer account here: https://account.withings.com/partner/dashboard_oauth2
 
+In addition to the home page, data points from withings will be use to make performance analytics more accurate. If withings data is not provided, performance analytics will rely on statically defined metrics in the athlete table (i.e. weight)
+
 Set the redirect URI to: http://127.0.0.1:8050/settings?withings
 
 Copy your client key and secret into your config.ini file.
 
-### Dashboard startup
+### Stryd
+Pull critical power (ftp) from Stryd. Since Stryd does not share their proprietary formula for calculating CP, we just pull the number rather than trying to recalculate it ourselves.
+
+Enter username and password into config.ini file.
+
+### Peloton
+Currently only being used to update titles of workouts on strava. Mainly for use with peloton digital app. (i.e record with stryd/wahoo fitness etc. while listening to peloton class on phone/ipad)
+
+Enter username and password into config.ini file.
+
+### Fitbod & Nextcloud
+Fitbod allows exporting your data via the mobile app (Log > Settings icon > Export workout data)
+
+Export your fitbod file to a nextcloud location, and provide that nextcloud location in your config.ini for fit.ly to incorporate into the dashboards.
+
+# Dashboard startup
 Navigate to http://127.0.0.1:8050/pages/settings
 
 Enter the password from your config.ini [settings] password
