@@ -31,16 +31,14 @@ development and production environments, or you can use your own WSGI server to
 run the app.
 
 
-### Run Dev App 
+### Run Your App Locally (Dev App) 
 
 Installing this package into your virtualenv will result into the development
 executable being installed into your path when the virtualenv is activated. This
 command invokes your Dash app's `run_server` method, which in turn uses the
-Flask development server to run your app. The command is invoked as follows,
-with `proj_slug` being replaced by the value provided for this cookiecutter
-parameter.
+Flask development server to run your app. The command is invoked as follows:
 
-    $ run-project_slug-dev
+    $ run-fitly-dev
 
 The script takes a couple of arguments optional parameters, which you can
 discover with the `--help` flag. You may need to set the port using the `--port`
@@ -60,7 +58,7 @@ Apache. See installation instructions in the [mod_wsgi
 documentation](https://pypi.org/project/mod_wsgi/). This script also takes a
 range of command line arguments, which can be discovered with the `--help` flag.
 
-    $ run-project_slug-prod
+    $ run-fitly-prod
     
 This script will also apply settings found in the module `fitly.prod_settings` (or a custom Python file supplied
 with the `--settings` flag) and which takes precedence over the same settings
@@ -96,7 +94,7 @@ you'll need to export the `DASH_DEBUG` environment variable to `true`. See the
 [Dev Tools](https://dash.plot.ly/devtools) section of the Dash Docs for more
 details.
 
-### Deploy with docker-compose
+### Deploy with docker-compose behind reverse proxy (NGINX)
     version: '3'
     services:
       letsencrypt:
@@ -139,7 +137,7 @@ details.
           - /share/CACHEDEV2_DATA/Container/LetsEncrypt/keys:/app/keys
 
 
-### NGINX
+### NGINX (subdomain example)
     server {
         listen 443 ssl;
         listen [::]:443 ssl;
