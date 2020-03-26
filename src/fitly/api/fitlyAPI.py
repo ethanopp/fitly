@@ -79,34 +79,31 @@ class FitlyActivity(stravalib.model.Activity):
 
     def assign_athlete(self, athlete_id):
         session, engine = db_connect()
-        athlete_info = session.query(athlete).filter(athlete.athlete_id == athlete_id).first()
+        self.athlete = session.query(athlete).filter(athlete.athlete_id == athlete_id).first()
         engine.dispose()
         session.close()
-        self.athlete_id = athlete_id
-        self.athlete_name = athlete_info.name
-        self.athlete_sex = athlete_info.sex
-        self.athlete_birthday = athlete_info.birthday
+
         self.hearrate_zones = {
-            1: float(athlete_info.hr_zone_threshold_1),
-            2: float(athlete_info.hr_zone_threshold_2),
-            3: float(athlete_info.hr_zone_threshold_3),
-            4: float(athlete_info.hr_zone_threshold_4)
+            1: float(self.athlete.hr_zone_threshold_1),
+            2: float(self.athlete.hr_zone_threshold_2),
+            3: float(self.athlete.hr_zone_threshold_3),
+            4: float(self.athlete.hr_zone_threshold_4)
         }
         if 'ride' in self.type.lower():
             self.power_zones = {
-                1: float(athlete_info.cycle_power_zone_threshold_1),
-                2: float(athlete_info.cycle_power_zone_threshold_2),
-                3: float(athlete_info.cycle_power_zone_threshold_3),
-                4: float(athlete_info.cycle_power_zone_threshold_4),
-                5: float(athlete_info.cycle_power_zone_threshold_5),
-                6: float(athlete_info.cycle_power_zone_threshold_6)
+                1: float(self.athlete.cycle_power_zone_threshold_1),
+                2: float(self.athlete.cycle_power_zone_threshold_2),
+                3: float(self.athlete.cycle_power_zone_threshold_3),
+                4: float(self.athlete.cycle_power_zone_threshold_4),
+                5: float(self.athlete.cycle_power_zone_threshold_5),
+                6: float(self.athlete.cycle_power_zone_threshold_6)
             }
         elif 'run' in self.type.lower():
             self.power_zones = {
-                1: float(athlete_info.run_power_zone_threshold_1),
-                2: float(athlete_info.run_power_zone_threshold_2),
-                3: float(athlete_info.run_power_zone_threshold_3),
-                4: float(athlete_info.run_power_zone_threshold_4)
+                1: float(self.athlete.run_power_zone_threshold_1),
+                2: float(self.athlete.run_power_zone_threshold_2),
+                3: float(self.athlete.run_power_zone_threshold_3),
+                4: float(self.athlete.run_power_zone_threshold_4)
             }
 
     def write_peloton_title_to_strava(self):
@@ -136,7 +133,7 @@ class FitlyActivity(stravalib.model.Activity):
 
         # Resort to manaully entered static athlete resting heartrate if no data source to pull from
         if not hr_lowest:
-            hr_lowest = session.query(athlete.resting_hr).filter(athlete.athlete_id == self.athlete_id).first()
+            hr_lowest = session.query(athlete.resting_hr).filter(athlete.athlete_id == self.athlete.athlete_id).first()
 
         engine.dispose()
         session.close()
@@ -154,7 +151,7 @@ class FitlyActivity(stravalib.model.Activity):
             weight = session.query(withings.weight).order_by(withings.date_utc.asc()).first()
         # If no weights in withings, resort to manually entered static weight from athlete table
         if not weight:
-            weight = session.query(athlete.weight_lbs).filter(athlete.athlete_id == self.athlete_id).first()
+            weight = session.query(athlete.weight_lbs).filter(athlete.athlete_id == self.athlete.athlete_id).first()
         engine.dispose()
         session.close()
 
@@ -162,16 +159,21 @@ class FitlyActivity(stravalib.model.Activity):
         self.weight = weight
         self.kg = weight * 0.453592
 
-    def get_ftp(self):
-        # TODO: Update with auto calculated critical power so users do not have to flag (or take) FTP tests
+    def get_ftp(
+            self):  # TODO: Update with auto calculated critical power so users do not have to flag (or take) FTP tests
         if 'run' in self.type.lower():
-            stryd_df = get_stryd_df_summary()
-            stryd_df = stryd_df[stryd_df.index <= self.start_date_local]
-            try:
-                self.ftp = stryd_df.loc[stryd_df.index.max()].stryd_ftp
-            except:
-                # If no FTP test prior to current activity
-                self.ftp = 223
+
+            # If stryd credentials in config, grab ftp from stryd
+            if config.get('stryd', 'username') and config.get('stryd', 'password'):
+                stryd_df = get_stryd_df_summary()
+                stryd_df = stryd_df[stryd_df.index <= self.start_date_local]
+                try:
+                    self.ftp = stryd_df.loc[stryd_df.index.max()].stryd_ftp
+                except:
+                    # If no FTP test prior to current activity
+                    self.ftp = self.athlete.run_ftp
+            else:
+                self.ftp = self.athlete.run_ftp
 
         elif 'ride' in self.type.lower():
             # TODO: Switch over to using Critical Power for everything once we get the critical power model working
@@ -184,7 +186,7 @@ class FitlyActivity(stravalib.model.Activity):
                         stravaSummary.name.ilike('%ftp test%')).first()[0]) * .95
             except:
                 # If no FTP test prior to current activity
-                self.ftp = 211
+                self.ftp = self.athlete.ride_ftp
 
         else:
             self.ftp = None
@@ -483,7 +485,7 @@ class FitlyActivity(stravalib.model.Activity):
 
     def calculate_heartate_zones(self):
         if self.max_heartrate is not None:
-            age = relativedelta(datetime.today(), self.athlete_birthday).years
+            age = relativedelta(datetime.today(), self.athlete.birthday).years
             self.athlete_max_hr = 220 - age
             self.rhr = self.hr_lowest
             self.hrr = self.athlete_max_hr - self.rhr
@@ -575,7 +577,7 @@ class FitlyActivity(stravalib.model.Activity):
                 df['watts_per_kg'] = df['mmp'] / self.kg
                 df['timestamp_local'] = df.index
                 df['type'] = self.type
-                df['athlete_id'] = self.athlete_id
+                df['athlete_id'] = self.athlete.athlete_id
                 df.set_index(['activity_id', 'interval'], inplace=True)
                 db_insert(df, 'strava_best_samples')
 
@@ -586,7 +588,7 @@ class FitlyActivity(stravalib.model.Activity):
 
     def write_dfs_to_db(self):
         # Add athlete_id to df_summary
-        self.df_summary['athlete_id'] = [self.athlete_id]
+        self.df_summary['athlete_id'] = [self.athlete.athlete_id]
         self.df_summary['ftp'] = [self.ftp]
         self.df_summary['trimp'] = [self.trimp]
         self.df_summary['hrss'] = [self.hrss]
@@ -598,7 +600,7 @@ class FitlyActivity(stravalib.model.Activity):
         self.df_summary['weight'] = [self.weight]
         # Add other columns to samples df
         self.df_samples['type'] = self.type
-        self.df_samples['athlete_id'] = self.athlete_id
+        self.df_samples['athlete_id'] = self.athlete.athlete_id
 
         db_insert(self.df_summary.fillna(np.nan), 'strava_summary')
         db_insert(self.df_samples.fillna(np.nan), 'strava_samples')

@@ -49,6 +49,8 @@ class athlete(Base):
     birthday = Column('birthday', Date())
     weight_lbs = Column('weight_lbs', Integer())
     resting_hr = Column('resting_hr', Integer())
+    run_ftp = Column('run_ftp', Integer())
+    ride_ftp = Column('ride_ftp', Integer())
     sex = Column('sex', String(1))
     min_non_warmup_workout_time = Column('min_non_warmup_workout_time',
                                          Integer())  # threshold in seconds for when we start counting workouts towards stress scores (don't want to include warm-ups)
@@ -366,6 +368,9 @@ if not athlete_exists:
         birthday=datetime.now(),
         sex='M',
         weight_lbs=150,
+        resting_hr=50,
+        run_ftp=200,
+        ride_ftp=200,
         min_non_warmup_workout_time=900,
         weekly_tss_goal=150,
         rr_max_goal=8,
