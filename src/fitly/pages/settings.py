@@ -396,383 +396,213 @@ def generate_settings_dashboard():
     ])
 
 
-# Callback for updating ftp test notification threshold
-@app.callback([Output('ftp-test-notification-threshold-input-submit', 'style'),
-               Output('ftp-test-notification-threshold-input-status', 'style')],
-              [Input('ftp-test-notification-threshold-input-submit', 'n_clicks')],
-              [State('ftp-test-notification-threshold-input', 'value')])
-def set_ftp_threshold(n_clicks, value):
-    if n_clicks and n_clicks > 0:
-        session, engine = db_connect()
-        athlete_info = session.query(athlete).filter(athlete.athlete_id == 1).first()
+def update_athlete_db_value(value, value_name):
+    session, engine = db_connect()
+    athlete_info = session.query(athlete).filter(athlete.athlete_id == 1).first()
 
-        if value == athlete_info.ftp_test_notification_week_threshold:
-            engine.dispose()
-            session.close()
-            return {'display': 'inline-block', 'border': '0px'}, {
-                'display': 'inline-block', 'color': 'rgb(66,66,66)',  'fontSize': '150%'}
-        else:
-            # Update value in db
-            try:
-                athlete_info.ftp_test_notification_week_threshold = value
-                session.commit()
-                success = True
-            except BaseException as e:
-                success = False
-                app.server.logger.error(e)
-            engine.dispose()
-            session.close()
-            app.server.logger.info('Updated ftp week threshold to {}'.format(value))
-            if success:
-                return {'display': 'none'}, {'color': 'green',  'fontSize': '150%'}
-            else:
-                return {'display': 'inline-block', 'border': '0px'}, {
-                    'display': 'inline-block', 'color': 'rgb(66,66,66)',  'fontSize': '150%'}
+    # Set the appropriate value in db based on value_name
+    if value_name == 'ftp_test_notification_week_threshold':
+        athlete_info.ftp_test_notification_week_threshold = value
 
+    elif value_name == 'weekly_activity_score_goal':
+        athlete_info.weekly_activity_score_goal = value
 
-# Callback for updating sleep goal
-@app.callback([Output('daily-sleep-goal-input-submit', 'style'),
-               Output('daily-sleep-goal-input-status', 'style')],
-              [Input('daily-sleep-goal-input-submit', 'n_clicks')],
-              [State('daily-sleep-goal-input', 'value')])
-def sleep_goal_status(n_clicks, value):
-    if n_clicks and n_clicks > 0:
-        session, engine = db_connect()
-        athlete_info = session.query(athlete).filter(athlete.athlete_id == 1).first()
+    elif value_name == 'daily_sleep_hr_target':
+        athlete_info.daily_sleep_hr_target = value
 
-        if value == athlete_info.daily_sleep_hr_target:
-            engine.dispose()
-            session.close()
-            return {'display': 'inline-block', 'border': '0px'}, {
-                'color': 'rgba(0,0,0,0)', 'fontSize': '150%'}
-        else:
-            # Update value in db
-            try:
-                athlete_info.daily_sleep_hr_target = value
-                session.commit()
-                success = True
-            except BaseException as e:
-                success = False
-                app.server.logger.error(e)
-            engine.dispose()
-            session.close()
-            app.server.logger.info('Updated daily sleep hour goal to {}'.format(value))
-            if success:
-                return {'display': 'none'}, {'color': 'green',  'fontSize': '150%'}
-            else:
-                return {'display': 'inline-block', 'border': '0px'}, {
-                    'display': 'inline-block', 'color': 'rgb(66,66,66)',  'fontSize': '150%'}
+    elif value_name == 'weekly_tss_goal':
+        athlete_info.weekly_tss_goal = value
 
+    elif value_name == 'rr_max_goal':
+        athlete_info.rr_max_goal = value
 
-# Callback for updating min weekly tss goal
-@app.callback([Output('weekly-tss-goal-input-submit', 'style'),
-               Output('weekly-tss-goal-input-status', 'style')],
-              [Input('weekly-tss-goal-input-submit', 'n_clicks')],
-              [State('weekly-tss-goal-input', 'value')])
-def weekly_tss_goal_status(n_clicks, value):
-    if n_clicks and n_clicks > 0:
-        value = int(value)
-        session, engine = db_connect()
-        athlete_info = session.query(athlete).filter(athlete.athlete_id == 1).first()
+    elif value_name == 'rr_min_goal':
+        athlete_info.rr_max_goal = value
 
-        if value == athlete_info.weekly_tss_goal:
-            engine.dispose()
-            session.close()
-            return {'display': 'inline-block', 'border': '0px'}, {
-                'color': 'rgba(0,0,0,0)', 'fontSize': '150%'}
-        else:
-            # Update value in db
-            try:
-                athlete_info.weekly_tss_goal = value
-                session.commit()
-                success = True
-                app.server.logger.info('Updated weekly TSS goal to {}'.format(value))
-            except BaseException as e:
-                success = False
-                app.server.logger.error(e)
-            engine.dispose()
-            session.close()
-            if success:
-                return {'display': 'none'}, {'color': 'green',  'fontSize': '150%'}
-            else:
-                return {'display': 'inline-block', 'border': '0px'}, {
-                    'display': 'inline-block', 'color': 'rgb(66,66,66)',  'fontSize': '150%'}
+    elif value_name == 'min_non_warmup_workout_time':
+        athlete_info.min_non_warmup_workout_time = value
 
+    elif value_name == 'weekly_workout_goal':
+        athlete_info.weekly_workout_goal = value
 
-# Callback for updating max rr injury threshold
-@app.callback([Output('rr-max-goal-input-submit', 'style'),
-               Output('rr-max-goal-input-status', 'style')],
-              [Input('rr-max-goal-input-submit', 'n_clicks')],
-              [State('rr-max-goal-input', 'value')])
-def rr_max_goal_status(n_clicks, value):
-    if n_clicks and n_clicks > 0:
-        value = int(value)
-        session, engine = db_connect()
-        athlete_info = session.query(athlete).filter(athlete.athlete_id == 1).first()
+    elif value_name == 'weekly_yoga_goal':
+        athlete_info.weekly_yoga_goal = value
 
-        if value == athlete_info.rr_max_goal:
-            engine.dispose()
-            session.close()
-            return {'display': 'inline-block', 'border': '0px'}, {
-                'color': 'rgba(0,0,0,0)', 'fontSize': '150%'}
-        else:
-            # Update value in db
-            try:
-                athlete_info.rr_max_goal = value
-                session.commit()
-                success = True
-                app.server.logger.info('Updated Max Ramp Rate Injury treshold to {}'.format(value))
-            except BaseException as e:
-                success = False
-                app.server.logger.error(e)
-            engine.dispose()
-            session.close()
-            if success:
-                return {'display': 'none'}, {'color': 'green',  'fontSize': '150%'}
-            else:
-                return {'display': 'inline-block', 'border': '0px'}, {
-                    'display': 'inline-block', 'color': 'rgb(66,66,66)',  'fontSize': '150%'}
+    elif value_name == 'weekly_sleep_score_goal':
+        athlete_info.weekly_sleep_score_goal = value
 
+    elif value_name == 'weekly_readiness_score_goal':
+        athlete_info.weekly_readiness_score_goal = value
 
-# Callback for updating min rr injury threshold
-@app.callback([Output('rr-min-goal-input-submit', 'style'),
-               Output('rr-min-goal-input-status', 'style')],
-              [Input('rr-min-goal-input-submit', 'n_clicks')],
-              [State('rr-min-goal-input', 'value')])
-def rr_min_goal_status(n_clicks, value):
-    if n_clicks and n_clicks > 0:
-        value = int(value)
-        session, engine = db_connect()
-        athlete_info = session.query(athlete).filter(athlete.athlete_id == 1).first()
+    elif value_name == 'weekly_activity_score_goal':
+        athlete_info.weekly_activity_score_goal = value
 
-        if value == athlete_info.rr_min_goal:
-            engine.dispose()
-            session.close()
-            return {'display': 'inline-block', 'border': '0px'}, {
-                'color': 'rgba(0,0,0,0)', 'fontSize': '150%'}
-        else:
-            # Update value in db
-            try:
-                athlete_info.rr_min_goal = value
-                session.commit()
-                success = True
-                app.server.logger.info('Updated Min Ramp Rate Injury treshold to {}'.format(value))
-            except BaseException as e:
-                success = False
-                app.server.logger.error(e)
-            engine.dispose()
-            session.close()
-            if success:
-                return {'display': 'none'}, {'color': 'green',  'fontSize': '150%'}
-            else:
-                return {'display': 'inline-block', 'border': '0px'}, {
-                    'display': 'inline-block', 'color': 'rgb(66,66,66)',  'fontSize': '150%'}
+    # Execute the insert
+    try:
+        session.commit()
+        success = True
+        app.server.logger.debug(f'Updated {value_name} to {value}')
+    except BaseException as e:
+        success = False
+        app.server.logger.error(e)
 
+    engine.dispose()
+    session.close()
 
-# Callback for updating min activity time goal
-@app.callback([Output('min-workout-time-goal-input-submit', 'style'),
-               Output('min-workout-time-goal-input-status', 'style')],
-              [Input('min-workout-time-goal-input-submit', 'n_clicks')],
-              [State('min-workout-time-goal-input', 'value')])
-def min_workout_time_goal_status(n_clicks, value):
-    if n_clicks and n_clicks > 0:
-        value = int(value) * 60
-        session, engine = db_connect()
-        athlete_info = session.query(athlete).filter(athlete.athlete_id == 1).first()
-
-        if value == athlete_info.min_non_warmup_workout_time:
-            engine.dispose()
-            session.close()
-            return {'display': 'inline-block', 'border': '0px'}, {
-                'color': 'rgba(0,0,0,0)', 'fontSize': '150%'}
-        else:
-            # Update value in db
-            try:
-                athlete_info.min_non_warmup_workout_time = value
-                session.commit()
-                success = True
-                app.server.logger.info('Updated min time to consider an activity a workout to {}'.format(value))
-            except BaseException as e:
-                success = False
-                app.server.logger.error(e)
-            engine.dispose()
-            session.close()
-            if success:
-                return {'display': 'none'}, {'color': 'green', 'fontSize': '150%'}
-            else:
-                return {'display': 'inline-block', 'border': '0px'}, {
-                    'display': 'inline-block', 'color': 'rgb(66,66,66)',  'fontSize': '150%'}
-
-
-# Callback for updating workout goal
-@app.callback([Output('weekly-workout-goal-input-submit', 'style'),
-               Output('weekly-workout-goal-input-status', 'style')],
-              [Input('weekly-workout-goal-input-submit', 'n_clicks')],
-              [State('weekly-workout-goal-input', 'value')])
-def workout_goal_status(n_clicks, value):
-    if n_clicks and n_clicks > 0:
-        session, engine = db_connect()
-        athlete_info = session.query(athlete).filter(athlete.athlete_id == 1).first()
-
-        if value == athlete_info.weekly_workout_goal:
-            engine.dispose()
-            session.close()
-            return {'display': 'inline-block', 'border': '0px'}, {
-                'color': 'rgba(0,0,0,0)', 'fontSize': '150%'}
-        else:
-            # Update value in db
-            try:
-                athlete_info.weekly_workout_goal = value
-                session.commit()
-                success = True
-                app.server.logger.info('Updated weekly workout goal to {}'.format(value))
-            except BaseException as e:
-                success = False
-                app.server.logger.error(e)
-            engine.dispose()
-            session.close()
-            if success:
-                return {'display': 'none'}, {'color': 'green',  'fontSize': '150%'}
-            else:
-                return {'display': 'inline-block', 'border': '0px'}, {
-                    'display': 'inline-block', 'color': 'rgb(66,66,66)',  'fontSize': '150%'}
-
-
-# Callback for updating yoga goal
-@app.callback([Output('weekly-yoga-goal-input-submit', 'style'),
-               Output('weekly-yoga-goal-input-status', 'style')],
-              [Input('weekly-yoga-goal-input-submit', 'n_clicks')],
-              [State('weekly-yoga-goal-input', 'value')])
-def yoga_goal_status(n_clicks, value):
-    if n_clicks and n_clicks > 0:
-        session, engine = db_connect()
-        athlete_info = session.query(athlete).filter(athlete.athlete_id == 1).first()
-
-        if value == athlete_info.weekly_yoga_goal:
-            engine.dispose()
-            session.close()
-            return {'display': 'inline-block', 'border': '0px'}, {
-                'color': 'rgba(0,0,0,0)', 'fontSize': '150%'}
-        else:
-            # Update value in db
-            try:
-                athlete_info.weekly_yoga_goal = value
-                session.commit()
-                success = True
-                app.server.logger.info('Updated weekly yoga goal to {}'.format(value))
-                app.server.logger.info('Updated weekly yoga goal to {}'.format(value))
-            except BaseException as e:
-                success = False
-                app.server.logger.error(e)
-            engine.dispose()
-            session.close()
-            if success:
-                return {'display': 'none'}, {'color': 'green',  'fontSize': '150%'}
-            else:
-                return {'display': 'inline-block', 'border': '0px'}, {
-                    'display': 'inline-block', 'color': 'rgb(66,66,66)',  'fontSize': '150%'}
-
-
-# Callback for updating sleep score goal
-@app.callback([Output('weekly-sleep-score-goal-input-submit', 'style'),
-               Output('weekly-sleep-score-goal-input-status', 'style')],
-              [Input('weekly-sleep-score-goal-input-submit', 'n_clicks')],
-              [State('weekly-sleep-score-goal-input', 'value')])
-def sleep_score_goal_status(n_clicks, value):
-    if n_clicks and n_clicks > 0:
-        session, engine = db_connect()
-        athlete_info = session.query(athlete).filter(athlete.athlete_id == 1).first()
-
-        if value == athlete_info.weekly_sleep_score_goal:
-            engine.dispose()
-            session.close()
-            return {'display': 'inline-block', 'border': '0px'}, {
-                'color': 'rgba(0,0,0,0)', 'fontSize': '150%'}
-        else:
-            # Update value in db
-            try:
-                athlete_info.weekly_sleep_score_goal = value
-                session.commit()
-                success = True
-                app.server.logger.info('Updated weekly sleep score goal to {}'.format(value))
-            except BaseException as e:
-                success = False
-                app.server.logger.error(e)
-            engine.dispose()
-            session.close()
-            if success:
-                return {'display': 'none'}, {'color': 'green',  'fontSize': '150%'}
-            else:
-                return {'display': 'inline-block', 'border': '0px'}, {
-                    'display': 'inline-block', 'color': 'rgb(66,66,66)',  'fontSize': '150%'}
-
-
-# Callback for updating readiness score goal
-@app.callback([Output('weekly-readiness-score-goal-input-submit', 'style'),
-               Output('weekly-readiness-score-goal-input-status', 'style')],
-              [Input('weekly-readiness-score-goal-input-submit', 'n_clicks')],
-              [State('weekly-readiness-score-goal-input', 'value')])
-def readiness_score_goal_status(n_clicks, value):
-    if n_clicks and n_clicks > 0:
-        session, engine = db_connect()
-        athlete_info = session.query(athlete).filter(athlete.athlete_id == 1).first()
-
-        if value == athlete_info.weekly_readiness_score_goal:
-            engine.dispose()
-            session.close()
-            return {'display': 'inline-block', 'border': '0px'}, {
-                'color': 'rgba(0,0,0,0)', 'fontSize': '150%'}
-        else:
-            # Update value in db
-            try:
-                athlete_info.weekly_readiness_score_goal = value
-                session.commit()
-                success = True
-                app.server.logger.info('Updated weekly readiness score goal to {}'.format(value))
-            except BaseException as e:
-                success = False
-                app.server.logger.error(e)
-            engine.dispose()
-            session.close()
-            if success:
-                return {'display': 'none'}, {'color': 'green',  'fontSize': '150%'}
-            else:
-                return {'display': 'inline-block', 'border': '0px'}, {
-                    'display': 'inline-block', 'color': 'rgb(66,66,66)',  'fontSize': '150%'}
+    return success
 
 
 # Callback for updating activity score goal
-@app.callback([Output('weekly-activity-score-goal-input-submit', 'style'),
-               Output('weekly-activity-score-goal-input-status', 'style')],
-              [Input('weekly-activity-score-goal-input-submit', 'n_clicks')],
-              [State('weekly-activity-score-goal-input', 'value')])
-def activity_score_goal_status(n_clicks, value):
-    if n_clicks and n_clicks > 0:
-        session, engine = db_connect()
-        athlete_info = session.query(athlete).filter(athlete.athlete_id == 1).first()
+@app.callback([
+    # Output('ftp-test-notification-threshold-input-submit', 'style'),
+    # Output('ftp-test-notification-threshold-input-status', 'style'),
+    Output('weekly-activity-score-goal-input-submit', 'style'),
+    Output('weekly-activity-score-goal-input-status', 'style'),
+    Output('daily-sleep-goal-input-submit', 'style'),
+    Output('daily-sleep-goal-input-status', 'style'),
+    Output('weekly-tss-goal-input-submit', 'style'),
+    Output('weekly-tss-goal-input-status', 'style'),
+    Output('rr-max-goal-input-submit', 'style'),
+    Output('rr-max-goal-input-status', 'style'),
+    Output('rr-min-goal-input-submit', 'style'),
+    Output('rr-min-goal-input-status', 'style'),
+    Output('min-workout-time-goal-input-submit', 'style'),
+    Output('min-workout-time-goal-input-status', 'style'),
+    Output('weekly-workout-goal-input-submit', 'style'),
+    Output('weekly-workout-goal-input-status', 'style'),
+    Output('weekly-yoga-goal-input-submit', 'style'),
+    Output('weekly-yoga-goal-input-status', 'style'),
+    Output('weekly-sleep-score-goal-input-submit', 'style'),
+    Output('weekly-sleep-score-goal-input-status', 'style'),
+    Output('weekly-readiness-score-goal-input-submit', 'style'),
+    Output('weekly-readiness-score-goal-input-status', 'style')
+],
+    [
+        # Input('ftp-test-notification-threshold-input-submit', 'n_clicks'),
+        Input('weekly-activity-score-goal-input-submit', 'n_clicks'),
+        Input('daily-sleep-goal-input-submit', 'n_clicks'),
+        Input('weekly-tss-goal-input-submit', 'n_clicks'),
+        Input('rr-max-goal-input-submit', 'n_clicks'),
+        Input('rr-min-goal-input-submit', 'n_clicks'),
+        Input('min-workout-time-goal-input-submit', 'n_clicks'),
+        Input('weekly-workout-goal-input-submit', 'n_clicks'),
+        Input('weekly-yoga-goal-input-submit', 'n_clicks'),
+        Input('weekly-sleep-score-goal-input-submit', 'n_clicks'),
+        Input('weekly-readiness-score-goal-input-submit', 'n_clicks')
+    ],
+    [
+        # State('ftp-test-notification-threshold-input-submit', 'value'),
+        # State('ftp-test-notification-threshold-input-submit', 'n_clicks_timestamp'),
+        State('weekly-activity-score-goal-input', 'value'),
+        State('weekly-activity-score-goal-input-submit', 'n_clicks_timestamp'),
+        State('daily-sleep-goal-input', 'value'),
+        State('daily-sleep-goal-input-submit', 'n_clicks_timestamp'),
+        State('weekly-tss-goal-input', 'value'),
+        State('weekly-tss-goal-input-submit', 'n_clicks_timestamp'),
+        State('rr-max-goal-input', 'value'),
+        State('rr-max-goal-input-submit', 'n_clicks_timestamp'),
+        State('rr-min-goal-input', 'value'),
+        State('rr-min-goal-input-submit', 'n_clicks_timestamp'),
+        State('min-workout-time-goal-input', 'value'),
+        State('min-workout-time-goal-input-submit', 'n_clicks_timestamp'),
+        State('weekly-workout-goal-input', 'value'),
+        State('weekly-workout-goal-input-submit', 'n_clicks_timestamp'),
+        State('weekly-yoga-goal-input', 'value'),
+        State('weekly-yoga-goal-input-submit', 'n_clicks_timestamp'),
+        State('weekly-sleep-score-goal-input', 'value'),
+        State('weekly-sleep-score-goal-input-submit', 'n_clicks_timestamp'),
+        State('weekly-readiness-score-goal-input', 'value'),
+        State('weekly-readiness-score-goal-input-submit', 'n_clicks_timestamp')
+    ])
+def activity_score_goal_status(
+        # ftp_click,
+        wk_act_click, slp_goal_click,
+        tss_goal_click, rrmax_click,
+        rrmin_click, min_workout_click,
+        workout_click, yoga_click,
+        slp_click, rd_click,
 
-        if value == athlete_info.weekly_activity_score_goal:
-            engine.dispose()
-            session.close()
-            return {'display': 'inline-block', 'border': '0px'}, {
-                'color': 'rgba(0,0,0,0)', 'fontSize': '150%'}
-        else:
-            # Update value in db
-            try:
-                athlete_info.weekly_activity_score_goal = value
-                session.commit()
-                success = True
-                app.server.logger.info('Updated weekly activity score goal to {}'.format(value))
-            except BaseException as e:
-                success = False
-                app.server.logger.error(e)
-            engine.dispose()
-            session.close()
-            if success:
-                return {'display': 'none'}, {'color': 'green',  'fontSize': '150%'}
-            else:
-                return {'display': 'inline-block', 'border': '0px'}, {
-                    'display': 'inline-block', 'color': 'rgb(66,66,66)',  'fontSize': '150%'}
+        # ftp_value, ftp_timestamp,
+        wk_act_value, wk_act_timestamp,
+        slp_goal_value, slp_goal_timestamp,
+        tss_goal_value, tss_goal_timestamp,
+        rrmax_value, rrmax_timestamp,
+        rrmin_value, rrmin_timestamp,
+        min_workout_value, min_workout_timestamp,
+        workout_value, workout_timestamp,
+        yoga_value, yoga_timestamp,
+        slp_value, slp_timestamp,
+        rd_value, rd_timestamp
+
+):
+    num_metrics = 10
+    output_styles = []
+    for _ in range(num_metrics):
+        output_styles.extend([{'display': 'inline-block', 'border': '0px'}, {
+            'display': 'inline-block', 'color': 'rgba(0,0,0,0)', 'fontSize': '150%'}])
+
+    output_indexer = [
+        # 'ftp_test_notification_week_threshold',
+        'weekly_activity_score_goal',
+        'daily_sleep_hr_target',
+        'weekly_tss_goal',
+        'rr_max_goal',
+        'rr_min_goal',
+        'min_non_warmup_workout_time',
+        'weekly_workout_goal',
+        'weekly_yoga_goal',
+        'weekly_sleep_score_goal',
+        'weekly_readiness_score_goal'
+    ]
+
+    # Get the most recently clicked button/values
+    timestamps = {
+        # 'ftp_test_notification_week_threshold': ftp_timestamp,
+        'weekly_activity_score_goal': wk_act_timestamp,
+        'daily_sleep_hr_target': slp_goal_timestamp,
+        'weekly_tss_goal': tss_goal_timestamp,
+        'rr_max_goal': rrmax_timestamp,
+        'rr_min_goal': rrmin_timestamp,
+        'min_non_warmup_workout_time': min_workout_timestamp,
+        'weekly_workout_goal': workout_timestamp,
+        'weekly_yoga_goal': yoga_timestamp,
+        'weekly_sleep_score_goal': slp_timestamp,
+        'weekly_readiness_score_goal': rd_timestamp,
+    }
+
+    values = {
+        # 'ftp_test_notification_week_threshold': ftp_timestamp,
+        'weekly_activity_score_goal': wk_act_value,
+        'daily_sleep_hr_target': slp_goal_value,
+        'weekly_tss_goal': tss_goal_value,
+        'rr_max_goal': rrmax_value,
+        'rr_min_goal': rrmin_value,
+        'min_non_warmup_workout_time': min_workout_value,
+        'weekly_workout_goal': workout_value,
+        'weekly_yoga_goal': yoga_value,
+        'weekly_sleep_score_goal': slp_value,
+        'weekly_readiness_score_goal': rd_value,
+    }
+
+    for k, v in timestamps.items():
+        timestamps[k] = 0 if not v else v
+
+    latest = max(timestamps.items(), key=operator.itemgetter(1))[0]
+
+    index1 = output_indexer.index(latest) * 2
+    index2 = index1 + 1
+
+    # Update value in db
+    success = update_athlete_db_value(values[latest], latest)
+
+    if success:
+        output_styles[index1] = {'display': 'none'}
+        output_styles[index2] = {'color': 'green', 'fontSize': '150%'}
+    else:
+        output_styles[index1] = {'display': 'inline-block', 'border': '0px'}
+        output_styles[index2] = {'display': 'inline-block', 'color': 'rgba(0,0,0,0)', 'fontSize': '150%'}
+
+    return output_styles
 
 
 # Callback to prevent both readiness/hrv goal settings to be enabled at the same time
