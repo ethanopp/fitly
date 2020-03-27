@@ -364,13 +364,6 @@ if not athlete_exists:
     from datetime import datetime
 #TODO: Force user to enter certain athlete details prior to being able to pull data (i.e. weight, sex, rest_hr, etc.)
     dummy_athlete = athlete(
-        # name='Athelte Name',
-        # birthday=datetime.now().date(),
-        # sex='M',
-        # weight_lbs=150,
-        # resting_hr=50,
-        # run_ftp=200,
-        # ride_ftp=200,
         min_non_warmup_workout_time=900,
         weekly_tss_goal=150,
         rr_max_goal=8,

@@ -191,7 +191,8 @@ def athlete_card():
     athlete_info = session.query(athlete).filter(athlete.athlete_id == 1).first()
     engine.dispose()
     session.close()
-    return dbc.Card([
+    color = '' if athlete_info.name and athlete_info.birthday and athlete_info.sex and athlete_info.weight_lbs and athlete_info.resting_hr and athlete_info.run_ftp and athlete_info.ride_ftp else 'border-danger'
+    return dbc.Card(id='athlete-card', className=color, children=[
         dbc.CardHeader(html.H4('Athlete')),
         dbc.CardBody(className='text-center', children=[
             generate_db_setting('name', 'Name', athlete_info.name),
