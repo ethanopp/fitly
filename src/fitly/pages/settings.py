@@ -186,6 +186,25 @@ def generate_run_power_zone_card():
     ])
 
 
+def athlete_card():
+    session, engine = db_connect()
+    athlete_info = session.query(athlete).filter(athlete.athlete_id == 1).first()
+    engine.dispose()
+    session.close()
+    return dbc.Card([
+        dbc.CardHeader(html.H4('Athlete')),
+        dbc.CardBody(className='text-center', children=[
+            generate_db_setting('name', 'Name', athlete_info.name),
+            generate_db_setting('birthday', 'Birthday (YYYY-MM-DD)', athlete_info.birthday),
+            generate_db_setting('sex', 'Sex (M/F)', athlete_info.sex),
+            generate_db_setting('weight', 'Weight (lbs)', athlete_info.weight_lbs),
+            generate_db_setting('rest-hr', 'Resting HR', athlete_info.resting_hr),
+            generate_db_setting('ride-ftp', 'Ride FTP', athlete_info.ride_ftp),
+            generate_db_setting('run-ftp', 'Run FTP', athlete_info.run_ftp)
+        ])
+    ])
+
+
 def generate_hr_zone_card():
     session, engine = db_connect()
     rhr = pd.read_sql(
@@ -230,12 +249,11 @@ def generate_hr_zone_card():
     ])
 
 
-def generate_goal(id, title, value):
+def generate_db_setting(id, title, value, placeholder=None):
     return (
         html.Div(id=id, className='row mb-2 mt-2', children=[
             html.H6(title, className='col-5  mb-0', style={'display': 'inline-block'}),
-            dcc.Input(id=id + '-input', className=' col-2 goalinput ml-2', type='text', value=value),
-
+            dcc.Input(id=id + '-input', className=' col-2 ml-2', type='text', value=value, placeholder=placeholder),
             html.Button(id=id + '-input-submit', className='col-2 fa fa-upload ml-2',
                         style={'display': 'inline-block', 'border': '0px'}),
 
@@ -257,11 +275,13 @@ def goal_parameters():
         dbc.CardHeader(html.H4('Goals')),
         dbc.CardBody(className='text-center', children=[
 
-            generate_goal(id='min-workout-time-goal', title='Min. Activity Minutes',
-                          value=athlete_info.min_non_warmup_workout_time / 60),
-            generate_goal(id='weekly-tss-goal', title='Weekly TSS Goal', value=athlete_info.weekly_tss_goal),
-            generate_goal(id='rr-max-goal', title='High Ramp Rate Injury Threshold', value=athlete_info.rr_max_goal),
-            generate_goal(id='rr-min-goal', title='Low Ramp Rate Injury Threshold', value=athlete_info.rr_min_goal),
+            generate_db_setting(id='min-workout-time-goal', title='Min. Activity Minutes',
+                                value=athlete_info.min_non_warmup_workout_time / 60),
+            generate_db_setting(id='weekly-tss-goal', title='Weekly TSS Goal', value=athlete_info.weekly_tss_goal),
+            generate_db_setting(id='rr-max-goal', title='High Ramp Rate Injury Threshold',
+                                value=athlete_info.rr_max_goal),
+            generate_db_setting(id='rr-min-goal', title='Low Ramp Rate Injury Threshold',
+                                value=athlete_info.rr_min_goal),
 
             html.Div(className='row mb-2 mt-2', children=[
                 html.H6('Use weekly TSS for fitness goals', className='col-5  mb-0',
@@ -281,18 +301,18 @@ def goal_parameters():
                     className='col-3 offset-2'
                 )
             ]),
-            generate_goal(id='weekly-workout-goal', title='Weekly Workout Goal',
-                          value=athlete_info.weekly_workout_goal),
-            generate_goal(id='weekly-yoga-goal', title='Weekly Yoga Goal', value=athlete_info.weekly_yoga_goal),
+            generate_db_setting(id='weekly-workout-goal', title='Weekly Workout Goal',
+                                value=athlete_info.weekly_workout_goal),
+            generate_db_setting(id='weekly-yoga-goal', title='Weekly Yoga Goal', value=athlete_info.weekly_yoga_goal),
 
-            generate_goal(id='daily-sleep-goal', title='Daily Sleep Goal (hrs)',
-                          value=athlete_info.daily_sleep_hr_target),
-            generate_goal(id='weekly-sleep-score-goal', title='Weekly Sleep Score Goal',
-                          value=athlete_info.weekly_sleep_score_goal),
-            generate_goal(id='weekly-readiness-score-goal', title='Weekly Readiness Score Goal',
-                          value=athlete_info.weekly_readiness_score_goal),
-            generate_goal(id='weekly-activity-score-goal', title='Weekly Activity Score Goal',
-                          value=athlete_info.weekly_activity_score_goal)
+            generate_db_setting(id='daily-sleep-goal', title='Daily Sleep Goal (hrs)',
+                                value=athlete_info.daily_sleep_hr_target),
+            generate_db_setting(id='weekly-sleep-score-goal', title='Weekly Sleep Score Goal',
+                                value=athlete_info.weekly_sleep_score_goal),
+            generate_db_setting(id='weekly-readiness-score-goal', title='Weekly Readiness Score Goal',
+                                value=athlete_info.weekly_readiness_score_goal),
+            generate_db_setting(id='weekly-activity-score-goal', title='Weekly Activity Score Goal',
+                                value=athlete_info.weekly_activity_score_goal)
 
         ])
 
@@ -318,58 +338,64 @@ def generate_settings_dashboard():
                                       dbc.CardHeader(html.H4('App Connections')),
                                       dbc.CardBody(className='text-center', children=html.Div(id='api-connections'))
                                   ]),
-                                  dbc.Card(className='mb-2', children=[
-                                      dbc.CardHeader(html.H4('Database')),
-                                      dbc.CardBody(className='text-center', children=[
-                                          html.Div(className='col-12 mb-2', children=[
-                                              dbc.Button('Refresh', color='primary', size='md',
-                                                         id='refresh-db-button', n_clicks=0)]),
-                                          html.Div(className='col-12', children=[
-                                              dcc.DatePickerSingle(
-                                                  id='truncate-date',
-                                                  with_portal=True,
-                                                  day_size=75,
-                                                  style={'textAlign': 'center'},
-                                                  className='mb-2',
-                                                  month_format='MMM Do, YYYY',
-                                                  placeholder='MMM Do, YYYY',
-                                                  date=datetime.today().date()
-                                              ),
-                                              html.Div(className='col-12 mb-2', children=[
-                                                  dbc.Button('Truncate After Date', color='primary', size='md',
-                                                             id='truncate-date-db-button',
-                                                             n_clicks=0)]),
-                                          ]),
-                                          html.Div(className='col-12 mb-2', children=[
-                                              dbc.Button('Reset HRV Plan', id='truncate-hrv-button', size='md',
-                                                         color='primary',
-                                                         n_clicks=0)
-                                          ]),
-                                          html.Div(className='col-12 mb-2', children=[
-                                              dbc.Button('Truncate All', id='truncate-db-button', size='md',
-                                                         color='primary',
-                                                         n_clicks=0)]),
-                                          html.Div(className='col-12 mb-2', children=[dcc.Loading(children=[
-                                              html.Div(id='truncate-refresh-status'),
-                                              html.Div(id='refresh-status'),
-                                              html.Div(id='truncate-hrv-status'),
-                                          ])
-                                          ]),
-                                      ])
-                                  ]),
                               ]),
                      html.Div(id='cycle-power-zones', className='col-lg-3', children=generate_cycle_power_zone_card()),
                      html.Div(id='run-power-zones', className='col-lg-3', children=generate_run_power_zone_card()),
                      html.Div(id='hr-zones', className='col-lg-3', children=generate_hr_zone_card()),
                  ]),
 
-        html.Div(className='row', children=[
+        html.Div(className='row mt-2', children=[
+            html.Div(id='database-container', className='col-lg-4', children=[
+                dbc.Card(className='mb-2', children=[
+                    dbc.CardHeader(html.H4('Database')),
+                    dbc.CardBody(className='text-center', children=[
+                        html.Div(className='col-12 mb-2', children=[
+                            dbc.Button('Refresh', color='primary', size='md',
+                                       id='refresh-db-button', n_clicks=0)]),
+                        html.Div(className='col-12', children=[
+                            dcc.DatePickerSingle(
+                                id='truncate-date',
+                                with_portal=True,
+                                day_size=75,
+                                style={'textAlign': 'center'},
+                                className='mb-2',
+                                month_format='MMM Do, YYYY',
+                                placeholder='MMM Do, YYYY',
+                                date=datetime.today().date()
+                            ),
+                            html.Div(className='col-12 mb-2', children=[
+                                dbc.Button('Truncate After Date', color='primary', size='md',
+                                           id='truncate-date-db-button',
+                                           n_clicks=0)]),
+                        ]),
+                        html.Div(className='col-12 mb-2', children=[
+                            dbc.Button('Reset HRV Plan', id='truncate-hrv-button', size='md',
+                                       color='primary',
+                                       n_clicks=0)
+                        ]),
+                        html.Div(className='col-12 mb-2', children=[
+                            dbc.Button('Truncate All', id='truncate-db-button', size='md',
+                                       color='primary',
+                                       n_clicks=0)]),
+                        html.Div(className='col-12 mb-2', children=[dcc.Loading(children=[
+                            html.Div(id='truncate-refresh-status'),
+                            html.Div(id='refresh-status'),
+                            html.Div(id='truncate-hrv-status'),
+                        ])
+                        ]),
+                    ])
+                ])
+            ]),
+            html.Div(id='athlete-container', className='col-lg-4',
+                     children=[html.Div(id='athlete', children=athlete_card())]),
+
             html.Div(id='goal-container', className='col-lg-4',
                      children=[html.Div(id='goals', children=goal_parameters())]),
-
-            html.Div(id='logs-container', className='col-lg-8',
+        ]),
+        html.Div(className='row mt-2', children=[
+            html.Div(id='logs-container', className='col-lg-12',
                      children=[
-                         dbc.Card(style={'height': '50vh'}, children=[
+                         dbc.Card(style={'height': '25vh'}, children=[
                              dbc.CardHeader(className='d-inline-block',
                                             children=[html.H4('Logs', className='d-inline-block mr-2'),
                                                       dbc.Button('Info', id='info-log-button', n_clicks=0,
@@ -392,51 +418,52 @@ def generate_settings_dashboard():
                                  )])
                          ])
                      ])
-        ]),
+        ])
     ])
 
 
 def update_athlete_db_value(value, value_name):
     session, engine = db_connect()
     athlete_info = session.query(athlete).filter(athlete.athlete_id == 1).first()
-
     # Set the appropriate value in db based on value_name
     if value_name == 'ftp_test_notification_week_threshold':
         athlete_info.ftp_test_notification_week_threshold = value
-
     elif value_name == 'weekly_activity_score_goal':
         athlete_info.weekly_activity_score_goal = value
-
     elif value_name == 'daily_sleep_hr_target':
         athlete_info.daily_sleep_hr_target = value
-
     elif value_name == 'weekly_tss_goal':
         athlete_info.weekly_tss_goal = value
-
     elif value_name == 'rr_max_goal':
         athlete_info.rr_max_goal = value
-
     elif value_name == 'rr_min_goal':
         athlete_info.rr_max_goal = value
-
     elif value_name == 'min_non_warmup_workout_time':
         athlete_info.min_non_warmup_workout_time = value
-
     elif value_name == 'weekly_workout_goal':
         athlete_info.weekly_workout_goal = value
-
     elif value_name == 'weekly_yoga_goal':
         athlete_info.weekly_yoga_goal = value
-
     elif value_name == 'weekly_sleep_score_goal':
         athlete_info.weekly_sleep_score_goal = value
-
     elif value_name == 'weekly_readiness_score_goal':
         athlete_info.weekly_readiness_score_goal = value
-
     elif value_name == 'weekly_activity_score_goal':
         athlete_info.weekly_activity_score_goal = value
-
+    elif value_name == 'name':
+        athlete_info.name = value
+    elif value_name == 'birthday':
+        athlete_info.birthday = datetime.strptime(value, '%Y-%m-%d')
+    elif value_name == 'sex':
+        athlete_info.sex = value
+    elif value_name == 'weight':
+        athlete_info.weight_lbs = value
+    elif value_name == 'rest_hr':
+        athlete_info.resting_hr = value
+    elif value_name == 'ride_ftp':
+        athlete_info.ride_ftp = value
+    elif value_name == 'run_ftp':
+        athlete_info.run_ftp = value
     # Execute the insert
     try:
         session.commit()
@@ -444,18 +471,28 @@ def update_athlete_db_value(value, value_name):
         app.server.logger.debug(f'Updated {value_name} to {value}')
     except BaseException as e:
         success = False
-        app.server.logger.error(e)
-
+        app.server.logger.error(str(e))
     engine.dispose()
     session.close()
-
     return success
 
 
 # Callback for updating activity score goal
 @app.callback([
-    # Output('ftp-test-notification-threshold-input-submit', 'style'),
-    # Output('ftp-test-notification-threshold-input-status', 'style'),
+    Output('name-input-submit', 'style'),
+    Output('name-input-status', 'style'),
+    Output('birthday-input-submit', 'style'),
+    Output('birthday-input-status', 'style'),
+    Output('sex-input-submit', 'style'),
+    Output('sex-input-status', 'style'),
+    Output('weight-input-submit', 'style'),
+    Output('weight-input-status', 'style'),
+    Output('rest-hr-input-submit', 'style'),
+    Output('rest-hr-input-status', 'style'),
+    Output('ride-ftp-input-submit', 'style'),
+    Output('ride-ftp-input-status', 'style'),
+    Output('run-ftp-input-submit', 'style'),
+    Output('run-ftp-input-status', 'style'),
     Output('weekly-activity-score-goal-input-submit', 'style'),
     Output('weekly-activity-score-goal-input-status', 'style'),
     Output('daily-sleep-goal-input-submit', 'style'),
@@ -478,7 +515,13 @@ def update_athlete_db_value(value, value_name):
     Output('weekly-readiness-score-goal-input-status', 'style')
 ],
     [
-        # Input('ftp-test-notification-threshold-input-submit', 'n_clicks'),
+        Input('name-input-submit', 'n_clicks'),
+        Input('birthday-input-submit', 'n_clicks'),
+        Input('sex-input-submit', 'n_clicks'),
+        Input('weight-input-submit', 'n_clicks'),
+        Input('rest-hr-input-submit', 'n_clicks'),
+        Input('ride-ftp-input-submit', 'n_clicks'),
+        Input('run-ftp-input-submit', 'n_clicks'),
         Input('weekly-activity-score-goal-input-submit', 'n_clicks'),
         Input('daily-sleep-goal-input-submit', 'n_clicks'),
         Input('weekly-tss-goal-input-submit', 'n_clicks'),
@@ -491,8 +534,20 @@ def update_athlete_db_value(value, value_name):
         Input('weekly-readiness-score-goal-input-submit', 'n_clicks')
     ],
     [
-        # State('ftp-test-notification-threshold-input-submit', 'value'),
-        # State('ftp-test-notification-threshold-input-submit', 'n_clicks_timestamp'),
+        State('name-input', 'value'),
+        State('name-input-submit', 'n_clicks_timestamp'),
+        State('birthday-input', 'value'),
+        State('birthday-input-submit', 'n_clicks_timestamp'),
+        State('sex-input', 'value'),
+        State('sex-input-submit', 'n_clicks_timestamp'),
+        State('weight-input', 'value'),
+        State('weight-input-submit', 'n_clicks_timestamp'),
+        State('rest-hr-input', 'value'),
+        State('rest-hr-input-submit', 'n_clicks_timestamp'),
+        State('ride-ftp-input', 'value'),
+        State('ride-ftp-input-submit', 'n_clicks_timestamp'),
+        State('run-ftp-input', 'value'),
+        State('run-ftp-input-submit', 'n_clicks_timestamp'),
         State('weekly-activity-score-goal-input', 'value'),
         State('weekly-activity-score-goal-input-submit', 'n_clicks_timestamp'),
         State('daily-sleep-goal-input', 'value'),
@@ -515,34 +570,30 @@ def update_athlete_db_value(value, value_name):
         State('weekly-readiness-score-goal-input-submit', 'n_clicks_timestamp')
     ])
 def activity_score_goal_status(
-        # ftp_click,
-        wk_act_click, slp_goal_click,
-        tss_goal_click, rrmax_click,
-        rrmin_click, min_workout_click,
-        workout_click, yoga_click,
+        name_click, birthday_click, sex_click, weight_click, rest_hr_click, ride_ftp_click, run_ftp_click, wk_act_click,
+        slp_goal_click, tss_goal_click, rrmax_click, rrmin_click, min_workout_click, workout_click, yoga_click,
         slp_click, rd_click,
-
-        # ftp_value, ftp_timestamp,
-        wk_act_value, wk_act_timestamp,
-        slp_goal_value, slp_goal_timestamp,
-        tss_goal_value, tss_goal_timestamp,
-        rrmax_value, rrmax_timestamp,
-        rrmin_value, rrmin_timestamp,
-        min_workout_value, min_workout_timestamp,
-        workout_value, workout_timestamp,
-        yoga_value, yoga_timestamp,
-        slp_value, slp_timestamp,
-        rd_value, rd_timestamp
-
+        name_value, name_timestamp, birthday_value, birthday_timestamp, sex_value, sex_timestamp, weight_value,
+        weight_timestamp, rest_hr_value, rest_hr_timestamp, ride_ftp_value, ride_ftp_timestamp, run_ftp_value,
+        run_ftp_timestamp,
+        wk_act_value, wk_act_timestamp, slp_goal_value, slp_goal_timestamp, tss_goal_value, tss_goal_timestamp,
+        rrmax_value, rrmax_timestamp, rrmin_value, rrmin_timestamp, min_workout_value, min_workout_timestamp,
+        workout_value, workout_timestamp, yoga_value, yoga_timestamp, slp_value, slp_timestamp, rd_value, rd_timestamp
 ):
-    num_metrics = 10
+    num_metrics = 17
     output_styles = []
     for _ in range(num_metrics):
         output_styles.extend([{'display': 'inline-block', 'border': '0px'}, {
             'display': 'inline-block', 'color': 'rgba(0,0,0,0)', 'fontSize': '150%'}])
 
     output_indexer = [
-        # 'ftp_test_notification_week_threshold',
+        'name',
+        'birthday',
+        'sex',
+        'weight',
+        'rest_hr',
+        'ride_ftp',
+        'run_ftp',
         'weekly_activity_score_goal',
         'daily_sleep_hr_target',
         'weekly_tss_goal',
@@ -557,7 +608,13 @@ def activity_score_goal_status(
 
     # Get the most recently clicked button/values
     timestamps = {
-        # 'ftp_test_notification_week_threshold': ftp_timestamp,
+        'name': name_timestamp,
+        'birthday': birthday_timestamp,
+        'sex': sex_timestamp,
+        'weight': weight_timestamp,
+        'rest_hr': rest_hr_timestamp,
+        'ride_ftp': ride_ftp_timestamp,
+        'run_ftp': run_ftp_timestamp,
         'weekly_activity_score_goal': wk_act_timestamp,
         'daily_sleep_hr_target': slp_goal_timestamp,
         'weekly_tss_goal': tss_goal_timestamp,
@@ -571,7 +628,13 @@ def activity_score_goal_status(
     }
 
     values = {
-        # 'ftp_test_notification_week_threshold': ftp_timestamp,
+        'name': name_value,
+        'birthday': birthday_value,
+        'sex': sex_value,
+        'weight': weight_value,
+        'rest_hr': rest_hr_value,
+        'ride_ftp': ride_ftp_value,
+        'run_ftp': run_ftp_value,
         'weekly_activity_score_goal': wk_act_value,
         'daily_sleep_hr_target': slp_goal_value,
         'weekly_tss_goal': tss_goal_value,
@@ -583,15 +646,12 @@ def activity_score_goal_status(
         'weekly_sleep_score_goal': slp_value,
         'weekly_readiness_score_goal': rd_value,
     }
-
     for k, v in timestamps.items():
         timestamps[k] = 0 if not v else v
 
     latest = max(timestamps.items(), key=operator.itemgetter(1))[0]
-
     index1 = output_indexer.index(latest) * 2
     index2 = index1 + 1
-
     # Update value in db
     success = update_athlete_db_value(values[latest], latest)
 
