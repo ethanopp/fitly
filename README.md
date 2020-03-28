@@ -10,7 +10,7 @@ Web analytics for endurance athletes
 Special thanks to Slapdash for helping organize!
 https://github.com/ned2/slapdash
 
-##  Installation (Docker)
+##  Docker Installation (Easiest Method)
 These instructions use example directories on my local machine, be sure to update them to your machines directories!
 1. Download/Install Docker Desktop (default installation settings) https://www.docker.com/products/docker-desktop 
 2. Download the fit.ly files and unzip them somewhere on your local machine https://github.com/ethanopp/fitly/archive/master.zip
