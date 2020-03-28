@@ -5,6 +5,4 @@ COPY . .
 
 RUN pip install -U pip && pip install -r ./requirements.txt
 
-RUN ls -l
-
 ENV NGINX_WORKER_PROCESSES auto
