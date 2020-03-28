@@ -10,17 +10,36 @@ Web analytics for endurance athletes
 Special thanks to Slapdash for helping organize!
 https://github.com/ned2/slapdash
 
-## Installation
+##  Installation (Docker)
+These instructions use example directories on my local machine, be sure to update them to your machines directories!
+1. Download/Install Docker Desktop (default installation settings) https://www.docker.com/products/docker-desktop 
+2. Download the fit.ly files and unzip them somewhere on your local machine https://github.com/ethanopp/fitly/archive/master.zip
+3. Run docker desktop, open a command prompt (windows) or terminal (mac)
+4. In the cmd/terminal, navigate to the path you saved the fit.ly files which has the `Dockerfile` 
+in it. (ex. `cd C:\Users\Ethan\Desktop\fitly-master`)
+5. Run the following command to build the container (docker virtual environment) that fitly will run in:
+`docker build -t fitly .`
+6. Create your docker container:
+    ``` 
+    docker create --name=fitly \
+        --restart unless-stopped \
+        -e MODULE_NAME=src.fitly.app \
+        -e VARIABLE_NAME=server \
+        -e TZ=America/New_York \
+        -e TIMEOUT=1200 \
+        -e DASH_DEBUG=true \
+        -p 8050:80 \
+        -v C:\Users\eoppenheim\Desktop\fitly-master\config:/app/config \
+        fitly
+    ```
+7. Edit the `config.ini.example` file on your local machine with your settings (more information below) and change the name of the file to `config.ini`
+8. Open the docker desktop dashboard, run your container (play button at top right), open a browser to go to http://127.0.0.1:8050/settings, and enter the password from your `config.ini` [settings] password variable
+## Installation (Python IDE)
+
 
 After cloning/downloading the repository, simply install Fit.ly as a package into your target virtual environment:
 
     $ pip install PATH_TO_fitly
-
-During development you will likely want to perform an editable install so that
-changes to the source code take immediate effect on the installed package.
-
-    $ pip install -e PATH_TO_fitly
-
 
 ## Running Your App
 
