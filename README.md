@@ -17,7 +17,7 @@ These instructions use example directories on my local machine, be sure to updat
 3. Run docker desktop, open a command prompt (windows) or terminal (mac)
 4. In the cmd/terminal, navigate to the path you saved the fit.ly files which has the `Dockerfile` 
 in it. (ex. `cd C:\Users\Ethan\Desktop\fitly-master`)
-5. Run the following command to build the container (docker virtual environment) that fitly will run in:
+5. Run the following command to build the image that you will create the docker container (virtual environment) from:
 `docker build -t fitly .`
 6. Create your docker container:
     ``` 
