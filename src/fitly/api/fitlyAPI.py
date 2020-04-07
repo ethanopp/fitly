@@ -115,7 +115,8 @@ class FitlyActivity(stravalib.model.Activity):
                     peloton_df['start'] <= (start + timedelta(minutes=5)))]
         if len(activity) > 0:
             self.peloton_title = activity.name.values[0]
-            client.update_activity(activity_id=self.id, name=self.peloton_title)
+            if client.get_activity(activity_id=self.id).name != self.peloton_title:
+                client.update_activity(activity_id=self.id, name=self.peloton_title)
 
     def get_rest_hr(self):
         # TODO: Build this out so hearrate data can be pulled from other data sources
