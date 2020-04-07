@@ -76,7 +76,6 @@ class FitlyActivity(stravalib.model.Activity):
         app.server.logger.debug('Activity id "{}": Writing df_summary and df_samples to DB'.format(self.id))
         self.write_dfs_to_db()
 
-
     def assign_athlete(self, athlete_id):
         session, engine = db_connect()
         self.Athlete = session.query(athlete).filter(athlete.athlete_id == athlete_id).first()
@@ -250,6 +249,11 @@ class FitlyActivity(stravalib.model.Activity):
             # Filter main df back to current workout which we are assigning 1rms to
 
             df = df[df['date_UTC'].dt.date == date]
+
+            # Cap workout time at 2 mins per set - temporary fix until fitbod expoorts at timestamp level
+            workout_time = self.df_samples['time'].max() if self.df_samples['time'].max() < (len(df) * 120) else (
+                    len(df) * 120)
+
             # Merge in 1rms
             df = df.merge(df_1rm[['Exercise', 'one_rep_max', 'weight_duration_max']], how='left',
                           left_on='Exercise',
@@ -301,7 +305,7 @@ class FitlyActivity(stravalib.model.Activity):
             ri = df['inol'].sum() / max_inol_possible
             # Estimate TSS Based on Intensity Factor and Duration
             # https://www.trainingpeaks.com/blog/how-to-plan-your-season-with-training-stress-score/
-            workout_tss = ri * ri * (self.df_samples['time'].max() / 3600) * 100
+            workout_tss = ri * ri * (workout_time / 3600) * 100
 
             # Get max amount of possible TSS based on TSS per sec
             # max_tss_per_sec = (100 / 60 / 60)
