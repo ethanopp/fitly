@@ -12,5 +12,5 @@ PyMySQL
 pyocclient
 SQLAlchemy
 stravalib
-sweat
+sweat==0.4.0
 click
