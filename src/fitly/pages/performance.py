@@ -128,23 +128,6 @@ def get_layout(**kwargs):
                                  html.Div(id='pmc-controls', className='row text-center mb-2', children=[
                                      html.Div(className='col-lg-8 offset-lg-1', children=[
                                          html.Div(className='row', children=[
-
-                                             html.Div(id='ride-pmc', className='col-3',
-                                                      children=[
-                                                          daq.BooleanSwitch(
-                                                              id='ride-pmc-switch',
-                                                              on=True,
-                                                              style={'display': 'inline-block',
-                                                                     'vertical-align': 'middle'}
-                                                          ),
-                                                          html.I(id='ride-pmc-icon', className='fa fa-bicycle',
-                                                                 style={'fontSize': '1.5rem', 'display': 'inline-block',
-                                                                        'vertical-align': 'middle'}),
-                                                      ]),
-                                             dbc.Tooltip(
-                                                 'Include cycling workouts in Fitness trend.',
-                                                 target="ride-pmc"),
-
                                              html.Div(id='run-pmc', className='col-3',
                                                       children=[
                                                           daq.BooleanSwitch(
@@ -160,6 +143,21 @@ def get_layout(**kwargs):
                                              dbc.Tooltip(
                                                  'Include running workouts in Fitness trend.',
                                                  target="run-pmc"),
+                                             html.Div(id='ride-pmc', className='col-3',
+                                                      children=[
+                                                          daq.BooleanSwitch(
+                                                              id='ride-pmc-switch',
+                                                              on=True,
+                                                              style={'display': 'inline-block',
+                                                                     'vertical-align': 'middle'}
+                                                          ),
+                                                          html.I(id='ride-pmc-icon', className='fa fa-bicycle',
+                                                                 style={'fontSize': '1.5rem', 'display': 'inline-block',
+                                                                        'vertical-align': 'middle'}),
+                                                      ]),
+                                             dbc.Tooltip(
+                                                 'Include cycling workouts in Fitness trend.',
+                                                 target="ride-pmc"),
 
                                              html.Div(id='all-pmc', className='col-3',
                                                       children=[
@@ -913,8 +911,6 @@ def create_fitness_chart(run_status, ride_status, all_status):
                             ]
                  }
 
-
-
     figure = {
         'data': [
             go.Scatter(
@@ -1200,7 +1196,7 @@ def create_fitness_chart(run_status, ride_status, all_status):
     # If Oura data supplied, incorporate data into performance management chart
     if oura_credentials_supplied:
         hoverData['points'].extend([{'text': hover_rec},
-                                   {'y': hrv_df.tail(1)['rmssd_7'].values[0], 'text': '7 Day'}])
+                                    {'y': hrv_df.tail(1)['rmssd_7'].values[0], 'text': '7 Day'}])
         figure['data'].extend([
             go.Scatter(
                 name='HRV SWC (Upper)',

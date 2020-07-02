@@ -596,7 +596,7 @@ def zone_chart(activity_id=None, metric='power_zone', chart_id='power-zone-chart
 )
 def update_power_curve(activity_type, power_unit):
     power_unit = 'watts_per_kg' if power_unit else 'mmp'
-    activity_type = 'run' if activity_type else 'ride'
+    activity_type = 'ride' if activity_type else 'run'
     figure, hoverData = power_curve(activity_type, power_unit)
     return figure, hoverData
 
@@ -732,11 +732,11 @@ def update_power_curve(activity_type, power_unit):
 )
 def update_icon(value):
     if value:
-        return {'fontSize': '2rem', 'display': 'inline-block', 'vertical-align': 'middle'}, {
-            'fontSize': '2rem', 'display': 'inline-block', 'vertical-align': 'middle', 'color': teal}
-    else:
         return {'fontSize': '2rem', 'display': 'inline-block', 'vertical-align': 'middle', 'color': teal}, {
             'fontSize': '2rem', 'display': 'inline-block', 'vertical-align': 'middle'}
+    else:
+        return {'fontSize': '2rem', 'display': 'inline-block', 'vertical-align': 'middle'}, {
+            'fontSize': '2rem', 'display': 'inline-block', 'vertical-align': 'middle', 'color': teal}
 
 
 @app.callback(
@@ -762,7 +762,7 @@ def update_icon(value):
 )
 def ftp_chart(activity_type, power_unit):
     power_unit = 'watts_per_kg' if power_unit else 'ftp'
-    activity_type = 'run' if activity_type else 'ride'
+    activity_type = 'ride' if activity_type else 'run'
     current, figure = create_ftp_chart(activity_type=activity_type, power_unit=power_unit)
     return current, figure
 
@@ -792,7 +792,7 @@ def update_power_profiles(activity_type, power_unit, day_n_clicks, week_n_clicks
                           year_n_clicks_timestamp):
     latest = 'month'
     power_unit = 'watts_per_kg' if power_unit else 'mmp'
-    activity_type = 'run' if activity_type else 'ride'
+    activity_type = 'ride' if activity_type else 'run'
 
     day_style, week_style, month_style, year_style = {'marginRight': '1%'}, {'marginRight': '1%'}, {
         'marginRight': '1%'}, {'marginRight': '1%'}
@@ -861,15 +861,13 @@ def get_layout(**kwargs):
         html.Div(className='row', children=[
             html.Div(id='power-dashboard-header-container', className='col-12 text-center mt-2 mb-2', children=[
 
+                html.I(id='running-icon', className='fa fa-running',
+                       style={'fontSize': '2rem', 'display': 'inline-block', 'vertical-align': 'middle'}),
+                daq.ToggleSwitch(id='activity-type-toggle', className='mr-2 ml-2', style={'display': 'inline-block'}),
+
                 html.I(id='bicycle-icon', className='fa fa-bicycle',
                        style={'fontSize': '2rem', 'display': 'inline-block', 'vertical-align': 'middle',
                               'color': teal}),
-
-                daq.ToggleSwitch(id='activity-type-toggle', className='mr-2 ml-2', style={'display': 'inline-block'}),
-
-                html.I(id='running-icon', className='fa fa-running',
-                       style={'fontSize': '2rem', 'display': 'inline-block', 'vertical-align': 'middle'}),
-
                 dbc.Tooltip('Analyze cycling activities', target="bicycle-icon"),
                 dbc.Tooltip('Toggle activity type', target="activity-type-toggle"),
                 dbc.Tooltip('Analyze running activities', target="running-icon"),
