@@ -137,6 +137,26 @@ a:hover {
 .rangeslider-bg, .rangeslider-mask-min, .rangeslider-mask-max{
     fill-opacity: .25 !important;
 }
+
+/* Dash Table */
+
+.dash-cell column-0 cell--selected focused{
+    border-bottom: #3fcbeb !important;
+}
+
+.dash-delete-cell{
+    width: 3vw !important;
+}
+
+.dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner table{
+    --hover: rgb(66,66,66) !important;
+}
+
+.dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner input:not([type=radio]):not([type=checkbox]){
+    text-align: center !important;
+    color: rgb(255,255,255) !important;
+}
+
 /* Webkit /
 –––––––––––––––––––––––––––––––––––––––––––––––––– */
 ::-webkit-scrollbar {

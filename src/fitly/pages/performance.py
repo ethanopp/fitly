@@ -30,11 +30,13 @@ def get_layout(**kwargs):
                       dbc.ModalHeader(id='annotation-modal-header', children=['Annotations']),
                       dbc.ModalBody(id='annotation-modal-body',
                                     children=[
-                                        html.Div(className='text-center mb-2', children=[
-                                            html.Div(id='annotation-table-container', className='col mb-2'),
-                                            dbc.Button('Add Row', id='annotation-add-rows-button',
-                                                       color='primary', size='sm', n_clicks=0)
-                                        ]),
+                                        html.Div(className='col-lg-12 text-center mb-2', style={'padding': 0},
+                                                 children=[
+                                                     html.Div(id='annotation-table-container', className='col mb-2',
+                                                              style={'padding': 0}),
+                                                     dbc.Button('Add Row', id='annotation-add-rows-button',
+                                                                color='primary', size='sm', n_clicks=0)
+                                                 ]),
                                         html.Div(id='annotation-save-container', className='col',
                                                  children=[
                                                      html.H6('Enter admin password to save changes',
@@ -56,7 +58,7 @@ def get_layout(**kwargs):
 
                       dbc.ModalFooter(
                           dbc.Button("Close", id="close-annotation-modal-button", color='primary', size='sm',
-                                     href='/performance')
+                                     href=f'/performance?refresh={str(datetime.now())}')
                       ),
                   ]),
         dbc.Modal(id="activity-modal", is_open=False, centered=True, autoFocus=True, fade=False, backdrop='static',
