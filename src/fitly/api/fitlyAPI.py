@@ -164,17 +164,23 @@ class FitlyActivity(stravalib.model.Activity):
 
     def get_ftp(
             self):  # TODO: Update with auto calculated critical power so users do not have to flag (or take) FTP tests
+        self.stryd_metrics = []
         if 'run' in self.type.lower():
-
-            # If stryd credentials in config, grab ftp from stryd
+            # If stryd credentials in config, grab ftp
             if stryd_credentials_supplied:
                 stryd_df = get_stryd_df_summary()
-                stryd_df = stryd_df[stryd_df.index <= self.start_date_local]
                 try:
-                    self.ftp = stryd_df.loc[stryd_df.index.max()].stryd_ftp
+                    self.ftp = stryd_df[stryd_df.index <= self.start_date_local].loc[stryd_df.index.max()].stryd_ftp
                 except:
                     # If no FTP test prior to current activity
                     self.ftp = self.Athlete.run_ftp
+
+                # Save stryd df for current workout to instance to use metrics later and avoid having to hit API again
+                start = roundTime(self.start_date_local)
+                self.stryd_metrics = stryd_df[
+                    (stryd_df.index >= (start - timedelta(minutes=5))) & (
+                            stryd_df.index <= (start + timedelta(minutes=5)))]
+
             else:
                 self.ftp = self.Athlete.run_ftp
 
@@ -333,7 +339,12 @@ class FitlyActivity(stravalib.model.Activity):
         elif self.max_watts is not None and self.ftp is not None:
             self.wap = weighted_average_power(self.df_samples['watts'].to_numpy())
             self.ri = relative_intensity(self.wap, self.ftp)
-            self.tss = stress_score(self.wap, self.ftp, activity_length)
+
+            # Use Stryd RSS instead of TrainingPeaks calculation for RSS
+            if len(self.stryd_metrics) > 0:
+                self.tss = self.stryd_metrics.iloc[0].RSS
+            else:
+                self.tss = stress_score(self.wap, self.ftp, activity_length)
             self.variability_index = self.wap / self.df_samples['watts'].mean()
 
         if self.max_heartrate is not None:
