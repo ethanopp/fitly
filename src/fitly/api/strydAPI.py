@@ -25,7 +25,7 @@ def auth_stryd_session():
 def get_stryd_df_summary():
     sessionID = auth_stryd_session()
     today = datetime.datetime.now() + datetime.timedelta(days=1) # Pass tomorrow's date to ensure no issues with timezones
-    start = today - datetime.timedelta(days=180)
+    start = today - datetime.timedelta(days=9999)
     headers = {'Authorization': 'Bearer: {}'.format(sessionID)}
     url = "https://www.stryd.com/b/api/v1/activities/calendar?srtDate={start}&endDate={today}&sortBy=StartDate".format(
         start=start.strftime("%m-%d-%Y"), today=today.strftime("%m-%d-%Y"))
