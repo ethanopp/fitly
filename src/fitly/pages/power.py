@@ -35,11 +35,11 @@ def create_power_curve_kpis(interval, all, L90D, l6w, last, pr):
                 html.H5(id='power-curve-title', children='Power Curve {}'.format(timedelta(seconds=interval))),
             ]),
             dbc.Tooltip(
-                '''A high power output for short periods of time (10 seconds) can contribute to improved performance across your entire Power Duration Curve. To increase musle power, focus on VO2 Max Intervals, Hill / Track Repeats and Supplemental Training.
+                '''A high power output for short periods of time (10 seconds) can contribute to improved performance across your entire Power Duration Curve. To improve musle power, focus on VO2 Max Intervals, Hill / Track Repeats and Supplemental Training.
                 
-                Fatigue resistance directly reflects your ability to run at close to maximal effort for your goal race distance. To increase Fatigue Resistance, focus on Long Runs, High Volume Easy Runs, and Aerobic Threshold Tempo Runs.
+                Fatigue resistance directly reflects your ability to run at close to maximal effort for your goal race distance. To improve fatigue fesistance, focus on Long Runs, High Volume Easy Runs, and Aerobic Threshold Tempo Runs.
                 
-                Building up your endurance with longer runs helps improve your body's ability to sustain efforts for long durations. To increase Endurance, focus on Aerobic Threshold Tempo Runs, Race Specific Training and Long Runs''',
+                Building up your endurance with longer runs helps improve your body's ability to sustain efforts for long durations. To improve endurance, focus on Aerobic Threshold Tempo Runs, Race Specific Training and Long Runs.''',
                 target="power-curve-title"),
 
             ### All KPI ###
