@@ -28,7 +28,6 @@ ftp_color = 'rgb(100, 217, 236)'
 
 
 def create_power_curve_kpis(interval, all, L90D, l6w, last, pr):
-    print(interval, all, L90D, l6w, last, pr)
     return \
         html.Div(className='row', children=[
             ### Interval KPI ###
