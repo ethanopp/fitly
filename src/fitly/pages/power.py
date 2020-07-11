@@ -392,13 +392,27 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
             font=dict(
                 color='rgb(220,220,220)'
             ),
+            #TODO: Clean up line formatting and add descriptions as to what each line representes (from stryd)
             shapes=[
                 # Muscle Power
                 dict(
                     type='line',
-                    y1=muscle_power,
+                    y0=0, y1=muscle_power,
                     xref='x',
+                    yref='y',
                     x0=10, x1=10,
+                    line=dict(
+                        color="Grey",
+                        width=1,
+                        dash="dot",
+                    ),
+                ),
+                dict(
+                    type='line',
+                    y0=muscle_power, y1=muscle_power,
+                    xref='x',
+                    yref='y',
+                    x0=.9, x1=1,
                     line=dict(
                         color="Grey",
                         width=1,
@@ -409,8 +423,35 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
                 # Fatigue Resistance
                 dict(
                     type='line',
+                    y1=fatigue_df[power_unit],
+                    xref='x',
+                    yref='y',
+                    x0=fatigue_duration, x1=fatigue_duration,
+                    line=dict(
+                        color="Grey",
+                        width=1,
+                        dash="dot",
+                    ),
+                ),
+                dict(
+                    type='line',
+                    y0=fatigue_df[power_unit], y1=fatigue_df[power_unit],
+                    xref='x',
+                    yref='y',
+                    x0=.9, x1=fatigue_duration,
+                    line=dict(
+                        color="Grey",
+                        width=1,
+                        dash="dot",
+                    ),
+                ),
+                # Endurance
+
+                dict(
+                    type='line',
                     y1=endurance_df[power_unit],
                     xref='x',
+                    yref='y',
                     x0=endurance_duration, x1=endurance_duration,
                     line=dict(
                         color="Grey",
@@ -418,13 +459,12 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
                         dash="dot",
                     ),
                 ),
-
-                # Endurance
                 dict(
                     type='line',
-                    y1=fatigue_df[power_unit],
+                    y0=endurance_df[power_unit], y1=endurance_df[power_unit],
                     xref='x',
-                    x0=fatigue_duration, x1=fatigue_duration,
+                    yref='y',
+                    x0=.9, x1=endurance_duration,
                     line=dict(
                         color="Grey",
                         width=1,
@@ -447,22 +487,9 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
                         muscle_power),
                     showarrow=True,
                     arrowhead=1,
-                    arrowcolor=white,
-                ),
-                # Endurance
-                go.layout.Annotation(
-                    font={'size': 12},
-                    x=math.log(endurance_duration, 10),
-                    y=endurance_df[power_unit],
-                    xref="x",
-                    yref="y",
-                    text='''Endurance {:%H:%M:%S} at {:.2f} W/kg'''.format(endurance_df['time_interval'],
-                                                                           endurance_df[
-                                                                               power_unit]) if power_unit == 'watts_per_kg' else '''Endurance Power {:.0f} W'''.format(
-                        endurance_df[power_unit]),
-                    showarrow=True,
-                    arrowhead=1,
-                    arrowcolor=white,
+                    arrowcolor='Grey',
+                    ax=30,
+                    ay=-30,
                 ),
                 # Fatigue Resistance
                 go.layout.Annotation(
@@ -477,8 +504,29 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
                         fatigue_df[power_unit]),
                     showarrow=True,
                     arrowhead=1,
-                    arrowcolor=white,
+                    arrowcolor='Grey',
+                    ax=30,
+                    ay=-30,
+
                 ),
+                # Endurance
+                go.layout.Annotation(
+                    font={'size': 12},
+                    x=math.log(endurance_duration, 10),
+                    y=endurance_df[power_unit],
+                    xref="x",
+                    yref="y",
+                    text='''Endurance {:%H:%M:%S} at {:.2f} W/kg'''.format(endurance_df['time_interval'],
+                                                                           endurance_df[
+                                                                               power_unit]) if power_unit == 'watts_per_kg' else '''Endurance Power {:.0f} W'''.format(
+                        endurance_df[power_unit]),
+                    showarrow=True,
+                    arrowhead=1,
+                    arrowcolor='Grey',
+                    ax=30,
+                    ay=30,
+                ),
+
             ],
 
             xaxis=dict(
