@@ -169,21 +169,20 @@ class FitlyActivity(stravalib.model.Activity):
             # If stryd credentials in config, grab ftp
             if stryd_credentials_supplied:
                 stryd_df = get_stryd_df_summary()
-                try:
-                    self.ftp = stryd_df[stryd_df.index <= self.start_date_local].loc[stryd_df.index.max()].stryd_ftp
-                except:
-                    # If no FTP test prior to current activity
-                    self.ftp = self.Athlete.run_ftp
-
-                # Save stryd df for current workout to instance to use metrics later and avoid having to hit API again
                 start = roundTime(self.start_date_local)
+                # Save stryd df for current workout to instance to use metrics later and avoid having to hit API again
                 self.stryd_metrics = stryd_df[
                     (stryd_df.index >= (start - timedelta(minutes=5))) & (
                             stryd_df.index <= (start + timedelta(minutes=5)))]
-
+                try:
+                    self.ftp = self.stryd_metrics.iloc[0].stryd_ftp
+                    if self.ftp == 0:
+                        self.ftp = self.Athlete.run_ftp
+                except:
+                    # If no FTP test prior to current activity
+                    self.ftp = self.Athlete.run_ftp
             else:
                 self.ftp = self.Athlete.run_ftp
-
         elif 'ride' in self.type.lower():
             # TODO: Switch over to using Critical Power for everything once we get the critical power model working
             session, engine = db_connect()
