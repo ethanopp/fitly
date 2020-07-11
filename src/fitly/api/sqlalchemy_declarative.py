@@ -136,6 +136,7 @@ class stravaBestSamples(Base):
     activity_id = Column('activity_id', BigInteger(), index=True, primary_key=True)
     interval = Column('interval', Integer, index=True, primary_key=True)
     mmp = Column('mmp', Float())
+    ftp = Column('ftp', Float())
     watts_per_kg = Column('watts_per_kg', Float())
     timestamp_local = Column('timestamp_local', DateTime())
     time_interval = Column('time_interval', DateTime())

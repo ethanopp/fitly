@@ -596,6 +596,7 @@ class FitlyActivity(stravalib.model.Activity):
                 df['timestamp_local'] = df.index
                 df['type'] = self.type
                 df['athlete_id'] = self.Athlete.athlete_id
+                df['ftp'] = self.ftp
                 df.set_index(['activity_id', 'interval'], inplace=True)
                 db_insert(df, 'strava_best_samples')
 
