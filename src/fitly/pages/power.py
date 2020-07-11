@@ -32,9 +32,16 @@ def create_power_curve_kpis(interval, all, L90D, l6w, last, pr):
         html.Div(className='row', children=[
             ### Interval KPI ###
             html.Div(className='col-auto', children=[
-                html.H5('Power Curve {}'.format(timedelta(seconds=interval))),
-
+                html.H5(id='power-curve-title', children='Power Curve {}'.format(timedelta(seconds=interval))),
             ]),
+            dbc.Tooltip(
+                '''A high power output for short periods of time (10 seconds) can contribute to improved performance across your entire Power Duration Curve. To increase musle power, focus on VO2 Max Intervals, Hill / Track Repeats and Supplemental Training.
+                
+                Fatigue resistance directly reflects your ability to run at close to maximal effort for your goal race distance. To increase Fatigue Resistance, focus on Long Runs, High Volume Easy Runs, and Aerobic Threshold Tempo Runs.
+                
+                Building up your endurance with longer runs helps improve your body's ability to sustain efforts for long durations. To increase Endurance, focus on Aerobic Threshold Tempo Runs, Race Specific Training and Long Runs''',
+                target="power-curve-title"),
+
             ### All KPI ###
             html.Div(id='all-kpi', className='col-auto', children=[
                 html.H6('All Time {}'.format(all),
@@ -510,13 +517,13 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
             annotations=[
                 # Muscle Power
                 go.layout.Annotation(
-                    font={'size': 12, 'color': orange if muscle_power_best else white},
+                    font={'size': 10, 'color': orange if muscle_power_best else white},
                     x=1,
                     y=muscle_power,
                     xref="x",
                     yref="y",
-                    text='''Max 10 Sec Power: <b>{:.2f}</b> W/kg'''.format(
-                        muscle_power) if power_unit == 'watts_per_kg' else '''Muscle Power {:.0f} W'''.format(
+                    text='''Muscle Power (L90D)<br>Max 10 Sec Power: <b>{:.2f}</b> W/kg'''.format(
+                        muscle_power) if power_unit == 'watts_per_kg' else '''Muscle Power (L90D)<br>Max 10 Sec Power: <b>{:.0f}</b> W'''.format(
                         muscle_power),
                     showarrow=False,
                     arrowhead=1,
@@ -528,12 +535,16 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
                 ),
                 # Fatigue Resistance
                 go.layout.Annotation(
-                    font={'size': 12, 'color': orange if fatigue_best else white},
+                    font={'size': 10, 'color': orange if fatigue_best else white},
                     x=.1,
                     y=current_ftp,
                     xref="x",
                     yref="y",
-                    text='''Longest Above 100% CP<b> {:%H:%M:%S}'''.format(fatigue_df['time_interval']),
+                    text='''Fatigue Resistance 100% CP (L90D)<br>Longest Above <b>{:.2f}</b> W/kg:<b> {:%H:%M:%S}'''.format(
+                        current_ftp,
+                        fatigue_df[
+                            'time_interval']) if power_unit == 'watts_per_kg' else '''Endurance 50% CP (L90D)<br>Longest Above <b>{:.0f}</b> W:<b> {:%H:%M:%S}'''.format(
+                        current_ftp, fatigue_df['time_interval']),
                     showarrow=True,
                     arrowhead=1,
                     arrowcolor='rgba(0,0,0,0)',
@@ -586,12 +597,16 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
                 #     # ay=30,
                 # ),
                 go.layout.Annotation(
-                    font={'size': 12, 'color': orange if endurance_best else white},
+                    font={'size': 10, 'color': orange if endurance_best else white},
                     x=.1,
                     y=current_ftp / 2,
                     xref="x",
                     yref="y",
-                    text='''Longest Above 50% CP<b> {:%H:%M:%S}'''.format(endurance_df['time_interval']),
+                    text='''Endurance 50% CP (L90D)<br>Longest Above <b>{:.2f}</b> W/kg:<b> {:%H:%M:%S}'''.format(
+                        current_ftp / 2,
+                        endurance_df[
+                            'time_interval']) if power_unit == 'watts_per_kg' else '''Endurance 50% CP (L90D)<br>Longest Above <b>{:.0f}</b> W:<b> {:%H:%M:%S}'''.format(
+                        current_ftp / 2, endurance_df['time_interval']),
                     showarrow=True,
                     arrowhead=1,
                     arrowcolor='rgba(0,0,0,0)',
