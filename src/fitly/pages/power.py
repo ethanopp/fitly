@@ -170,6 +170,10 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
     # 1 minute intervals for everything after 10 mins
     interval_lengths += [i for i in range(660, (int(math.floor(max_interval / 10.0)) * 10) + 1, 60)]
 
+    act_dict = pd.read_sql(
+        sql=session.query(stravaBestSamples.activity_id, stravaBestSamples.act_name).distinct().statement, con=engine,
+        index_col='activity_id').to_dict()
+
     all_best_interval_df = pd.read_sql(
         sql=session.query(
             func.max(stravaBestSamples.mmp).label('mmp'),
@@ -178,6 +182,7 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
         ).group_by(stravaBestSamples.interval).filter(stravaBestSamples.interval.in_(interval_lengths),
                                                       stravaBestSamples.type.ilike(activity_type)).statement,
         con=engine, index_col='interval')
+    all_best_interval_df['act_name'] = all_best_interval_df['activity_id'].map(act_dict['act_name'])
 
     L90D_best_interval_df = pd.read_sql(
         sql=session.query(
@@ -189,6 +194,7 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
                                                       stravaBestSamples.timestamp_local >= (
                                                               datetime.now() - timedelta(days=90))
                                                       ).statement, con=engine, index_col='interval')
+    L90D_best_interval_df['act_name'] = L90D_best_interval_df['activity_id'].map(act_dict['act_name'])
 
     L6W_best_interval_df = pd.read_sql(
         sql=session.query(
@@ -200,6 +206,7 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
                                                       stravaBestSamples.timestamp_local >= (
                                                               datetime.now() - timedelta(days=42))
                                                       ).statement, con=engine, index_col='interval')
+    L6W_best_interval_df['act_name'] = L6W_best_interval_df['activity_id'].map(act_dict['act_name'])
 
     # Pull max power from all intervals from latest workout
 
@@ -215,6 +222,7 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
         ).group_by(stravaBestSamples.interval).filter(stravaBestSamples.activity_id == last_id,
                                                       stravaBestSamples.interval.in_(interval_lengths),
                                                       ).statement, con=engine, index_col='interval')
+    recent_best_interval_df['act_name'] = recent_best_interval_df['activity_id'].map(act_dict['act_name'])
 
     first_workout_date = session.query(func.min(stravaSummary.start_date_utc)).first()[0]
 
@@ -257,7 +265,7 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
             recent_best_interval_df) > 0 else 0), 'customdata': 'x_x_w'}
     ]}
 
-    tooltip = '''Interval: {:%H:%M:%S} - {:%H:%M:%S}<br>Best: {:%Y-%m-%d}<br>{}: {:.1f} W/kg''' if power_unit == 'watts_per_kg' else '''Interval: {:%H:%M:%S} - {:%H:%M:%S}<br>Best: {:%Y-%m-%d}<br>{}: {:.0f} W'''
+    tooltip = '''{}<br>{:.1f} W/kg''' if power_unit == 'watts_per_kg' else '''{}<br>{:.1f} W'''
     data = [
         go.Scatter(
             name='All',
@@ -266,10 +274,7 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
             mode='lines',
             text=[
                 tooltip.format(
-                    pd.to_datetime(all_best_interval_df.loc[i]['time_interval']) - timedelta(
-                        seconds=i),
-                    pd.to_datetime(all_best_interval_df.loc[i]['time_interval']),
-                    pd.to_datetime(all_best_interval_df.loc[i]['timestamp_local']), 'Power',
+                    all_best_interval_df.loc[i]['act_name'],
                     all_best_interval_df.loc[i][power_unit])
                 for i in all_best_interval_df.index],
 
@@ -288,10 +293,7 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
             #       L90D_best_interval_df.index],
             text=[
                 tooltip.format(
-                    pd.to_datetime(L90D_best_interval_df.loc[i]['time_interval']) - timedelta(
-                        seconds=i),
-                    pd.to_datetime(L90D_best_interval_df.loc[i]['time_interval']),
-                    pd.to_datetime(L90D_best_interval_df.loc[i]['timestamp_local']), 'Power',
+                    L90D_best_interval_df.loc[i]['act_name'],
                     L90D_best_interval_df.loc[i][power_unit])
                 for i in L90D_best_interval_df.index],
             customdata=[
@@ -309,10 +311,7 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
             #       L90D_best_interval_df.index],
             text=[
                 tooltip.format(
-                    pd.to_datetime(L6W_best_interval_df.loc[i]['time_interval']) - timedelta(
-                        seconds=i),
-                    pd.to_datetime(L6W_best_interval_df.loc[i]['time_interval']),
-                    pd.to_datetime(L6W_best_interval_df.loc[i]['timestamp_local']), 'Power',
+                    L6W_best_interval_df.loc[i]['act_name'],
                     L6W_best_interval_df.loc[i][power_unit])
                 for i in L6W_best_interval_df.index],
             customdata=[
@@ -330,10 +329,7 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
             #       L90D_best_interval_df.index],
             text=[
                 tooltip.format(
-                    pd.to_datetime(recent_best_interval_df.loc[i]['time_interval']) - timedelta(
-                        seconds=i),
-                    pd.to_datetime(recent_best_interval_df.loc[i]['time_interval']),
-                    pd.to_datetime(recent_best_interval_df.loc[i]['timestamp_local']), 'Power',
+                    recent_best_interval_df.loc[i]['act_name'],
                     recent_best_interval_df.loc[i][power_unit])
                 for i in recent_best_interval_df.index],
             customdata=[
@@ -351,10 +347,7 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
             #       L90D_best_interval_df.index],
             text=[
                 tooltip.format(
-                    pd.to_datetime(pr_df.loc[i]['time_interval']) - timedelta(
-                        seconds=i),
-                    pd.to_datetime(pr_df.loc[i]['time_interval']),
-                    pd.to_datetime(pr_df.loc[i]['timestamp_local']), 'Power',
+                    pr_df.loc[i]['act_name'],
                     pr_df.loc[i][power_unit])
                 for i in pr_df.index],
             customdata=[
