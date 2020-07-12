@@ -97,7 +97,7 @@ class FitlyActivity(stravalib.model.Activity):
                 5: float(self.Athlete.cycle_power_zone_threshold_5),
                 6: float(self.Athlete.cycle_power_zone_threshold_6)
             }
-        elif 'run' in self.type.lower():
+        elif 'run' in self.type.lower() or 'walk' in self.type.lower():
             self.power_zones = {
                 1: float(self.Athlete.run_power_zone_threshold_1),
                 2: float(self.Athlete.run_power_zone_threshold_2),
@@ -165,7 +165,7 @@ class FitlyActivity(stravalib.model.Activity):
     def get_ftp(
             self):  # TODO: Update with auto calculated critical power so users do not have to flag (or take) FTP tests
         self.stryd_metrics = []
-        if 'run' in self.type.lower():
+        if 'run' in self.type.lower() or 'walk' in self.type.lower():
             # If stryd credentials in config, grab ftp
             if stryd_credentials_supplied:
                 stryd_df = get_stryd_df_summary()
@@ -477,7 +477,7 @@ class FitlyActivity(stravalib.model.Activity):
             if self.ftp is not None:
                 if 'ride' in self.type.lower():
                     pz_5, pz_6 = self.power_zones[5], self.power_zones[6]
-                elif 'run' in self.type.lower():
+                elif 'run' in self.type.lower() or 'walk' in self.type.lower():
                     pz_5, pz_6 = 99, 99
                 self.df_samples['power_zone'] = np.nan
 
@@ -539,7 +539,7 @@ class FitlyActivity(stravalib.model.Activity):
             # Check if power or heartrate data
             if metric == 'power':
                 # If power data, check if run zones or ride zones should be used
-                if 'run' in self.type.lower():
+                if 'run' in self.type.lower() or 'walk' in self.type.lower():
                     df_zone_intensities.at[i, 'intensity'] = 'low' if df_zone_intensities.at[
                                                                           i, 'power_zone'] in [1,
                                                                                                2] else 'med' if \
