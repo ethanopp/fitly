@@ -543,7 +543,7 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
                     text='''Fatigue Resistance 100% CP (L90D)<br>Longest Above <b>{:.2f}</b> W/kg:<b> {:%H:%M:%S}'''.format(
                         current_ftp,
                         fatigue_df[
-                            'time_interval']) if power_unit == 'watts_per_kg' else '''Endurance 50% CP (L90D)<br>Longest Above <b>{:.0f}</b> W:<b> {:%H:%M:%S}'''.format(
+                            'time_interval']) if power_unit == 'watts_per_kg' else '''Fatigue Resistance 100% CP (L90D)<br>Longest Above <b>{:.0f}</b> W:<b> {:%H:%M:%S}'''.format(
                         current_ftp, fatigue_df['time_interval']),
                     showarrow=True,
                     arrowhead=1,
