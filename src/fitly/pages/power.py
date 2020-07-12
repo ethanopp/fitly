@@ -32,7 +32,7 @@ def create_power_curve_kpis(interval, all, L90D, l6w, last, pr):
         html.Div(className='row', children=[
             ### Interval KPI ###
             html.Div(className='col-auto', children=[
-                html.H5(id='power-curve-title', children='Power Curve {}'.format(timedelta(seconds=interval))),
+                html.H4(id='power-curve-title', children='Power Curve {}'.format(timedelta(seconds=interval))),
             ]),
             dbc.Tooltip(
                 '''A high power output for short periods of time (10 seconds) can contribute to improved performance across your entire Power Duration Curve. To improve musle power, focus on VO2 Max Intervals, Hill / Track Repeats and Supplemental Training.
@@ -1076,15 +1076,15 @@ def update_fitness_kpis(hoverData, power_unit):
         interval = hoverData['points'][0]['x']
         for x in hoverData['points']:
             if x['customdata'].split('_')[2] == 'at':
-                at = '{:.2f} W/kg'.format(x['y']) if power_unit else '{:.0f} W'.format(x['y'])
+                at = '{:.1f} W/kg'.format(x['y']) if power_unit else '{:.0f} W'.format(x['y'])
             elif x['customdata'].split('_')[2] == 'L90D':
-                L90D = '{:.2f} W/kg'.format(x['y']) if power_unit else '{:.0f} W'.format(x['y'])
+                L90D = '{:.1f} W/kg'.format(x['y']) if power_unit else '{:.0f} W'.format(x['y'])
             elif x['customdata'].split('_')[2] == 'l6w':
-                l6w = '{:.2f} W/kg'.format(x['y']) if power_unit else '{:.0f} W'.format(x['y'])
+                l6w = '{:.1f} W/kg'.format(x['y']) if power_unit else '{:.0f} W'.format(x['y'])
             elif x['customdata'].split('_')[2] == 'pr':
-                pr = '{:.2f} W/kg'.format(x['y']) if power_unit else '{:.0f} W'.format(x['y'])
+                pr = '{:.1f} W/kg'.format(x['y']) if power_unit else '{:.0f} W'.format(x['y'])
             elif x['customdata'].split('_')[2] == 'w':
-                last = '{:.2f} W/kg'.format(x['y']) if power_unit else '{:.0f} W'.format(x['y'])
+                last = '{:.1f} W/kg'.format(x['y']) if power_unit else '{:.0f} W'.format(x['y'])
 
     return create_power_curve_kpis(interval, at, L90D, l6w, last, pr)
 

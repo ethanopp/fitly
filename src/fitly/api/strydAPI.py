@@ -39,3 +39,31 @@ def get_stryd_df_summary():
     df = df[['ftp', 'stress']]
     df.rename(columns={"ftp": "stryd_ftp", "stress": "RSS"}, inplace=True)
     return df
+
+
+def get_training_distribution(race=1, gender=1, age=1):
+    sessionID = auth_stryd_session()
+    headers = {'Authorization': 'Bearer: {}'.format(sessionID)}
+    url = f"https://www.stryd.com/b/api/v1/users/runner-attribute?race={race}&gender={gender}&age={age}"
+    responseData = requests.get(url, headers=headers)
+    return responseData.json()
+
+#     '''{'attr': {'age': 28,
+#           'endurance': 1835,
+#           'fatigue_resistance': 1272,
+#           'fitness': 3.0895057604261837,
+#           'gender': 'male',
+#           'muscle_power': 5.38494805940594,
+#           'race': '5k',
+#           'timestamp': 1594587608,
+#           'user_key': 'Eg8KBHVzZXIQgIDkup6d3Ak'},
+#  'fatigue_resistance_threshold': 1,
+#  'percentile': {'endurance': 0.05242718446601946,
+#                 'fatigue_resistance': 0.4,
+#                 'fitness': 0.1475728155339806,
+#                 'median_endurance': 5361,
+#                 'median_fatigue_resistance': 1445,
+#                 'median_fitness': 3.9397466897464706,
+#                 'median_muscle_power': 6.089743589743589,
+#                 'muscle_power': 0.31456310679611654}}
+# '''
