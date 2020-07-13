@@ -130,7 +130,7 @@ def get_layout(**kwargs):
                                  html.Div(id='pmc-controls', className='row text-center mb-2', children=[
                                      html.Div(className='col-lg-8 offset-lg-1', children=[
                                          html.Div(className='row', children=[
-                                             html.Div(id='run-pmc', className='col-3',
+                                             html.Div(id='run-pmc', className='col-2',
                                                       children=[
                                                           daq.BooleanSwitch(
                                                               id='run-pmc-switch',
@@ -145,7 +145,7 @@ def get_layout(**kwargs):
                                              dbc.Tooltip(
                                                  'Include running workouts in Fitness trend.',
                                                  target="run-pmc"),
-                                             html.Div(id='ride-pmc', className='col-3',
+                                             html.Div(id='ride-pmc', className='col-2',
                                                       children=[
                                                           daq.BooleanSwitch(
                                                               id='ride-pmc-switch',
@@ -161,7 +161,7 @@ def get_layout(**kwargs):
                                                  'Include cycling workouts in Fitness trend.',
                                                  target="ride-pmc"),
 
-                                             html.Div(id='all-pmc', className='col-3',
+                                             html.Div(id='all-pmc', className='col-2',
                                                       children=[
                                                           daq.BooleanSwitch(
                                                               id='all-pmc-switch',
@@ -177,7 +177,39 @@ def get_layout(**kwargs):
                                                  'Include all other workouts in Fitness trend.',
                                                  target="all-pmc"),
 
-                                             html.Div(className='col-3',
+                                             html.Div(id='power-pmc', className='col-2',
+                                                      children=[
+                                                          daq.BooleanSwitch(
+                                                              id='power-pmc-switch',
+                                                              on=True,
+                                                              style={'display': 'inline-block',
+                                                                     'vertical-align': 'middle'}
+                                                          ),
+                                                          html.I(id='power-pmc-icon', className='fa fa-bolt',
+                                                                 style={'fontSize': '1.5rem', 'display': 'inline-block',
+                                                                        'vertical-align': 'middle'}),
+                                                      ]),
+                                             dbc.Tooltip(
+                                                 'Include power data for stress scores.',
+                                                 target="power-pmc"),
+
+                                             html.Div(id='hr-pmc', className='col-2',
+                                                      children=[
+                                                          daq.BooleanSwitch(
+                                                              id='hr-pmc-switch',
+                                                              on=True,
+                                                              style={'display': 'inline-block',
+                                                                     'vertical-align': 'middle'}
+                                                          ),
+                                                          html.I(id='hr-pmc-icon', className='fa fa-heart',
+                                                                 style={'fontSize': '1.5rem', 'display': 'inline-block',
+                                                                        'vertical-align': 'middle'}),
+                                                      ]),
+                                             dbc.Tooltip(
+                                                 'Include heart rate data for stress scores.',
+                                                 target="hr-pmc"),
+
+                                             html.Div(className='col-2',
                                                       children=[
                                                           html.Button(id="open-annotation-modal-button",
                                                                       className='fa fa-comment-alt',
@@ -714,7 +746,7 @@ def get_workout_types(df_summary, run_status, ride_status, all_status):
     return workout_types
 
 
-def create_fitness_chart(run_status, ride_status, all_status):
+def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_status):
     session, engine = db_connect()
     df_summary = pd.read_sql(sql=session.query(stravaSummary).statement, con=engine,
                              index_col='start_date_local').sort_index(ascending=True)
@@ -820,9 +852,17 @@ def create_fitness_chart(run_status, ride_status, all_status):
 
     # Insert dummy row with current date+forecast_days to ensure resample gets all dates
     df_summary.loc[utc_to_local(datetime.utcnow()) + timedelta(days=forecast_days)] = None
-    # If tss not available, use hrss
-    df_summary['stress_score'] = df_summary.apply(lambda row: row['hrss'] if np.isnan(row['tss']) else row['tss'],
-                                                  axis=1).fillna(0)
+
+    if power_status and hr_status:
+        # If tss not available, use hrss
+        df_summary['stress_score'] = df_summary.apply(lambda row: row['hrss'] if np.isnan(row['tss']) else row['tss'],
+                                                      axis=1).fillna(0)
+    elif power_status:
+        df_summary['stress_score'] = df_summary['tss']
+    elif hr_status:
+        df_summary['stress_score'] = df_summary['hrss']
+    else:
+        df_summary['stress_score'] = 0
 
     # Calculate Metrics
 
@@ -1914,15 +1954,20 @@ def update_fitness_kpis(hoverData):
      Output('workout-type-distributions', 'data')],
     [Input('ride-pmc-switch', 'on'),
      Input('run-pmc-switch', 'on'),
-     Input('all-pmc-switch', 'on')],
+     Input('all-pmc-switch', 'on'),
+     Input('power-pmc-switch', 'on'),
+     Input('hr-pmc-switch', 'on')],
     [State('ride-pmc-switch', 'on'),
      State('run-pmc-switch', 'on'),
-     State('all-pmc-switch', 'on')]
+     State('all-pmc-switch', 'on'),
+     State('power-pmc-switch', 'on'),
+     State('hr-pmc-switch', 'on')
+     ]
 )
-def refresh_fitness_chart(ride_switch, run_switch, all_switch, ride_status, run_status,
-                          all_status):
+def refresh_fitness_chart(ride_switch, run_switch, all_switch, power_switch, hr_switch, ride_status, run_status,
+                          all_status, power_status, hr_status):
     pmc_figure, hoverData = create_fitness_chart(ride_status=ride_status, run_status=run_status,
-                                                 all_status=all_status)
+                                                 all_status=all_status, power_status=power_status, hr_status=hr_status)
 
     return pmc_figure, hoverData, workout_distribution(ride_status=ride_status, run_status=run_status,
                                                        all_status=all_status)
