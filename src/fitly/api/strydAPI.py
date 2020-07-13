@@ -4,6 +4,7 @@ import pandas as pd
 from ..app import app
 from ..utils import config
 
+
 def auth_stryd_session():
     requestJSON = {"email": config.get('stryd', 'username'), "password": config.get('stryd', 'password')}
     responseData = requests.post("https://www.stryd.com/b/email/signin", json=requestJSON)
@@ -19,12 +20,14 @@ def auth_stryd_session():
         sessionID = tempData['token']
     return sessionID
 
+
 ##############################
 ## get the list of workouts ##
 ##############################
 def get_stryd_df_summary():
     sessionID = auth_stryd_session()
-    today = datetime.datetime.now() + datetime.timedelta(days=1) # Pass tomorrow's date to ensure no issues with timezones
+    today = datetime.datetime.now() + datetime.timedelta(
+        days=1)  # Pass tomorrow's date to ensure no issues with timezones
     start = today - datetime.timedelta(days=9999)
     headers = {'Authorization': 'Bearer: {}'.format(sessionID)}
     url = "https://www.stryd.com/b/api/v1/activities/calendar?srtDate={start}&endDate={today}&sortBy=StartDate".format(
@@ -44,7 +47,7 @@ def get_stryd_df_summary():
 def get_training_distribution(race=1, gender=1, age=1):
     sessionID = auth_stryd_session()
     headers = {'Authorization': 'Bearer: {}'.format(sessionID)}
-    url = f"https://www.stryd.com/b/api/v1/users/runner-attribute?race={race}&gender={gender}&age={age}"
+    url = f"https://www.stryd.com/b/api/v1/users/runner-attribute?race={config.get('stryd', 'compare_against_race_event')}&gender={config.get('stryd', 'compare_against_gender')}&age={config.get('stryd', 'compare_against_age')}"
     responseData = requests.get(url, headers=headers)
     return responseData.json()
 

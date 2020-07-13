@@ -25,6 +25,9 @@ password =
 [stryd]
 username =
 password =
+compare_against_age=1
+compare_against_gender=1
+compare_against_race_event=1
 
 [strava]
 activities_after_date = 2018-01-01T00:00:00Z
