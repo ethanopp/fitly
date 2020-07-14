@@ -38,7 +38,7 @@ in it. (ex. `cd C:\Users\Ethan\Desktop\fitly-master`)
 
 After cloning/downloading the repository, simply install Fit.ly as a package into your target virtual environment:
 
-    $ pip install PATH_TO_fitly
+    $ pip install -e PATH_TO_fitly
 
 ## Running Your App
 
