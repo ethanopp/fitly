@@ -47,7 +47,7 @@ class FitlyActivity(stravalib.model.Activity):
         if peloton_credentials_supplied:
             # Update strava names of peloton workouts
             app.server.logger.debug('Activity id "{}": Pulling peloton title'.format(self.id))
-            self.write_peloton_title_to_strava()
+            self.get_peloton_workout_title()
         # Get FTP
         app.server.logger.debug('Activity id "{}": Pulling ftp'.format(self.id))
         self.get_ftp()
@@ -105,7 +105,7 @@ class FitlyActivity(stravalib.model.Activity):
                 4: float(self.Athlete.run_power_zone_threshold_4)
             }
 
-    def write_peloton_title_to_strava(self):
+    def get_peloton_workout_title(self, write_to_strava=True):
         ## Assumes recorded ride is started within 5 minutes of peloton video
         client = get_strava_client()
         peloton_df = peloton_mapping_df()
@@ -115,7 +115,8 @@ class FitlyActivity(stravalib.model.Activity):
                     peloton_df['start'] <= (start + timedelta(minutes=5)))]
         if len(activity) > 0:
             self.peloton_title = activity.name.values[0]
-            if client.get_activity(activity_id=self.id).name != self.peloton_title:
+            self.name = self.peloton_title if len(self.peloton_title) > 0 else self.name
+            if write_to_strava and client.get_activity(activity_id=self.id).name != self.peloton_title:
                 client.update_activity(activity_id=self.id, name=self.peloton_title)
 
     def get_rest_hr(self):
