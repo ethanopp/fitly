@@ -1343,7 +1343,6 @@ def workout_distribution(run_status, ride_status, all_status):
         'pace'), 'workout'] = 'Z Pace'
     # Categorize Long runs as 'Long'
     df_summary.loc[df_summary['name'].str.lower().str.contains('long'), 'workout'] = 'Long'
-    # TODO: Come up with standardized naming convention for all workouts to categorize into distributions
     df_summary.loc[df_summary['name'].str.lower().str.contains('5k') | df_summary['name'].str.lower().str.contains(
         '10k') | df_summary['name'].str.lower().str.contains('marathon'), 'workout'] = 'Race'
 

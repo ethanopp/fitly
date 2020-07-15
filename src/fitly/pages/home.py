@@ -3381,7 +3381,6 @@ def get_layout(**kwargs):
                               ),
                           ]),
 
-                ## TODO: Finish cleaning card for sleep, fix callbacks, replicate for readiness and activity
                 html.Div(className='col-lg-4', children=[
                     dbc.Card([
                         dbc.CardBody(id='oura-sleep-container',
