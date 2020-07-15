@@ -200,14 +200,10 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
 
     muscle_power = TD_df_L90D.loc[10][power_unit]
 
-    endurance_duration = TD_df_L90D[TD_df_L90D[power_unit] > (workout_ftp / 2)].index.max()
-    endurance_df = TD_df_L90D.loc[endurance_duration]
+    endurance_df = TD_df_L90D.loc[TD_df_L90D[TD_df_L90D[power_unit] > (workout_ftp / 2)].index.max()]
+    fatigue_df = TD_df_L90D.loc[TD_df_L90D[TD_df_L90D[power_unit] > workout_ftp].index.max()]
     # hardcode in W to compare against stryd
     endurance_df_mmp = TD_df_L90D.loc[TD_df_L90D[TD_df_L90D['mmp'] > (workout_ftp / 2)].index.max()]
-
-    fatigue_duration = TD_df_L90D[TD_df_L90D[power_unit] > workout_ftp].index.max()
-    fatigue_df = TD_df_L90D.loc[fatigue_duration]
-    # hardcode in W to compare against stryd
     fatigue_df_mmp = TD_df_L90D.loc[TD_df_L90D[TD_df_L90D['mmp'] > workout_ftp].index.max()]
 
     TD_df_at = pd.read_sql(
@@ -224,15 +220,6 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
     muscle_power_best = True if TD_df_at.loc[10][power_unit] == muscle_power else False
     endurance_best = True if TD_df_at.loc[endurance_df.name][power_unit] == endurance_df[power_unit] else False
     fatigue_best = True if TD_df_at.loc[fatigue_df.name][power_unit] == fatigue_df[power_unit] else False
-
-    #TOOD: Check why 50%CP is white
-
-    TD_df_at.to_csv('at.csv', sep=',')
-    TD_df_L90D.to_csv('l90d.csv', sep=',')
-
-    print(TD_df_at.loc[10])
-    print()
-    print(TD_df_L90D.loc[10])
 
     # 1 second intervals from 0-60 seconds
     interval_lengths = [i for i in range(1, 61)]
@@ -454,8 +441,6 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
             arrowhead=1,
             arrowcolor='Grey',
             bgcolor='rgba(81,89,95,.5)',
-            # bordercolor='rgba(0, 0, 0, 0.6)',
-            # ax=30,
             ay=-10,
         ),
         # Fatigue Resistance
@@ -472,7 +457,6 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
             arrowhead=1,
             arrowcolor='rgba(0,0,0,0)',
             bgcolor='rgba(81,89,95,.5)',
-            # bordercolor='rgba(0, 0, 0, 0.6)',
             ax=75,
             ay=-10,
         ),
@@ -490,7 +474,6 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
             arrowhead=1,
             arrowcolor='rgba(0,0,0,0)',
             bgcolor='rgba(81,89,95,.5)',
-            # bordercolor='rgba(0, 0, 0, 0.6)',
             ax=75,
             ay=-10,
         ),
