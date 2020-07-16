@@ -1,4 +1,5 @@
 import pandas as pd
+import dash
 import dash_core_components as dcc
 import dash_html_components as html
 import plotly.graph_objs as go
@@ -8,12 +9,10 @@ from dash.dependencies import Input, Output, State
 from ..api.sqlalchemy_declarative import db_connect, stravaSummary, stravaSamples, stravaBestSamples, athlete, withings
 from ..app import app
 from datetime import datetime, timedelta
-import operator
 from ..utils import config, stryd_credentials_supplied
 from sqlalchemy import func, or_
 import math
 from ..api.strydAPI import get_training_distribution
-import time
 
 # pre_style = {"backgroundColor": "#ddd", "fontSize": 20, "padding": "10px", "margin": "10px"}
 hidden_style = {"display": "none"}
@@ -99,7 +98,7 @@ def get_workout_title(activity_id=None):
             html.H6(df_samples['act_name'][0], style={'height': '50%'})]
 
 
-def power_profiles(interval, activity_type='ride', power_unit='mmp', group='month'):
+def power_profiles(interval, activity_type='ride', power_unit='mmp', group='M'):
     activity_type = '%' + activity_type + '%'
     session, engine = db_connect()
     # Filter on interval passed
@@ -112,9 +111,8 @@ def power_profiles(interval, activity_type='ride', power_unit='mmp', group='mont
     if len(df_best_samples) < 1:
         return {}
 
-    pp_date_dict = {'day': 'D', 'week': 'W', 'month': 'M', 'year': 'Y'}
     # Create columns for x-axis
-    df_best_samples['power_profile_dategroup'] = df_best_samples.index.to_period(pp_date_dict[group]).to_timestamp()
+    df_best_samples['power_profile_dategroup'] = df_best_samples.index.to_period(group).to_timestamp()
 
     df = df_best_samples[['activity_id', power_unit, 'power_profile_dategroup', 'interval']]
     df = df.loc[df.groupby('power_profile_dategroup')[power_unit].idxmax()]
@@ -1144,45 +1142,30 @@ def ftp_chart(activity_type, power_unit):
                Input('day-button', 'n_clicks'),
                Input('week-button', 'n_clicks'),
                Input('month-button', 'n_clicks'),
-               Input('year-button', 'n_clicks')],
-              [State('day-button', 'n_clicks_timestamp'),
-               State('week-button', 'n_clicks_timestamp'),
-               State('month-button', 'n_clicks_timestamp'),
-               State('year-button', 'n_clicks_timestamp')]
+               Input('year-button', 'n_clicks')]
               )
-def update_power_profiles(activity_type, power_unit, day_n_clicks, week_n_clicks, month_n_clicks, year_n_clicks,
-                          day_n_clicks_timestamp, week_n_clicks_timestamp, month_n_clicks_timestamp,
-                          year_n_clicks_timestamp):
-    latest = 'month'
+def update_power_profiles(activity_type, power_unit, day_n_clicks, week_n_clicks, month_n_clicks, year_n_clicks):
+
+    latest_dict = {'day-button': 'D', 'week-button': 'W', 'month-button':'M', 'year-button':'Y'}
+    style = {'Y': {'marginRight': '1%'}, 'M': {'marginRight': '1%'}, 'W': {'marginRight': '1%'},
+             'D': {'marginRight': '1%'}}
+
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        latest = 'M'
+    else:
+        latest = latest_dict[ctx.triggered[0]['prop_id'].split('.')[0]]
+
+    style[latest] = {'marginRight': '1%', 'color': '#64D9EC', 'borderColor': '#64D9EC'}
+
     power_unit = 'watts_per_kg' if power_unit else 'mmp'
     activity_type = 'ride' if activity_type else 'run'
-
-    day_style, week_style, month_style, year_style = {'marginRight': '1%'}, {'marginRight': '1%'}, {
-        'marginRight': '1%'}, {'marginRight': '1%'}
-    day_n_clicks_timestamp = 0 if not day_n_clicks_timestamp else day_n_clicks_timestamp
-    week_n_clicks_timestamp = 0 if not week_n_clicks_timestamp else week_n_clicks_timestamp
-    month_n_clicks_timestamp = 0 if not month_n_clicks_timestamp else month_n_clicks_timestamp
-    year_n_clicks_timestamp = 0 if not year_n_clicks_timestamp else year_n_clicks_timestamp
-    timestamps = {'day': day_n_clicks_timestamp, 'week': week_n_clicks_timestamp, 'month': month_n_clicks_timestamp,
-                  'year': year_n_clicks_timestamp}
-
-    if day_n_clicks or week_n_clicks or month_n_clicks or year_n_clicks:
-        latest = max(timestamps.items(), key=operator.itemgetter(1))[0]
-
-    if latest == 'day':
-        day_style = {'marginRight': '1%', 'color': '#64D9EC', 'borderColor': '#64D9EC'}
-    elif latest == 'week':
-        week_style = {'marginRight': '1%', 'color': '#64D9EC', 'borderColor': '#64D9EC'}
-    elif latest == 'month':
-        month_style = {'marginRight': '1%', 'color': '#64D9EC', 'borderColor': '#64D9EC'}
-    elif latest == 'year':
-        year_style = {'marginRight': '1%', 'color': '#64D9EC', 'borderColor': '#64D9EC'}
 
     return power_profiles(interval=5, group=latest, power_unit=power_unit, activity_type=activity_type), \
            power_profiles(interval=60, group=latest, power_unit=power_unit, activity_type=activity_type), \
            power_profiles(interval=300, group=latest, power_unit=power_unit, activity_type=activity_type), \
            power_profiles(interval=1200, group=latest, power_unit=power_unit, activity_type=activity_type), \
-           day_style, week_style, month_style, year_style
+           style['D'], style['W'], style['M'], style['Y']
 
 
 # # Main Dashboard Generation Callback

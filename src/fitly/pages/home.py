@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import dash
 import dash_core_components as dcc
 import dash_html_components as html
 import plotly.figure_factory as ff
@@ -11,7 +12,6 @@ from sqlalchemy import func
 from datetime import datetime, timedelta
 from ..api.sqlalchemy_declarative import db_connect, ouraReadinessSummary, ouraActivitySummary, \
     ouraActivitySamples, ouraSleepSamples, ouraSleepSummary, stravaSummary, athlete, withings
-import operator
 from ..utils import calc_next_saturday, calc_prev_sunday, utc_to_local, config, oura_credentials_supplied, \
     withings_credentials_supplied
 
@@ -1641,15 +1641,19 @@ def generate_sleep_modal_summary(days=7):
                 dbc.Button('Week', id='sleep-week-button', n_clicks=0, size='sm', className='mr-3'),
                 dbc.Button('Day', id='sleep-day-button', size='sm')
             ]),
+        ]),
+        html.Div(className='row', children=[
+            html.Div(className='col-lg-12', children=[
+                dcc.Loading(children=[
 
-            dcc.Loading(className='col-lg-12', children=[
+                    dcc.Graph(id='sleep-modal-full-chart',
+                              config={'displayModeBar': False}
+                              ),
 
-                dcc.Graph(id='sleep-modal-full-chart',
-                          config={'displayModeBar': False}
-                          ),
-
+                ]),
             ]),
         ]),
+
     ]
 
 
@@ -2276,16 +2280,21 @@ def generate_readiness_modal_summary(days=7):
                 dbc.Button('Year', id='readiness-year-button', n_clicks=0, size='sm', className='mr-3'),
                 dbc.Button('Month', id='readiness-month-button', n_clicks=0, size='sm', className='mr-3'),
                 dbc.Button('Week', id='readiness-week-button', n_clicks=0, size='sm', className='mr-3'),
-                dbc.Button('Day', id='readiness-day-button', size='sm'),
+                dbc.Button('Day', id='readiness-day-button', size='sm')
             ]),
+        ]),
+        html.Div(className='row', children=[
+            html.Div(className='col-lg-12', children=[
+                dcc.Loading(children=[
 
-            dcc.Loading(className='col-lg-12', children=[
-                dcc.Graph(id='readiness-modal-full-chart',
-                          config={'displayModeBar': False}
-                          )
+                    dcc.Graph(id='readiness-modal-full-chart',
+                              config={'displayModeBar': False}
+                              ),
+
+                ]),
             ]),
+        ]),
 
-        ])
     ]
 
 
@@ -2702,7 +2711,7 @@ def generate_activity_modal_summary(days=7):
                                           )
                                       })
 
-    return html.Div([
+    return [
         html.Div(id='activity-modal-last-7-container', className='row mb-2 text-center',
                  style={'whiteSpace': 'normal'}, children=[
                 html.Div(id='activity-score-last-7', className='col-lg-4', children=[
@@ -2742,16 +2751,22 @@ def generate_activity_modal_summary(days=7):
                 dbc.Button('Year', id='activity-year-button', n_clicks=0, size='sm', className='mr-3'),
                 dbc.Button('Month', id='activity-month-button', n_clicks=0, size='sm', className='mr-3'),
                 dbc.Button('Week', id='activity-week-button', n_clicks=0, size='sm', className='mr-3'),
-                dbc.Button('Day', id='activity-day-button', size='sm'),
-            ]),
-
-            dcc.Loading(className='col-lg-12', children=[
-                dcc.Graph(id='activity-modal-full-chart',
-                          config={'displayModeBar': False}
-                          )
+                dbc.Button('Day', id='activity-day-button', size='sm')
             ]),
         ]),
-    ])
+        html.Div(className='row', children=[
+            html.Div(className='col-lg-12', children=[
+                dcc.Loading(children=[
+
+                    dcc.Graph(id='activity-modal-full-chart',
+                              config={'displayModeBar': False}
+                              ),
+
+                ]),
+            ]),
+        ]),
+
+    ]
 
 
 # Callbacks to update donuts when new week ending selected
@@ -2797,21 +2812,21 @@ def toggle_back_arrow_display(week_ending):
     Output('week-ending', 'children'),
     [Input('back-week', 'n_clicks'),
      Input('forward-week', 'n_clicks')],
-    [State('back-week', 'n_clicks_timestamp'),
-     State('forward-week', 'n_clicks_timestamp'),
-     State('week-ending', 'children')]
+    [State('week-ending', 'children')]
 )
-def cycle_week(back_week_n_clicks, forward_week_n_clicks, back_week_timestamp, forward_week_timestamp,
-               current_week_selection):
-    back_week_timestamp = -1 if back_week_timestamp is None else back_week_timestamp
-    forward_week_timestamp = -1 if forward_week_timestamp is None else forward_week_timestamp
+def cycle_week(back_week_n_clicks, forward_week_n_clicks, current_week_selection):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        return datetime.strftime(calc_next_saturday(get_max_week_ending()), '%A %b %d, %Y')
+    else:
+        button_id = ctx.triggered[0]['prop_id'].split('.')[0]
+
     session, engine = db_connect()
     min_saturday = calc_next_saturday(pd.to_datetime(session.query(func.min(ouraSleepSummary.report_date))[0][0]))
     engine.dispose()
     session.close()
-    if not back_week_n_clicks and not forward_week_n_clicks:
-        return datetime.strftime(calc_next_saturday(get_max_week_ending()), '%A %b %d, %Y')
-    elif back_week_timestamp > forward_week_timestamp:
+
+    if button_id == 'back-week':
         # If going earlier than min week, stay on current week
         if datetime.strptime(current_week_selection, '%A %b %d, %Y').date() == min_saturday:
             return current_week_selection
@@ -2852,30 +2867,24 @@ def update_header_containers(week_ending):
     [Output('oura-sleep-content-kpi-trend', 'children'),
      Output('oura-sleep-content-kpi-trend', 'style'),
      Output('current-sleep-content-trend', 'children')],
-    [Input('total-sleep-time-button', 'n_clicks_timestamp'),
-     Input('total-time-in-bed-button', 'n_clicks_timestamp'),
-     Input('sleep-efficiency-button', 'n_clicks_timestamp'),
-     # Input('resting-heartrate-button', 'n_clicks_timestamp')
-     ],
+    [Input('total-sleep-time-button', 'n_clicks'),
+     Input('total-time-in-bed-button', 'n_clicks'),
+     Input('sleep-efficiency-button', 'n_clicks'), ],
     [State('current-sleep-content-trend', 'children')]
 )
-def sleep_content_kpi_trend(total_sleep_time_timestamp, total_time_in_bed_timestamp, sleep_efficiency_timestamp,
-                            # resting_heartrate_timestamp,
-                            current_trend):
+def sleep_content_kpi_trend(total_sleep_time, total_time_in_bed, sleep_efficiency, current_trend):
     # Get latest kpi that was selected
-    total_sleep_time_timestamp = 0 if not total_sleep_time_timestamp else total_sleep_time_timestamp
-    total_time_in_bed_timestamp = 0 if not total_time_in_bed_timestamp else total_time_in_bed_timestamp
-    sleep_efficiency_timestamp = 0 if not sleep_efficiency_timestamp else sleep_efficiency_timestamp
-    # resting_heartrate_timestamp = 0 if not resting_heartrate_timestamp else resting_heartrate_timestamp
-    timestamps = {'total': total_sleep_time_timestamp, 'duration': total_time_in_bed_timestamp,
-                  'efficiency': sleep_efficiency_timestamp}  # , 'hr_lowest': resting_heartrate_timestamp}
-
-    latest = max(timestamps.items(), key=operator.itemgetter(1))[0]
-
-    if current_trend == latest:
-        return [], {'display': 'none'}, [],
+    ctx = dash.callback_context
+    latest_dict = {'total-sleep-time-button': 'total', 'total-time-in-bed-button': 'duration',
+                   'sleep-efficiency-button': 'efficiency'}
+    if len(ctx.triggered) == 1:
+        latest = latest_dict[ctx.triggered[0]['prop_id'].split('.')[0]]
+        if current_trend == latest:
+            return [], {'display': 'none'}, []
+        else:
+            return generate_content_kpi_trend('sleep', latest), {'display': 'inherit'}, latest
     else:
-        return generate_content_kpi_trend('sleep', latest), {'display': 'inherit'}, latest
+        [], {'display': 'none'}, []
 
 
 # Readiness content kpi trend action
@@ -2883,31 +2892,24 @@ def sleep_content_kpi_trend(total_sleep_time_timestamp, total_time_in_bed_timest
     [Output('oura-readiness-content-kpi-trend', 'children'),
      Output('oura-readiness-content-kpi-trend', 'style'),
      Output('current-readiness-content-trend', 'children')],
-    [Input('resting-heart-rate-button', 'n_clicks_timestamp'),
-     Input('heart-rate-variability-button', 'n_clicks_timestamp'),
-     Input('body-temperature-button', 'n_clicks_timestamp'),
-     # Input('respiratory-rate-button', 'n_clicks_timestamp')
-     ],
+    [Input('resting-heart-rate-button', 'n_clicks'),
+     Input('heart-rate-variability-button', 'n_clicks'),
+     Input('body-temperature-button', 'n_clicks'), ],
     [State('current-readiness-content-trend', 'children')]
 )
-def readiness_content_kpi_trend(resting_heart_rate_timestamp, heart_rate_variability_timestamp,
-                                body_temperature_timestamp,
-                                # respiratory_rate_timestamp,
-                                current_trend):
+def readiness_content_kpi_trend(resting_heart_rate, heart_rate_variability, body_temperature, current_trend):
     # Get latest kpi that was selected
-    resting_heart_rate_timestamp = 0 if not resting_heart_rate_timestamp else resting_heart_rate_timestamp
-    heart_rate_variability_timestamp = 0 if not heart_rate_variability_timestamp else heart_rate_variability_timestamp
-    body_temperature_timestamp = 0 if not body_temperature_timestamp else body_temperature_timestamp
-    # respiratory_rate_timestamp = 0 if not respiratory_rate_timestamp else respiratory_rate_timestamp
-    timestamps = {'hr_lowest': resting_heart_rate_timestamp, 'rmssd': heart_rate_variability_timestamp,
-                  'temperature_delta': body_temperature_timestamp}  # , 'breath_average': respiratory_rate_timestamp}
-
-    latest = max(timestamps.items(), key=operator.itemgetter(1))[0]
-
-    if current_trend == latest:
-        return [], {'display': 'none'}, [],
+    ctx = dash.callback_context
+    latest_dict = {'resting-heart-rate-button': 'hr_lowest', 'heart-rate-variability-button': 'rmssd',
+                   'body-temperature-button': 'temperature_delta'}
+    if len(ctx.triggered) == 1:
+        latest = latest_dict[ctx.triggered[0]['prop_id'].split('.')[0]]
+        if current_trend == latest:
+            return [], {'display': 'none'}, []
+        else:
+            return generate_content_kpi_trend('sleep', latest), {'display': 'inherit'}, latest
     else:
-        return generate_content_kpi_trend('sleep', latest), {'display': 'inherit'}, latest
+        [], {'display': 'none'}, []
 
 
 # Activity content kpi trend action
@@ -2915,78 +2917,45 @@ def readiness_content_kpi_trend(resting_heart_rate_timestamp, heart_rate_variabi
     [Output('oura-activity-content-kpi-trend', 'children'),
      Output('oura-activity-content-kpi-trend', 'style'),
      Output('current-activity-content-trend', 'children')],
-    [Input('goal-progress-button', 'n_clicks_timestamp'),
-     Input('total-burn-button', 'n_clicks_timestamp'),
-     Input('walking-equivalency-button', 'n_clicks_timestamp'),
-     # Input('steps-button', 'n_clicks_timestamp')
-     ],
+    [Input('goal-progress-button', 'n_clicks'),
+     Input('total-burn-button', 'n_clicks'),
+     Input('walking-equivalency-button', 'n_clicks'), ],
     [State('current-activity-content-trend', 'children')]
 
 )
-def activity_content_kpi_trend(goal_progress_timestamp, total_burn_timestamp, walking_equivalency_timestamp,
-                               # steps_timestamp,
-                               current_trend):
-    # Get latest kpi that was selected
-    goal_progress_timestamp = 0 if not goal_progress_timestamp else goal_progress_timestamp
-    total_burn_timestamp = 0 if not total_burn_timestamp else total_burn_timestamp
-    walking_equivalency_timestamp = 0 if not walking_equivalency_timestamp else walking_equivalency_timestamp
-    # steps_timestamp = 0 if not steps_timestamp else steps_timestamp
-    timestamps = {'cal_active': goal_progress_timestamp, 'cal_total': total_burn_timestamp,
-                  'daily_movement': walking_equivalency_timestamp}  # , 'steps': steps_timestamp}
-
-    latest = max(timestamps.items(), key=operator.itemgetter(1))[0]
-
-    if current_trend == latest:
-        return [], {'display': 'none'}, [],
+def activity_content_kpi_trend(goal_progress, total_burn, walking_equivalency, current_trend):
+    ctx = dash.callback_context
+    latest_dict = {'goal-progress-button': 'cal_active', 'total-burn-button': 'cal_total',
+                   'walking-equivalency-button': 'daily_movement'}
+    if len(ctx.triggered) == 1:
+        latest = latest_dict[ctx.triggered[0]['prop_id'].split('.')[0]]
+        if current_trend == latest:
+            return [], {'display': 'none'}, []
+        else:
+            return generate_content_kpi_trend('activity', latest), {'display': 'inherit'}, latest
     else:
-        return generate_content_kpi_trend('activity', latest), {'display': 'inherit'}, latest
-
-
-# Callbacks to figure out which is the latest header chart that was clicked
-@app.callback(
-    Output('sleepClick-timestamp', 'children'),
-    [Input('sleep-trend', 'clickData')])
-def sleepClick_timestamp(dummy):
-    return datetime.utcnow()
-
-
-@app.callback(
-    Output('readinessClick-timestamp', 'children'),
-    [Input('readiness-scatter', 'clickData')])
-def readinessClick_timestamp(dummy):
-    return datetime.utcnow()
-
-
-@app.callback(
-    Output('activityClick-timestamp', 'children'),
-    [Input('activity-bars', 'clickData')])
-def activityClick_timestamp(dummy):
-    return datetime.utcnow()
+        [], {'display': 'none'}, []
 
 
 @app.callback(
     Output('last-chart-clicked', 'children'),
-    [Input('sleepClick-timestamp', 'children'),
-     Input('readinessClick-timestamp', 'children'),
-     Input('activityClick-timestamp', 'children')],
-    [State('sleep-trend', 'clickData'),
-     State('readiness-scatter', 'clickData'),
-     State('activity-bars', 'clickData')]
+    [Input('sleep-trend', 'clickData'),
+     Input('readiness-scatter', 'clickData'),
+     Input('activity-bars', 'clickData')]
 )
-def update_last_clicked(sleepClick_timestamp, readinessClick_timestamp, activityClick_timestamp,
-                        sleepClick, readinessClick, activityClick):
-    timestamps = {'sleep': sleepClick_timestamp, 'readiness': readinessClick_timestamp,
-                  'activity': activityClick_timestamp}
-    latest = max(timestamps.items(), key=operator.itemgetter(1))[0]
-    try:
+def update_last_clicked(sleepClick, readinessClick, activityClick):
+    ctx = dash.callback_context
+    latest_dict = {'sleep-trend': 'sleep', 'readiness-scatter': 'readiness', 'activity-bars': 'activity'}
+    if not ctx.triggered:
+        date = datetime.strftime(datetime.now(), '%Y-%m-%dT%H:%M:%S')
+    else:
+        latest = latest_dict[ctx.triggered[0]['prop_id'].split('.')[0]]
         if latest == 'sleep':
             date = sleepClick['points'][0]['x']
         elif latest == 'readiness':
             date = readinessClick['points'][0]['x']
         elif latest == 'activity':
             date = activityClick['points'][0]['x']
-    except:
-        date = datetime.strftime(datetime.now(), '%Y-%m-%dT%H:%M:%S')
 
     if len(date) > 10:
         date = datetime.strptime(date, "%Y-%m-%dT%H:%M:%S").date()
@@ -3148,39 +3117,26 @@ def sleep_modal_content(is_open):
                Input('sleep-year-button', 'n_clicks'),
                Input('sleep-month-button', 'n_clicks'),
                Input('sleep-week-button', 'n_clicks'),
-               Input('sleep-day-button', 'n_clicks')],
-              [State('sleep-year-button', 'n_clicks_timestamp'),
-               State('sleep-month-button', 'n_clicks_timestamp'),
-               State('sleep-week-button', 'n_clicks_timestamp'),
-               State('sleep-day-button', 'n_clicks_timestamp')]
+               Input('sleep-day-button', 'n_clicks')]
               )
-def sleep_modal_content(is_open, year_n_clicks, month_n_clicks, week_n_clicks, day_n_clicks,
-                        year_n_clicks_timestamp, month_n_clicks_timestamp, week_n_clicks_timestamp,
-                        day_n_clicks_timestamp):
+def sleep_modal_chart(is_open, year_n_clicks, month_n_clicks, week_n_clicks, day_n_clicks):
+    style = {'Y': {'marginRight': '1%'}, 'M': {'marginRight': '1%'}, 'W': {'marginRight': '1%'},
+             'D': {'marginRight': '1%'}}
     if is_open:
-        year_n_clicks_timestamp = 0 if not year_n_clicks_timestamp else year_n_clicks_timestamp
-        month_n_clicks_timestamp = 0 if not month_n_clicks_timestamp else month_n_clicks_timestamp
-        week_n_clicks_timestamp = 0 if not week_n_clicks_timestamp else week_n_clicks_timestamp
-        day_n_clicks_timestamp = 0 if not day_n_clicks_timestamp else day_n_clicks_timestamp
-        timestamps = {'D': day_n_clicks_timestamp, 'W': week_n_clicks_timestamp, 'M': month_n_clicks_timestamp,
-                      'Y': year_n_clicks_timestamp}
+        ctx = dash.callback_context
+        latest_dict = {'sleep-year-button': 'Y', 'sleep-month-button': 'M', 'sleep-week-button': 'W',
+                       'sleep-day-button': 'D'}
+        if not ctx.triggered:
+            latest = 'W'
+        else:
+            latest = latest_dict[ctx.triggered[0]['prop_id'].split('.')[0]]
 
-        latest = max(timestamps.items(), key=operator.itemgetter(1))[0]
-        # Default to W
-        latest = 'W' if timestamps[latest] == 0 else latest
-        year_style = {'marginRight': '1%', 'color': '#64D9EC', 'borderColor': '#64D9EC'} if latest == 'Y' else {
-            'marginRight': '1%'}
-        month_style = {'marginRight': '1%', 'color': '#64D9EC', 'borderColor': '#64D9EC'} if latest == 'M' else {
-            'marginRight': '1%'}
-        week_style = {'marginRight': '1%', 'color': '#64D9EC', 'borderColor': '#64D9EC'} if latest == 'W' else {
-            'marginRight': '1%'}
-        day_style = {'marginRight': '1%', 'color': '#64D9EC', 'borderColor': '#64D9EC'} if latest == 'D' else {
-            'marginRight': '1%'}
+        style[latest] = {'marginRight': '1%', 'color': '#64D9EC', 'borderColor': '#64D9EC'}
 
         figure, clickData = generate_oura_sleep_header_chart(date=None, summary=True, resample=latest)
-        return figure, year_style, month_style, week_style, day_style
+        return figure, style['Y'], style['M'], style['W'], style['D']
     else:
-        return {}, {'marginRight': '1%'}, {'marginRight': '1%'}, {'marginRight': '1%'}, {'marginRight': '1%'}
+        return {}, style['Y'], style['M'], style['W'], style['D']
 
 
 # Readiness Summary Modal Toggle
@@ -3216,37 +3172,25 @@ def readiness_modal_content(is_open):
                Input('readiness-year-button', 'n_clicks'),
                Input('readiness-month-button', 'n_clicks'),
                Input('readiness-week-button', 'n_clicks'),
-               Input('readiness-day-button', 'n_clicks')],
-              [State('readiness-year-button', 'n_clicks_timestamp'),
-               State('readiness-month-button', 'n_clicks_timestamp'),
-               State('readiness-week-button', 'n_clicks_timestamp'),
-               State('readiness-day-button', 'n_clicks_timestamp')]
+               Input('readiness-day-button', 'n_clicks')]
               )
-def readiness_modal_content(is_open, year_n_clicks, month_n_clicks, week_n_clicks, day_n_clicks,
-                            year_n_clicks_timestamp, month_n_clicks_timestamp, week_n_clicks_timestamp,
-                            day_n_clicks_timestamp):
+def readiness_modal_chart(is_open, year_n_clicks, month_n_clicks, week_n_clicks, day_n_clicks):
+    style = {'Y': {'marginRight': '1%'}, 'M': {'marginRight': '1%'}, 'W': {'marginRight': '1%'},
+             'D': {'marginRight': '1%'}}
     if is_open:
-        year_n_clicks_timestamp = 0 if not year_n_clicks_timestamp else year_n_clicks_timestamp
-        month_n_clicks_timestamp = 0 if not month_n_clicks_timestamp else month_n_clicks_timestamp
-        week_n_clicks_timestamp = 0 if not week_n_clicks_timestamp else week_n_clicks_timestamp
-        day_n_clicks_timestamp = 0 if not day_n_clicks_timestamp else day_n_clicks_timestamp
-        timestamps = {'D': day_n_clicks_timestamp, 'W': week_n_clicks_timestamp, 'M': month_n_clicks_timestamp,
-                      'Y': year_n_clicks_timestamp}
-        latest = max(timestamps.items(), key=operator.itemgetter(1))[0]
-        # Default to W
-        latest = 'W' if timestamps[latest] == 0 else latest
-        year_style = {'marginRight': '1%', 'color': '#64D9EC', 'borderColor': '#64D9EC'} if latest == 'Y' else {
-            'marginRight': '1%'}
-        month_style = {'marginRight': '1%', 'color': '#64D9EC', 'borderColor': '#64D9EC'} if latest == 'M' else {
-            'marginRight': '1%'}
-        week_style = {'marginRight': '1%', 'color': '#64D9EC', 'borderColor': '#64D9EC'} if latest == 'W' else {
-            'marginRight': '1%'}
-        day_style = {'marginRight': '1%', 'color': '#64D9EC', 'borderColor': '#64D9EC'} if latest == 'D' else {
-            'marginRight': '1%'}
+        ctx = dash.callback_context
+        latest_dict = {'readiness-year-button': 'Y', 'readiness-month-button': 'M', 'readiness-week-button': 'W',
+                       'readiness-day-button': 'D'}
+        if not ctx.triggered:
+            latest = 'W'
+        else:
+            latest = latest_dict[ctx.triggered[0]['prop_id'].split('.')[0]]
+
+        style[latest] = {'marginRight': '1%', 'color': '#64D9EC', 'borderColor': '#64D9EC'}
         figure, clickData = generate_oura_readiness_header_chart(date=None, summary=True, resample=latest)
-        return figure, year_style, month_style, week_style, day_style
+        return figure, style['Y'], style['M'], style['W'], style['D']
     else:
-        return {}, {'marginRight': '1%'}, {'marginRight': '1%'}, {'marginRight': '1%'}, {'marginRight': '1%'}
+        return {}, style['Y'], style['M'], style['W'], style['D']
 
 
 # Activity Summary Modal Toggle
@@ -3282,37 +3226,25 @@ def readiness_modal_content(is_open):
                Input('activity-year-button', 'n_clicks'),
                Input('activity-month-button', 'n_clicks'),
                Input('activity-week-button', 'n_clicks'),
-               Input('activity-day-button', 'n_clicks')],
-              [State('activity-year-button', 'n_clicks_timestamp'),
-               State('activity-month-button', 'n_clicks_timestamp'),
-               State('activity-week-button', 'n_clicks_timestamp'),
-               State('activity-day-button', 'n_clicks_timestamp')]
+               Input('activity-day-button', 'n_clicks')]
               )
-def activity_modal_content(is_open, year_n_clicks, month_n_clicks, week_n_clicks, day_n_clicks,
-                           year_n_clicks_timestamp, month_n_clicks_timestamp, week_n_clicks_timestamp,
-                           day_n_clicks_timestamp):
+def activity_modal_chart(is_open, year_n_clicks, month_n_clicks, week_n_clicks, day_n_clicks):
+    style = {'Y': {'marginRight': '1%'}, 'M': {'marginRight': '1%'}, 'W': {'marginRight': '1%'},
+             'D': {'marginRight': '1%'}}
     if is_open:
-        year_n_clicks_timestamp = 0 if not year_n_clicks_timestamp else year_n_clicks_timestamp
-        month_n_clicks_timestamp = 0 if not month_n_clicks_timestamp else month_n_clicks_timestamp
-        week_n_clicks_timestamp = 0 if not week_n_clicks_timestamp else week_n_clicks_timestamp
-        day_n_clicks_timestamp = 0 if not day_n_clicks_timestamp else day_n_clicks_timestamp
-        timestamps = {'D': day_n_clicks_timestamp, 'W': week_n_clicks_timestamp, 'M': month_n_clicks_timestamp,
-                      'Y': year_n_clicks_timestamp}
-        latest = max(timestamps.items(), key=operator.itemgetter(1))[0]
-        # Default to W
-        latest = 'W' if timestamps[latest] == 0 else latest
-        year_style = {'marginRight': '1%', 'color': '#64D9EC', 'borderColor': '#64D9EC'} if latest == 'Y' else {
-            'marginRight': '1%'}
-        month_style = {'marginRight': '1%', 'color': '#64D9EC', 'borderColor': '#64D9EC'} if latest == 'M' else {
-            'marginRight': '1%'}
-        week_style = {'marginRight': '1%', 'color': '#64D9EC', 'borderColor': '#64D9EC'} if latest == 'W' else {
-            'marginRight': '1%'}
-        day_style = {'marginRight': '1%', 'color': '#64D9EC', 'borderColor': '#64D9EC'} if latest == 'D' else {
-            'marginRight': '1%'}
+        ctx = dash.callback_context
+        latest_dict = {'activity-year-button': 'Y', 'activity-month-button': 'M', 'activity-week-button': 'W',
+                       'activity-day-button': 'D'}
+        if not ctx.triggered:
+            latest = 'W'
+        else:
+            latest = latest_dict[ctx.triggered[0]['prop_id'].split('.')[0]]
+
+        style[latest] = {'marginRight': '1%', 'color': '#64D9EC', 'borderColor': '#64D9EC'}
         figure, clickData = generate_oura_activity_header_chart(date=None, summary=True, resample=latest)
-        return figure, year_style, month_style, week_style, day_style
+        return figure, style['Y'], style['M'], style['W'], style['D']
     else:
-        return {}, {'marginRight': '1%'}, {'marginRight': '1%'}, {'marginRight': '1%'}, {'marginRight': '1%'}
+        return {}, style['Y'], style['M'], style['W'], style['D']
 
 
 def get_layout(**kwargs):
@@ -3526,9 +3458,6 @@ def get_layout(**kwargs):
 
                 # Dummy divs for controlling which over happened last to update all containers
                 html.Div(id='last-chart-clicked', style={'display': 'none'}),
-                html.Div(id='sleepClick-timestamp', style={'display': 'none'}, children=datetime.utcnow()),
-                html.Div(id='readinessClick-timestamp', style={'display': 'none'}, children=datetime.utcnow()),
-                html.Div(id='activityClick-timestamp', style={'display': 'none'}, children=datetime.utcnow()),
                 # Dummy divs for controlling show/hide of content kpi trend
                 html.Div(id='current-sleep-content-trend', style={'display': 'none'}),
                 html.Div(id='current-readiness-content-trend', style={'display': 'none'}),

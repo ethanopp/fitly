@@ -1,3 +1,4 @@
+import dash
 import dash_html_components as html
 from dash.dependencies import Input, Output, State
 import dash_core_components as dcc
@@ -14,7 +15,6 @@ from sqlalchemy import delete
 import pandas as pd
 from dateutil.relativedelta import relativedelta
 from datetime import datetime
-import operator
 from ..api.fitlyAPI import hrv_training_workflow
 from ..app import app
 from flask import current_app as server
@@ -536,50 +536,29 @@ def update_athlete_db_value(value, value_name):
     ],
     [
         State('name-input', 'value'),
-        State('name-input-submit', 'n_clicks_timestamp'),
         State('birthday-input', 'value'),
-        State('birthday-input-submit', 'n_clicks_timestamp'),
         State('sex-input', 'value'),
-        State('sex-input-submit', 'n_clicks_timestamp'),
         State('weight-input', 'value'),
-        State('weight-input-submit', 'n_clicks_timestamp'),
         State('rest-hr-input', 'value'),
-        State('rest-hr-input-submit', 'n_clicks_timestamp'),
         State('ride-ftp-input', 'value'),
-        State('ride-ftp-input-submit', 'n_clicks_timestamp'),
         State('run-ftp-input', 'value'),
-        State('run-ftp-input-submit', 'n_clicks_timestamp'),
         State('weekly-activity-score-goal-input', 'value'),
-        State('weekly-activity-score-goal-input-submit', 'n_clicks_timestamp'),
         State('daily-sleep-goal-input', 'value'),
-        State('daily-sleep-goal-input-submit', 'n_clicks_timestamp'),
         State('weekly-tss-goal-input', 'value'),
-        State('weekly-tss-goal-input-submit', 'n_clicks_timestamp'),
         State('rr-max-goal-input', 'value'),
-        State('rr-max-goal-input-submit', 'n_clicks_timestamp'),
         State('rr-min-goal-input', 'value'),
-        State('rr-min-goal-input-submit', 'n_clicks_timestamp'),
         State('min-workout-time-goal-input', 'value'),
-        State('min-workout-time-goal-input-submit', 'n_clicks_timestamp'),
         State('weekly-workout-goal-input', 'value'),
-        State('weekly-workout-goal-input-submit', 'n_clicks_timestamp'),
         State('weekly-yoga-goal-input', 'value'),
-        State('weekly-yoga-goal-input-submit', 'n_clicks_timestamp'),
         State('weekly-sleep-score-goal-input', 'value'),
-        State('weekly-sleep-score-goal-input-submit', 'n_clicks_timestamp'),
         State('weekly-readiness-score-goal-input', 'value'),
-        State('weekly-readiness-score-goal-input-submit', 'n_clicks_timestamp')
     ])
 def activity_score_goal_status(
         name_click, birthday_click, sex_click, weight_click, rest_hr_click, ride_ftp_click, run_ftp_click, wk_act_click,
         slp_goal_click, tss_goal_click, rrmax_click, rrmin_click, min_workout_click, workout_click, yoga_click,
-        slp_click, rd_click,
-        name_value, name_timestamp, birthday_value, birthday_timestamp, sex_value, sex_timestamp, weight_value,
-        weight_timestamp, rest_hr_value, rest_hr_timestamp, ride_ftp_value, ride_ftp_timestamp, run_ftp_value,
-        run_ftp_timestamp,
-        wk_act_value, wk_act_timestamp, slp_goal_value, slp_goal_timestamp, tss_goal_value, tss_goal_timestamp,
-        rrmax_value, rrmax_timestamp, rrmin_value, rrmin_timestamp, min_workout_value, min_workout_timestamp,
-        workout_value, workout_timestamp, yoga_value, yoga_timestamp, slp_value, slp_timestamp, rd_value, rd_timestamp
+        slp_click, rd_click, name_value, birthday_value, sex_value, weight_value, rest_hr_value, ride_ftp_value,
+        run_ftp_value, wk_act_value, slp_goal_value, tss_goal_value, rrmax_value, rrmin_value, min_workout_value,
+        workout_value, yoga_value, slp_value, rd_value
 ):
     num_metrics = 17
     output_styles = []
@@ -587,81 +566,77 @@ def activity_score_goal_status(
         output_styles.extend([{'display': 'inline-block', 'border': '0px'}, {
             'display': 'inline-block', 'color': 'rgba(0,0,0,0)', 'fontSize': '150%'}])
 
-    output_indexer = [
-        'name',
-        'birthday',
-        'sex',
-        'weight',
-        'rest_hr',
-        'ride_ftp',
-        'run_ftp',
-        'weekly_activity_score_goal',
-        'daily_sleep_hr_target',
-        'weekly_tss_goal',
-        'rr_max_goal',
-        'rr_min_goal',
-        'min_non_warmup_workout_time',
-        'weekly_workout_goal',
-        'weekly_yoga_goal',
-        'weekly_sleep_score_goal',
-        'weekly_readiness_score_goal'
-    ]
+    ctx = dash.callback_context
+    if ctx.triggered:
+        latest = ctx.triggered[0]['prop_id'].split('.')[0]
+        latest_dict = {'name-input-submit': 'name',
+                       'birthday-input-submit': 'birthday',
+                       'sex-input-submit': 'sex',
+                       'weight-input-submit': 'weight',
+                       'rest-hr-input-submit': 'rest_hr',
+                       'ride-ftp-input-submit': 'ride_ftp',
+                       'run-ftp-input-submit': 'run_ftp',
+                       'weekly-activity-score-goal-input-submit': 'weekly_activity_score_goal',
+                       'daily-sleep-goal-input-submit': 'daily_sleep_hr_target',
+                       'weekly-tss-goal-input-submit': 'weekly_tss_goal',
+                       'rr-max-goal-input-submit': 'rr_max_goal',
+                       'rr-min-goal-input-submit': 'rr_min_goal',
+                       'min-workout-time-goal-input-submit': 'min_non_warmup_workout_time',
+                       'weekly-workout-goal-input-submit': 'weekly_workout_goal',
+                       'weekly-yoga-goal-input-submit': 'weekly_yoga_goal',
+                       'weekly-sleep-score-goal-input-submit': 'weekly_sleep_score_goal',
+                       'weekly-readiness-score-goal-input-submit': 'weekly_readiness_score_goal'}
 
-    # Get the most recently clicked button/values
-    timestamps = {
-        'name': name_timestamp,
-        'birthday': birthday_timestamp,
-        'sex': sex_timestamp,
-        'weight': weight_timestamp,
-        'rest_hr': rest_hr_timestamp,
-        'ride_ftp': ride_ftp_timestamp,
-        'run_ftp': run_ftp_timestamp,
-        'weekly_activity_score_goal': wk_act_timestamp,
-        'daily_sleep_hr_target': slp_goal_timestamp,
-        'weekly_tss_goal': tss_goal_timestamp,
-        'rr_max_goal': rrmax_timestamp,
-        'rr_min_goal': rrmin_timestamp,
-        'min_non_warmup_workout_time': min_workout_timestamp,
-        'weekly_workout_goal': workout_timestamp,
-        'weekly_yoga_goal': yoga_timestamp,
-        'weekly_sleep_score_goal': slp_timestamp,
-        'weekly_readiness_score_goal': rd_timestamp,
-    }
+        output_indexer = [
+            'name',
+            'birthday',
+            'sex',
+            'weight',
+            'rest_hr',
+            'ride_ftp',
+            'run_ftp',
+            'weekly_activity_score_goal',
+            'daily_sleep_hr_target',
+            'weekly_tss_goal',
+            'rr_max_goal',
+            'rr_min_goal',
+            'min_non_warmup_workout_time',
+            'weekly_workout_goal',
+            'weekly_yoga_goal',
+            'weekly_sleep_score_goal',
+            'weekly_readiness_score_goal'
+        ]
+        values = {
+            'name': name_value,
+            'birthday': birthday_value,
+            'sex': sex_value,
+            'weight': weight_value,
+            'rest_hr': rest_hr_value,
+            'ride_ftp': ride_ftp_value,
+            'run_ftp': run_ftp_value,
+            'weekly_activity_score_goal': wk_act_value,
+            'daily_sleep_hr_target': slp_goal_value,
+            'weekly_tss_goal': tss_goal_value,
+            'rr_max_goal': rrmax_value,
+            'rr_min_goal': rrmin_value,
+            'min_non_warmup_workout_time': min_workout_value,
+            'weekly_workout_goal': workout_value,
+            'weekly_yoga_goal': yoga_value,
+            'weekly_sleep_score_goal': slp_value,
+            'weekly_readiness_score_goal': rd_value,
+        }
 
-    values = {
-        'name': name_value,
-        'birthday': birthday_value,
-        'sex': sex_value,
-        'weight': weight_value,
-        'rest_hr': rest_hr_value,
-        'ride_ftp': ride_ftp_value,
-        'run_ftp': run_ftp_value,
-        'weekly_activity_score_goal': wk_act_value,
-        'daily_sleep_hr_target': slp_goal_value,
-        'weekly_tss_goal': tss_goal_value,
-        'rr_max_goal': rrmax_value,
-        'rr_min_goal': rrmin_value,
-        'min_non_warmup_workout_time': min_workout_value,
-        'weekly_workout_goal': workout_value,
-        'weekly_yoga_goal': yoga_value,
-        'weekly_sleep_score_goal': slp_value,
-        'weekly_readiness_score_goal': rd_value,
-    }
-    for k, v in timestamps.items():
-        timestamps[k] = 0 if not v else v
+        index1 = output_indexer.index(latest_dict[latest]) * 2
+        index2 = index1 + 1
+        # Update value in db
+        success = update_athlete_db_value(values[latest_dict[latest]], latest_dict[latest])
 
-    latest = max(timestamps.items(), key=operator.itemgetter(1))[0]
-    index1 = output_indexer.index(latest) * 2
-    index2 = index1 + 1
-    # Update value in db
-    success = update_athlete_db_value(values[latest], latest)
-
-    if success:
-        output_styles[index1] = {'display': 'none'}
-        output_styles[index2] = {'color': 'green', 'fontSize': '150%'}
-    else:
-        output_styles[index1] = {'display': 'inline-block', 'border': '0px'}
-        output_styles[index2] = {'display': 'inline-block', 'color': 'rgba(0,0,0,0)', 'fontSize': '150%'}
+        if success:
+            output_styles[index1] = {'display': 'none'}
+            output_styles[index2] = {'color': 'green', 'fontSize': '150%'}
+        else:
+            output_styles[index1] = {'display': 'inline-block', 'border': '0px'}
+            output_styles[index2] = {'display': 'inline-block', 'color': 'rgba(0,0,0,0)', 'fontSize': '150%'}
 
     return output_styles
 
@@ -832,41 +807,26 @@ def clear_logs(n_clicks):
                Output('debug-log-button', 'style')],
               [Input('info-log-button', 'n_clicks'),
                Input('error-log-button', 'n_clicks'),
-               Input('debug-log-button', 'n_clicks')],
-              [State('info-log-button', 'n_clicks_timestamp'),
-               State('error-log-button', 'n_clicks_timestamp'),
-               State('debug-log-button', 'n_clicks_timestamp')]
+               Input('debug-log-button', 'n_clicks')]
               )
-def set_log_level(info_n_clicks, error_n_clicks, debug_n_clicks, info_n_clicks_timestamp,
-                  error_n_clicks_timestamp,
-                  debug_n_clicks_timestamp):
-    info_style, error_style, debug_style = {'marginRight': '1%'}, {'marginRight': '1%'}, {'marginRight': '1%'}
-    info_n_clicks_timestamp = 0 if not info_n_clicks_timestamp else info_n_clicks_timestamp
-    error_n_clicks_timestamp = 0 if not error_n_clicks_timestamp else error_n_clicks_timestamp
-    debug_n_clicks_timestamp = 0 if not debug_n_clicks_timestamp else debug_n_clicks_timestamp
-    timestamps = {'INFO': info_n_clicks_timestamp, 'ERROR': error_n_clicks_timestamp, 'DEBUG': debug_n_clicks_timestamp}
+def set_log_level(info_n_clicks, error_n_clicks, debug_n_clicks):
+    styles = {'INFO': {'marginRight': '1%'}, 'ERROR': {'marginRight': '1%'}, 'DEBUG': {'marginRight': '1%'}}
+    latest_dict = {'info-log-button': 'INFO', 'error-log-button': 'ERROR', 'debug-log-button': 'DEBUG'}
+    ctx = dash.callback_context
 
-    if info_n_clicks_timestamp != 0 or error_n_clicks_timestamp != 0 or debug_n_clicks_timestamp != 0:
-        latest = max(timestamps.items(), key=operator.itemgetter(1))[0]
+    if ctx.triggered:
+        latest = latest_dict[ctx.triggered[0]['prop_id'].split('.')[0]]
         config.set('logger', 'level', latest)
         with open('./config/config.ini', 'w') as configfile:
             config.write(configfile)
-
-        # Set to info to show message in log, then switch to selected level
-        app.server.logger.setLevel('INFO')
-        app.server.logger.info('Log level set to {}'.format(latest))
-        app.server.logger.setLevel(latest)
+            # Set to info to show message in log, then switch to selected level
+            app.server.logger.setLevel('INFO')
+            app.server.logger.info('Log level set to {}'.format(latest))
+            app.server.logger.setLevel(latest)
 
     current_log_level = config.get('logger', 'level')
-
-    if current_log_level == 'INFO':
-        info_style = {'marginRight': '1%', 'color': '#64D9EC', 'borderColor': '#64D9EC'}
-    elif current_log_level == 'ERROR':
-        error_style = {'marginRight': '1%', 'color': '#64D9EC', 'borderColor': '#64D9EC'}
-    elif current_log_level == 'DEBUG':
-        debug_style = {'marginRight': '1%', 'color': '#64D9EC', 'borderColor': '#64D9EC'}
-
-    return info_style, error_style, debug_style
+    styles[current_log_level] = {'marginRight': '1%', 'color': '#64D9EC', 'borderColor': '#64D9EC'}
+    return styles['INFO'], styles['ERROR'], styles['DEBUG']
 
 
 # Auth Callback #

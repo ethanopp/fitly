@@ -1,4 +1,5 @@
 import pandas as pd
+import dash
 import dash_core_components as dcc
 import dash_html_components as html
 import plotly.graph_objs as go
@@ -8,7 +9,6 @@ from ..api.sqlalchemy_declarative import db_connect, fitbod, fitbod_muscles
 import math
 from datetime import datetime, timedelta, date
 import dash_bootstrap_components as dbc
-import operator
 from ..utils import config, nextcloud_credentials_supplied
 
 
@@ -219,30 +219,19 @@ def generate_exercise_charts(timeframe, muscle_options):
               [Input('muscle-options', 'value'),
                Input('all-button', 'n_clicks'),
                Input('ytd-button', 'n_clicks'),
-               Input('l6w-button', 'n_clicks')],
-              [State('all-button', 'n_clicks_timestamp'),
-               State('ytd-button', 'n_clicks_timestamp'),
-               State('l6w-button', 'n_clicks_timestamp')]
+               Input('l6w-button', 'n_clicks')]
               )
-def update_exercise_charts(muscle_options, all_n_clicks, ytd_n_clicks, l6w_n_clicks,
-                           all_n_clicks_timestamp, ytd_n_clicks_timestamp, l6w_n_clicks_timestamp):
-    latest = 'ytd'
-    all_style, ytd_style, l6w_style = {'marginRight': '1vw'}, {'marginRight': '1vw'}, {'marginRight': '1vw'}
-    all_n_clicks_timestamp = 0 if not all_n_clicks_timestamp else all_n_clicks_timestamp
-    ytd_n_clicks_timestamp = 0 if not ytd_n_clicks_timestamp else ytd_n_clicks_timestamp
-    l6w_n_clicks_timestamp = 0 if not l6w_n_clicks_timestamp else l6w_n_clicks_timestamp
-    timestamps = {'all': all_n_clicks_timestamp, 'ytd': ytd_n_clicks_timestamp, 'l6w': l6w_n_clicks_timestamp}
+def update_exercise_charts(muscle_options, all_n_clicks, ytd_n_clicks, l6w_n_clicks):
+    latest_dict = {'all-button': 'all', 'ytd-button': 'ytd', 'l6w-button': 'l6w'}
+    style = {'all': {'marginRight': '1vw'}, 'ytd': {'marginRight': '1vw'}, 'l6w': {'marginRight': '1vw'}}
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        latest = 'ytd'
+    else:
+        latest = latest_dict[ctx.triggered[0]['prop_id'].split('.')[0]]
+    style[latest] = {'marginRight': '1vw', 'color': '#64D9EC', 'borderColor': '#64D9EC'}
 
-    if all_n_clicks or ytd_n_clicks or l6w_n_clicks:
-        latest = max(timestamps.items(), key=operator.itemgetter(1))[0]
-
-    if latest == 'all':
-        all_style = {'marginRight': '1vw', 'color': '#64D9EC', 'borderColor': '#64D9EC'}
-    elif latest == 'ytd':
-        ytd_style = {'marginRight': '1vw', 'color': '#64D9EC', 'borderColor': '#64D9EC'}
-    elif latest == 'l6w':
-        l6w_style = {'marginRight': '1vw', 'color': '#64D9EC', 'borderColor': '#64D9EC'}
-
-    return generate_exercise_charts(timeframe=latest, muscle_options=muscle_options), all_style, ytd_style, l6w_style
+    return generate_exercise_charts(timeframe=latest, muscle_options=muscle_options), style['all'], style['ytd'], style[
+        'l6w']
 
 # TODO: Set up sorting for charts
