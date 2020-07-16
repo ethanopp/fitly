@@ -33,7 +33,8 @@ def get_layout(**kwargs):
                                         html.Div(className='col-lg-12 text-center mb-2', style={'padding': 0},
                                                  children=[
                                                      html.Div(id='annotation-table-container', className='col mb-2',
-                                                              style={'padding': 0}),
+                                                              style={'padding': 0},
+                                                              children=[html.Div(id='annotation-table')]),
                                                      dbc.Button('Add Row', id='annotation-add-rows-button',
                                                                 color='primary', size='sm', n_clicks=0)
                                                  ]),
