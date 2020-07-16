@@ -340,8 +340,8 @@ def generate_settings_dashboard():
                                       dbc.CardBody(className='text-center', children=html.Div(id='api-connections'))
                                   ]),
                               ]),
-                     html.Div(id='cycle-power-zones', className='col-lg-3', children=generate_cycle_power_zone_card()),
                      html.Div(id='run-power-zones', className='col-lg-3', children=generate_run_power_zone_card()),
+                     html.Div(id='cycle-power-zones', className='col-lg-3', children=generate_cycle_power_zone_card()),
                      html.Div(id='hr-zones', className='col-lg-3', children=generate_hr_zone_card()),
                  ]),
 
