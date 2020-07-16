@@ -1145,8 +1145,7 @@ def ftp_chart(activity_type, power_unit):
                Input('year-button', 'n_clicks')]
               )
 def update_power_profiles(activity_type, power_unit, day_n_clicks, week_n_clicks, month_n_clicks, year_n_clicks):
-
-    latest_dict = {'day-button': 'D', 'week-button': 'W', 'month-button':'M', 'year-button':'Y'}
+    latest_dict = {'day-button': 'D', 'week-button': 'W', 'month-button': 'M', 'year-button': 'Y'}
     style = {'Y': {'marginRight': '1%'}, 'M': {'marginRight': '1%'}, 'W': {'marginRight': '1%'},
              'D': {'marginRight': '1%'}}
 
@@ -1154,7 +1153,11 @@ def update_power_profiles(activity_type, power_unit, day_n_clicks, week_n_clicks
     if not ctx.triggered:
         latest = 'M'
     else:
-        latest = latest_dict[ctx.triggered[0]['prop_id'].split('.')[0]]
+        if ctx.triggered[0]['prop_id'].split('.')[0] != 'power-unit-toggle' and ctx.triggered[0]['prop_id'].split('.')[
+            0] != 'activity-type-toggle':
+            latest = latest_dict[ctx.triggered[0]['prop_id'].split('.')[0]]
+        else:
+            latest = 'M'
 
     style[latest] = {'marginRight': '1%', 'color': '#64D9EC', 'borderColor': '#64D9EC'}
 
