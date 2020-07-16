@@ -10,11 +10,11 @@ from sweat.metrics.power import *
 import stravalib
 from ..api.stravaApi import get_strava_client
 from stravalib import unithelper
-from ..api.pelotonApi import peloton_mapping_df, roundTime
+from ..api.pelotonApi import peloton_mapping_df, roundTime, set_peloton_workout_recommendations
 from ..api.strydAPI import get_stryd_df_summary
 from dateutil.relativedelta import relativedelta
 from ..app import app
-from ..utils import peloton_credentials_supplied, stryd_credentials_supplied
+from ..utils import peloton_credentials_supplied, stryd_credentials_supplied, config
 
 types = ['time', 'latlng', 'distance', 'altitude', 'velocity_smooth', 'heartrate', 'cadence', 'watts', 'temp',
          'moving', 'grade_smooth']
@@ -834,6 +834,11 @@ def hrv_training_workflow(min_non_warmup_workout_time, athlete_id=1):
             df = df[['athlete_id', 'date', 'hrv_workout_step', 'hrv_workout_step_desc', 'completed', 'rationale']]
             df['date'] = df['date'].dt.date
             df.to_sql('hrv_workout_step_log', engine, if_exists='append', index=False)
+
+            if peloton_credentials_supplied and len(
+                    config.get('peloton', 'workout_types').replace(' ', '').split(',')) > 0:
+                set_peloton_workout_recommendations(
+                    fitness_disciplines=config.get('peloton', 'workout_types').replace(' ', '').split(','))
 
     engine.dispose()
     session.close()

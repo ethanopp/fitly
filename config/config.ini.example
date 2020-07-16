@@ -21,6 +21,7 @@ client_secret =
 [peloton]
 username =
 password =
+workout_types=cardio,circuit,running,outdoor,walking,strength,stretching,meditation,cycling,yoga # Allowable workout types for peloton to make recommendations on based on HRV
 
 [stryd]
 username =

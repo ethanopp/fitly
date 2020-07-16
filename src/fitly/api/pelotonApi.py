@@ -7,13 +7,13 @@ import decimal
 from datetime import datetime, timezone, date, timedelta
 from ..utils import config
 import pandas as pd
+from .sqlalchemy_declarative import db_connect, hrvWorkoutStepLog
 
 # Pulled from
 # https://github.com/geudrik/peloton-api
 
 # Set our base URL location
 _BASE_URL = 'https://api.onepeloton.com'
-
 
 # Mandatory credentials
 PELOTON_USERNAME = config.get('peloton', 'username')
@@ -193,7 +193,7 @@ class PelotonAPI:
     }
 
     @classmethod
-    def _api_request(cls, uri, params={}):
+    def _api_request(cls, uri, params={}, call='get'):
         """ Base function that everything will use under the hood to interact with the API
 
         Returns a requests response instance, or raises an exception on error
@@ -204,7 +204,11 @@ class PelotonAPI:
             cls._create_api_session()
 
         # get_logger().debug("Request {} [{}]".format(_BASE_URL + uri, params))
-        resp = cls.peloton_session.get(_BASE_URL + uri, headers=cls.headers, params=params)
+        if call == 'get':
+            resp = cls.peloton_session.get(_BASE_URL + uri, headers=cls.headers, params=params)
+        elif call == 'post':
+            resp = cls.peloton_session.post(_BASE_URL + uri, headers=cls.headers, json=params)
+
         # get_logger().debug("Response {}: [{}]".format(resp.status_code, resp._content))
 
         # If we don't have a 200 code
@@ -622,3 +626,135 @@ def peloton_mapping_df():
             'name': workout.ride.title + instructor
         }, ignore_index=True)
     return df
+
+
+def get_schedule(fitness_discipline, class_type_id=None, pages=0, is_favorite_ride=False, new_workouts_only=True,
+                 genre=None, difficulty=None):
+    """ Returns list of on-demand workouts"""
+    # Genre and difficulty not currently being automatically used
+
+    music_dict = {'Alternative': '85ca9f28a03e4bdc970447de368b0219',
+                  'Electronic': '3ee05f39e1dd477facbb9ac8c27c89c3',
+                  'Pop': '6bb65ad0b1f64a639ab91e179f969e7d',
+                  'Hip Hop': 'c9d4dee696b04477afc88aa22285025f',
+                  'Indie': '531baed4112042ee98ea72f1030c40d0',
+                  'Classic Rock': '7afdd1462d474005841e9a6a403229f1',
+                  'Country': '5ab996597f564959afcc0c24a90e28e5',
+                  'R&B': '3c04c80b103043ebb5c9d23e1ad68c52',
+                  'Rock': 'c06217bbe61f485094cfe62d098b3bf8',
+                  'Latin': 'a6620457f6fe48439fb746e5b0731f79'}
+
+    uri = '/api/v2/ride/archived'
+    params = {
+        'browse_category': fitness_discipline.lower(),
+        'content_format': 'audio,video',
+        'limit': 10,
+        'page': 0,
+        'sort_by': 'original_air_time',
+        'desc': 'true'
+    }
+
+    if fitness_discipline == 'outdoor':
+        params['content_format'] = 'audio'
+    # Filtering on already bookmarked rides to delete and make room for new bookmarks, so all other parameters should be ignored
+    if is_favorite_ride:
+        params['is_favorite_ride'] = 'true'
+    else:
+        if new_workouts_only:
+            params['has_workout'] = 'false'
+        if class_type_id:
+            params['class_type_id'] = class_type_id
+        if genre:
+            params['super_genre_id'] = music_dict[genre]
+        if difficulty:
+            params['difficulty'] = difficulty
+
+    # Get our first page, which includes number of successive pages
+    res = PelotonAPI._api_request(uri=uri, params=params).json()
+
+    if len(res['data']) > 0:
+
+        # Add this pages data to our return list
+        ret = [workout for workout in res['data']]
+
+        # We've got page 0, so start with page 1
+        pages = pages if pages != 0 else res['page_count']
+        for i in range(1, pages):
+            params['page'] += 1
+            res = PelotonAPI._api_request(uri=uri, params=params).json()
+            [ret.append(workout) for workout in res['data']]
+
+        workouts = pd.DataFrame(ret)
+        class_types = pd.DataFrame(res['class_types'])
+        import pprint
+        pprint.pprint(res['browse_categories'])
+        workouts = workouts.merge(class_types[['id', 'display_name']], how='left', left_on='ride_type_id',
+                                  right_on='id')
+
+        return workouts
+    else:
+        return []
+
+
+def add_bookmark(ride_id):
+    """ Bookmarks an on-demand class"""
+    uri = '/api/favorites/create'
+    params = {'ride_id': ride_id}
+    PelotonAPI._api_request(uri=uri, params=params, call='post')
+
+
+def remove_bookmark(ride_id):
+    """ Removes a bookmarked class"""
+    uri = '/api/favorites/delete'
+    params = {'ride_id': ride_id}
+    PelotonAPI._api_request(uri=uri, params=params, call='post')
+
+
+def get_bookmarks():
+    uri = '/api/favorites'
+    return PelotonAPI._api_request(uri=uri).json()
+
+
+def set_peloton_workout_recommendations(fitness_disciplines):
+    # Get HRV Recommendation for the day
+    session, engine = db_connect()
+    current_recommendation = session.query(hrvWorkoutStepLog.hrv_workout_step_desc).order_by(
+        hrvWorkoutStepLog.date.desc()).first().hrv_workout_step_desc
+    engine.dispose()
+    session.close()
+
+    # TODO: Modify the class types that get used based on hrv step
+    class_type_dict = {'running': {'Low': ['19efefbcf7394ff8bac0ac89a674c545'],  # Endurance
+                                   'HIIT/MOD': ['a81cd52ccc3140edb1fbf28dbf880791'],  # Speed
+                                   'High': ['e2a1f782a89e45abacd962f5aa105990']},  # Intervals
+
+                       'outdoor': {'Low': ['23732a102a5f425db1ddaff21e35405e'],  # Endurance
+                                   'HIIT/MOD': ['db1f7d7342c844a79f2621ab3d4bc183'],  # Speed
+                                   'High': ['ee0b994867b946728e880e96297a180e']},  # Intervals
+
+                       'yoga': {'Rest': ['8fe8155b47a64da0a50a0c314fcd393c'],  # Restorative
+                                'Low': ['56c834e143d4423799fc1d3f3fd70ec8'],  # Flow
+                                'HIIT/MOD': ['28172f66e4824a8fbd8b756e6c265ff4']},  # Power
+                       }
+
+    # Loop through each workout type to delete all current bookmarks
+    for fitness_discipline in fitness_disciplines:
+        current_bookmarks = get_schedule(fitness_discipline=fitness_discipline, is_favorite_ride=True)
+        if len(current_bookmarks) > 0:
+            [remove_bookmark(x) for x in current_bookmarks['id_x']]
+
+    # Loop through each workout type to add new bookmarks
+    for fitness_discipline in fitness_disciplines:
+        class_type_ids = class_type_dict[fitness_discipline][current_recommendation]
+        for class_type_id in class_type_ids:
+            new_bookmarks = get_schedule(fitness_discipline=fitness_discipline, class_type_id=class_type_id, pages=1)
+            [add_bookmark(x) for x in new_bookmarks['id_x']]
+
+    # If not a rest day, add pre/post stretching
+    if current_recommendation != 'Rest':
+        new_bookmarks = get_schedule(fitness_discipline='stretching', class_type_id='736e33ce009b425e81f276cfaf42b5d3',
+                                     pages=1)
+        [add_bookmark(x) for x in new_bookmarks['id_x']]
+        new_bookmarks = get_schedule(fitness_discipline='stretching', class_type_id='b6885c9659f04a308164d9809bf58acb',
+                                     pages=1)
+        [add_bookmark(x) for x in new_bookmarks['id_x']]
