@@ -38,16 +38,16 @@ class FitlyActivity(stravalib.model.Activity):
         # # Set up athlete for the workout
         app.server.logger.debug('Activity id "{}": Assigning athlete id {}'.format(self.id, athlete_id))
         self.assign_athlete(athlete_id)
+        # Update strava names of peloton workouts
+        if peloton_credentials_supplied:
+            app.server.logger.debug('Activity id "{}": Pulling peloton title'.format(self.id))
+            self.get_peloton_workout_title()
         # Build activity samples df
         app.server.logger.debug('Activity id "{}": Building df_samples'.format(self.id))
         self.build_df_samples()
         # Build activity summary df
         app.server.logger.debug('Activity id "{}": Building df_summary'.format(self.id))
         self.build_df_summary()
-        if peloton_credentials_supplied:
-            # Update strava names of peloton workouts
-            app.server.logger.debug('Activity id "{}": Pulling peloton title'.format(self.id))
-            self.get_peloton_workout_title()
         # Get FTP
         app.server.logger.debug('Activity id "{}": Pulling ftp'.format(self.id))
         self.get_ftp()
