@@ -334,7 +334,9 @@ class FitlyActivity(stravalib.model.Activity):
 
         # Calculate power metrics
         if 'weighttraining' in self.type.lower():
-            self.tss, self.ri = self.wss_score()
+            pass
+            # TODO: Using hrSS for weight training right now
+            # self.tss, self.ri = self.wss_score()
 
         elif self.max_watts is not None and self.ftp is not None:
             self.wap = weighted_average_power(self.df_samples['watts'].to_numpy())
