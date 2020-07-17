@@ -686,8 +686,6 @@ def get_schedule(fitness_discipline, class_type_id=None, pages=0, is_favorite_ri
 
         workouts = pd.DataFrame(ret)
         class_types = pd.DataFrame(res['class_types'])
-        import pprint
-        pprint.pprint(res['browse_categories'])
         workouts = workouts.merge(class_types[['id', 'display_name']], how='left', left_on='ride_type_id',
                                   right_on='id')
 
