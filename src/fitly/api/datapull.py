@@ -111,7 +111,7 @@ def refresh_database(refresh_method='system', truncate=False, truncateDate=None)
                 pull_fitbod_data()
                 fitbod_status = 'Successful'
             except BaseException as e:
-                app.server.logger.error('Error pulling withings data: {}'.format(e))
+                app.server.logger.error('Error pulling fitbod data: {}'.format(e))
                 fitbod_status = str(e)
         else:
             fitbod_status = 'No Credentials'
