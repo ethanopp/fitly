@@ -81,8 +81,6 @@ def generate_exercise_charts(timeframe, muscle_options):
     if len(df) > 0:
         # Calculate Volume and aggregate to the daily (workout) level
         df['Volume'] = df['Reps'].replace(0, 1) * df['Weight'].replace(0, 1) * df['Duration'].replace(0, 1)
-        # TODO: Change this to sum all volume at workout level instead of taking max of 1 set
-        # df = df.loc[df.groupby(['date_UTC', 'Exercise'])['Volume'].agg(pd.Series.idxmax)].reset_index()
         df = df.groupby(['date_UTC', 'Exercise'])['Volume'].sum().reset_index()
 
         if timeframe == 'ytd':
@@ -233,5 +231,3 @@ def update_exercise_charts(muscle_options, all_n_clicks, ytd_n_clicks, l6w_n_cli
 
     return generate_exercise_charts(timeframe=latest, muscle_options=muscle_options), style['all'], style['ytd'], style[
         'l6w']
-
-# TODO: Set up sorting for charts
