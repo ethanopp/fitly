@@ -537,7 +537,7 @@ def create_activity_table(date=None):
                                                  stravaSummary.activity_id)
                                .filter(stravaSummary.start_day_local == date)
                                .statement,
-                               con=engine).sort_index(ascending=True)
+                               con=engine)
 
     else:
         df_table = pd.read_sql(sql=session.query(stravaSummary.start_day_local, stravaSummary.name, stravaSummary.type,
@@ -547,7 +547,7 @@ def create_activity_table(date=None):
                                                  stravaSummary.relative_intensity, stravaSummary.efficiency_factor,
                                                  stravaSummary.variability_index, stravaSummary.ftp,
                                                  stravaSummary.activity_id)
-                               .statement, con=engine).sort_index(ascending=True)
+                               .statement, con=engine)
     engine.dispose()
     session.close()
 
@@ -560,7 +560,12 @@ def create_activity_table(date=None):
 
         df_table['time'] = df_table['elapsed_time'].apply(lambda x: str(timedelta(seconds=x)))
 
-        df_summary_table_columns = ['date'] + df_summary_table_columns
+        # Add id column and sort to selecting row from dash data table still works when filtering
+        df_table.sort_values(by='start_day_local', ascending=False, inplace=True)
+        df_table.reset_index(inplace=True)
+        df_table['id'] = df_table.index
+        df_summary_table_columns = ['id', 'date'] + df_summary_table_columns
+
         # Reorder columns
         df_table = df_table[df_summary_table_columns]
 
@@ -571,7 +576,7 @@ def create_activity_table(date=None):
         round_2_cols = ['distance', 'relative_intensity', 'efficiency_factor', 'variability_index']
         df_table[round_2_cols] = df_table[round_2_cols].round(2)
 
-        return df_table[df_summary_table_columns].sort_index(ascending=False).to_dict('records')
+        return df_table[df_summary_table_columns].sort_index(ascending=True).to_dict('records')
 
     else:
         return [{}]
@@ -2033,7 +2038,7 @@ def update_fitness_table(clickData):
 def toggle_activity_modal(active_cell, n2, data, is_open):
     if active_cell or n2:
         try:
-            activity_id = data[active_cell['row']]['activity_id']
+            activity_id = data[active_cell['row_id']]['activity_id']
         except:
             activity_id = None
         if activity_id:
@@ -2158,7 +2163,7 @@ def add_row(n_clicks, rows, columns):
     [State("annotation-password", "value"),
      State('annotation-table', 'data')]
 )
-def annotation_table(n_clicks, password, data):
+def annotation_table_save(n_clicks, password, data):
     if n_clicks > 0 and password == config.get('settings', 'password'):
         try:
             df = pd.DataFrame(data).set_index('date')
