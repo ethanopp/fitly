@@ -390,14 +390,12 @@ def readiness_score_recommendation(readiness_score):
     readiness_score = int(readiness_score)
     if readiness_score == 0:
         return ''
-    if readiness_score < 70:
-        return 'Rest'
-    elif readiness_score < 80:
-        return 'Low'
-    elif readiness_score < 85:
-        return 'HIIT/MOD'
-    else:
+    elif readiness_score >= 85:
         return 'High'
+    elif 70 <= readiness_score <= 84:
+        return 'Med'
+    else:
+        return 'Low/Recovery'
 
 
 def create_fitness_kpis(date, ctl, ramp, rr_min_threshold, rr_max_threshold, atl, tsb, hrv, hrv_plan_rec):
