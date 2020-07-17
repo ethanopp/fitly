@@ -1,7 +1,8 @@
 #! /usr/bin/env python
 import owncloud
 import os
-from ..api.sqlalchemy_declarative import db_connect
+from ..api.sqlalchemy_declarative import db_connect, fitbod
+from sqlalchemy import func
 import pandas as pd
 from ..app import app
 import numpy as np
@@ -9,7 +10,6 @@ from ..utils import config
 
 
 def pull_fitbod_data():
-    # TODO: Update instead of truncate and load to only laod/delete new data as to preserve 1rm calculations
     app.server.logger.debug('Logging into Nextcloud')
     oc = owncloud.Client(config.get('nextcloud', 'url'))
     # Login to NextCloud
@@ -60,14 +60,12 @@ def pull_fitbod_data():
             (~df['Exercise'].str.contains("Standing Hip Circle")) &
             (~df['Exercise'].str.contains("Walkout")) &
             (~df['Exercise'].str.contains("Walkout to Push Up"))
-
-
-        ]
+            ]
 
         # Create lbs column
         df['Weight'] = df['Weight(kg)'] * 2.20462
         # Modify columns in df as needed
-        df['Date_UTC'] = pd.to_datetime(df['Date'])
+        df['Date_UTC'] = pd.to_datetime(df['Date']).dt.tz_localize(None)
         # Placeholder column for 1rm, max_reps
         df['one_rep_max'] = np.nan
         df['weight_duration_max'] = np.nan
@@ -81,12 +79,11 @@ def pull_fitbod_data():
         df.index.name = 'id'
         # DB Operations
         session, engine = db_connect()
-        # Delete current database table
-        try:
-            session.execute('DROP TABLE fitbod')
-            session.commit()
-        except:
-            None
+        max_date = pd.to_datetime(session.query(func.max(fitbod.date_utc)).first()[0])
+
+        # Filter df to new workouts only for inserting
+        df = df[df['Date_UTC'] > max_date]
+
         # Insert fitbod table into DB
         df.to_sql('fitbod', engine, if_exists='append', index=True)
         session.commit()
