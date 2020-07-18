@@ -628,7 +628,7 @@ def peloton_mapping_df():
     return df
 
 
-def get_schedule(fitness_discipline, class_type_id=None, pages=0, is_favorite_ride=False, new_workouts_only=True,
+def get_schedule(fitness_discipline, class_type_id=None, taken_class_ids=[], pages=10, limit=10, is_favorite_ride=False,
                  genre=None, difficulty=None):
     """ Returns list of on-demand workouts"""
     # Genre and difficulty not currently being automatically used
@@ -660,8 +660,6 @@ def get_schedule(fitness_discipline, class_type_id=None, pages=0, is_favorite_ri
     if is_favorite_ride:
         params['is_favorite_ride'] = 'true'
     else:
-        if new_workouts_only:
-            params['has_workout'] = 'false'
         if class_type_id:
             params['class_type_id'] = class_type_id
         if genre:
@@ -685,9 +683,16 @@ def get_schedule(fitness_discipline, class_type_id=None, pages=0, is_favorite_ri
             [ret.append(workout) for workout in res['data']]
 
         workouts = pd.DataFrame(ret)
+
+        # Filter out workout if already taken
+        if len(taken_class_ids) > 0:
+            workouts = workouts[~workouts['id'].isin(taken_class_ids)]
+
         class_types = pd.DataFrame(res['class_types'])
         workouts = workouts.merge(class_types[['id', 'display_name']], how='left', left_on='ride_type_id',
                                   right_on='id')
+        # Limit # of bookmarks
+        workouts = workouts.head(limit)
 
         return workouts
     else:
@@ -716,24 +721,55 @@ def get_bookmarks():
 def set_peloton_workout_recommendations(fitness_disciplines):
     # Get HRV Recommendation for the day
     session, engine = db_connect()
-    current_recommendation = session.query(hrvWorkoutStepLog.hrv_workout_step_desc).order_by(
+    hrv_recommendation = session.query(hrvWorkoutStepLog.hrv_workout_step_desc).order_by(
         hrvWorkoutStepLog.date.desc()).first().hrv_workout_step_desc
     engine.dispose()
     session.close()
 
-    # TODO: Modify the class types that get used based on hrv step
-    class_type_dict = {'running': {'Low': ['19efefbcf7394ff8bac0ac89a674c545'],  # Endurance
-                                   'HIIT/MOD': ['a81cd52ccc3140edb1fbf28dbf880791'],  # Speed
-                                   'High': ['e2a1f782a89e45abacd962f5aa105990']},  # Intervals
+    taken_class_ids = [x.ride.id for x in PelotonWorkout.list()]
 
-                       'outdoor': {'Low': ['23732a102a5f425db1ddaff21e35405e'],  # Endurance
-                                   'HIIT/MOD': ['db1f7d7342c844a79f2621ab3d4bc183'],  # Speed
-                                   'High': ['ee0b994867b946728e880e96297a180e']},  # Intervals
+    # TODO: Incorporate length of class into recommendations
+    class_type_dict = {
+        'running': {'Low':
+                        {'class_type_ids': ['19efefbcf7394ff8bac0ac89a674c545', 'feda7eed0d8247f2868314eaa74f37fd']},
+                    # Endurance, Fun
+                    'Mod':
+                        {'class_type_ids': ['a81cd52ccc3140edb1fbf28dbf880791']},  # Speed
+                    'HIIT':
+                        {'class_type_ids': ['e2a1f782a89e45abacd962f5aa105990']},  # Intervals
+                    'High':
+                        {'class_type_ids': ['e2a1f782a89e45abacd962f5aa105990']}},  # Intervals
 
-                       'yoga': {'Rest': ['8fe8155b47a64da0a50a0c314fcd393c'],  # Restorative
-                                'Low': ['56c834e143d4423799fc1d3f3fd70ec8'],  # Flow
-                                'HIIT/MOD': ['28172f66e4824a8fbd8b756e6c265ff4']},  # Power
-                       }
+        'outdoor': {'Low':
+                        {'class_type_ids': ['23732a102a5f425db1ddaff21e35405e', '69c8c93acf3e46b290694e69ca8db450']},
+                    # Endurance, Fun
+                    'Mod':
+                        {'class_type_ids': ['db1f7d7342c844a79f2621ab3d4bc183']},  # Speed
+                    'HIIT':
+                        {'class_type_ids': ['ee0b994867b946728e880e96297a180e']},  # Intervals
+                    'High':
+                        {'class_type_ids': ['ee0b994867b946728e880e96297a180e']}},  # Intervals
+
+        'yoga': {'Rest':
+                     {'class_type_ids': ['8fe8155b47a64da0a50a0c314fcd393c']},  # Restorative
+                 'Low':
+                     {'class_type_ids': ['56c834e143d4423799fc1d3f3fd70ec8']},  # Flow
+                 'Mod':
+                     {'class_type_ids': ['28172f66e4824a8fbd8b756e6c265ff4']}},  # Power
+
+        'stretching': {'Low':
+                           {'class_type_ids': ['b6885c9659f04a308164d9809bf58acb']},  # Pre/Post
+                       'Mod':
+                           {'class_type_ids': ['b6885c9659f04a308164d9809bf58acb']},  # Pre/Post
+                       'HIIT':
+                           {'class_type_ids': ['b6885c9659f04a308164d9809bf58acb', '127c41262894455686bf11267239ba79']},
+                       # Pre/Post, Full Body
+                       'High': {
+                           'class_type_ids': ['b6885c9659f04a308164d9809bf58acb', '127c41262894455686bf11267239ba79']}
+                       # Pre/Post, Full Body
+                       },
+
+    }
 
     # Loop through each workout type to delete all current bookmarks
     for fitness_discipline in fitness_disciplines:
@@ -743,16 +779,14 @@ def set_peloton_workout_recommendations(fitness_disciplines):
 
     # Loop through each workout type to add new bookmarks
     for fitness_discipline in fitness_disciplines:
-        class_type_ids = class_type_dict[fitness_discipline][current_recommendation]
+        # If no class types for given HRV step, do not add bookmarks
+        try:
+            recommendation = class_type_dict[fitness_discipline][hrv_recommendation]
+        except:
+            continue
+        class_type_ids = recommendation['class_type_ids']
+        limit = int(10 / len(class_type_ids))
         for class_type_id in class_type_ids:
-            new_bookmarks = get_schedule(fitness_discipline=fitness_discipline, class_type_id=class_type_id, pages=1)
+            new_bookmarks = get_schedule(fitness_discipline=fitness_discipline, class_type_id=class_type_id,
+                                         limit=limit, taken_class_ids=taken_class_ids)
             [add_bookmark(x) for x in new_bookmarks['id_x']]
-
-    # If not a rest day, add pre/post stretching
-    if current_recommendation != 'Rest':
-        new_bookmarks = get_schedule(fitness_discipline='stretching', class_type_id='736e33ce009b425e81f276cfaf42b5d3',
-                                     pages=1)
-        [add_bookmark(x) for x in new_bookmarks['id_x']]
-        new_bookmarks = get_schedule(fitness_discipline='stretching', class_type_id='b6885c9659f04a308164d9809bf58acb',
-                                     pages=1)
-        [add_bookmark(x) for x in new_bookmarks['id_x']]
