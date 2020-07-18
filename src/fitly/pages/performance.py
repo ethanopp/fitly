@@ -1879,7 +1879,6 @@ def create_annotation_table():
     engine.dispose()
     session.close()
 
-    # TODO: Update with form for inserting instead of table to type into. User datepicker for date, input text for annotation. Still need to have a way to allow user to delete annotations
     return dash_table.DataTable(id='annotation-table',
                                 columns=[{"name": x, "id": y} for (x, y) in
                                          zip(['Date', 'Annotation'], ['date', 'annotation'])],

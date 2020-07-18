@@ -93,8 +93,6 @@ def connect_strava_link(auth_client):
 
 
 # TODO: Look into ways to auto import LTHR similar to oura rest heart rate
-# TODO: Auto delete db entires if importing earlier data and re enter later data
-
 
 # def test_strava():
 #     # Parsing for Strava_Samples

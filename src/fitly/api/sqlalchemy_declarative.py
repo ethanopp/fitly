@@ -2,7 +2,7 @@ import sys
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, Date, Float, create_engine, BigInteger
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, scoped_session
-from ..utils import config
+from datetime import datetime
 
 Base = declarative_base()
 
@@ -362,7 +362,6 @@ Base.metadata.create_all(engine)
 athlete_exists = True if len(session.query(athlete).all()) > 0 else False
 # If no athlete created in db, create one
 if not athlete_exists:
-    from datetime import datetime
 #TODO: Force user to enter certain athlete details prior to being able to pull data (i.e. weight, sex, rest_hr, etc.)
     dummy_athlete = athlete(
         min_non_warmup_workout_time=900,
@@ -396,8 +395,6 @@ if not athlete_exists:
 db_refresh_record = True if len(session.query(dbRefreshStatus).all()) > 0 else False
 # Insert initial system load refresh record
 if not db_refresh_record:
-    from datetime import datetime
-
     dummy_db_refresh_record = dbRefreshStatus(
         timestamp_utc=datetime.utcnow(),
         refresh_method='system',
