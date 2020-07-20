@@ -1266,7 +1266,7 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
                 line={'color': dark_blue},
             ),
             go.Scatter(
-                name='HRV Baseline',
+                name='HRV 7 Day Avg',
                 x=actual.index,
                 y=actual['rmssd_7'],
                 yaxis='y3',
