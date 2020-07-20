@@ -1320,41 +1320,35 @@ def workout_distribution(run_status, ride_status, all_status):
 
     df_summary = df_summary[df_summary['type'].isin(workout_types)]
 
-    # Clean up workout names
-    # If peloton class, parse class type
-    df_summary['workout'] = df_summary['name'].apply(
-        lambda x: re.findall(r'\d+?\smin\s(.*)\swith', x)[0] if re.search(r'\d+?\smin\s(.*)\swith', x) else x).astype(
-        'str')
-    df_summary['workout'] = df_summary['workout'].str.replace('Ride', '').str.replace('Run', '')
-    # Categorize all endurance as 'Endurance'
-    df_summary.loc[df_summary['name'].str.lower().str.contains('endurance'), 'workout'] = 'Endurance'
-    # Categorize Power Zone Max as PZ Max
-    df_summary['workout'] = df_summary['workout'].str.replace('Power Zone Max', 'PZ Max')
-    # Categorize other Power Zone as PZ
+    # Clean up workout names for training discribution table (% of total)
+    df_summary['workout'] = 'Other'
+
+    # Parse instructor name and time from peloton titles
+    # df_summary['workout'] = df_summary['name'].apply(
+    #     lambda x: re.findall(r'\d+?\smin\s(.*)\swith', x)[0] if re.search(r'\d+?\smin\s(.*)\swith', x) else x).astype(
+    #     'str')
+
+    class_names = ['Power Zone Max', 'Power Zone Endurance', 'Power Zone', 'Endurance', 'Speed', 'Intervals', 'HIIT',
+                   'Progression', 'Race Prep', 'Tabata', 'Hills', 'Long', 'Fun', 'Tempo', '5k', '10k', 'Marathon']
+    for name in class_names:
+        for i in df_summary.index:
+            if name.lower() in df_summary.loc[i]['name'].lower():
+                df_summary.at[i, 'workout'] = name
+                continue
+
+    # Categorize 5k, 10k half and marathon as 'Race'
+    df_summary['workout'] = df_summary['workout'].replace({'5k': 'Race', '10k': 'Race', 'Marathon': 'Race'})
+
+    # Shorten 'Power Zone' to 'PZ'
     df_summary['workout'] = df_summary['workout'].str.replace('Power Zone', 'PZ')
-    # Categorize all fun as 'Fun'
-    df_summary.loc[df_summary['name'].str.lower().str.contains('fun'), 'workout'] = 'Fun'
-    # Categorize all tabata as 'Tabata'
-    df_summary.loc[df_summary['name'].str.lower().str.contains('tabata'), 'workout'] = 'Tabata'
-    # Categorize all interval as 'Intervals'
-    df_summary.loc[df_summary['name'].str.lower().str.contains('interval'), 'workout'] = 'Intervals'
-    # Categorize all hills as 'Hills'
-    df_summary.loc[df_summary['name'].str.lower().str.contains('hill'), 'workout'] = 'Hills'
-    # Categorize Race Prep
-    df_summary.loc[df_summary['name'].str.lower().str.contains('race prep'), 'workout'] = 'Race Prep'
     # Categorize Free runs at zone pace
     df_summary.loc[df_summary['name'].str.lower().str.contains('zone') & df_summary['name'].str.lower().str.contains(
         'pace'), 'workout'] = 'Z Pace'
-    # Categorize Long runs as 'Long'
-    df_summary.loc[df_summary['name'].str.lower().str.contains('long'), 'workout'] = 'Long'
-    df_summary.loc[df_summary['name'].str.lower().str.contains('5k') | df_summary['name'].str.lower().str.contains(
-        '10k') | df_summary['name'].str.lower().str.contains('marathon'), 'workout'] = 'Race'
-
     # Categorize all yoga as 'Yoga'
     df_summary.loc[df_summary['type'] == 'Yoga', 'workout'] = 'Yoga'
     # Categorize all WeightTraining as 'Weights'
     df_summary.loc[df_summary['type'] == 'WeightTraining', 'workout'] = 'Weights'
-    # Categorize all yoga as 'Hike'
+    # Categorize all hikes as 'Hike'
     df_summary.loc[df_summary['type'] == 'Hike', 'workout'] = 'Hike'
 
     # # Split into intensity subsets workout as low/med/high
