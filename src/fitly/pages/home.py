@@ -2041,15 +2041,23 @@ def generate_readiness_modal_summary(days=7):
     session.close()
     df = df.merge(hrv_df, how='left', left_index=True, right_index=True)
 
-    hrv_slope, hrv_intercept = np.polyfit(df.reset_index().index, df['rmssd'], 1)
-    df['hrv_trend'] = (df.reset_index().index * hrv_slope) + hrv_intercept
-    hrv_direction = 'downward' if hrv_slope < 0 else 'upwards'
-    hrv_implies = "you should keep an eye on your recovery status" if hrv_slope < 0 else "you've recovered well"
+    if len(df) > 1:
+        hrv_slope, hrv_intercept = np.polyfit(df.reset_index().index, df['rmssd'], 1)
+        hrv_insight = 'Your {} HRV trend implies that {}'.format("downward" if hrv_slope < 0 else "upwards",
+                                                                 "you should keep an eye on your recovery status" if hrv_slope < 0 else "you've recovered well")
 
-    rhr_slope, rhr_intercept = np.polyfit(df.reset_index().index, df['hr_lowest'], 1)
+        rhr_slope, rhr_intercept = np.polyfit(df.reset_index().index, df['hr_lowest'], 1)
+        rhr_insight = 'Your {} RHR trend implies that {}'.format("downward" if rhr_slope < 0 else "upwards",
+                                                                 "you've recovered well" if rhr_slope < 0 else "something may be challenging your recovery")
+
+    else:
+        hrv_slope, hrv_intercept = 0, 0
+        rhr_slope, rhr_intercept = 0, 0
+        hrv_insight = 'Not enough data to calculate insights from your HRV trend'
+        rhr_insight = 'Not enough data to calculate insights from your RHR trend'
+
+    df['hrv_trend'] = (df.reset_index().index * hrv_slope) + hrv_intercept
     df['rhr_trend'] = (df.reset_index().index * rhr_slope) + rhr_intercept
-    rhr_direction = 'downward' if rhr_slope < 0 else 'upwards'
-    rhr_implies = "you've recovered well" if rhr_slope < 0 else "something may be challenging your recovery"
 
     readiness_last_7_graph = dcc.Graph(config={'displayModeBar': False},
                                        figure={
@@ -2258,7 +2266,7 @@ def generate_readiness_modal_summary(days=7):
                 html.Div(id='hrv-score-last-7', className='col-lg-4', children=[
                     html.Div(id='hrv-score-last-7-title',
                              children=[
-                                 html.P('Your {} HRV trend implies that {}'.format(hrv_direction, hrv_implies))
+                                 html.P(hrv_insight)
                              ]),
                     html.Div(id='hrv-score-last-7-chart',
                              children=[hrv_last_7_graph]
@@ -2267,7 +2275,7 @@ def generate_readiness_modal_summary(days=7):
                 html.Div(id='rhr-score-last-7', className='col-lg-4', children=[
                     html.Div(id='rhr-score-last-7-title',
                              children=[
-                                 html.P('Your {} RHR trend implies that {}'.format(rhr_direction, rhr_implies))
+                                 html.P(rhr_insight)
                              ]),
                     html.Div(id='rhr-score-last-7-chart',
                              children=[rhr_last_7_graph]
