@@ -1329,7 +1329,7 @@ def workout_distribution(run_status, ride_status, all_status):
     #     'str')
 
     class_names = ['Power Zone Max', 'Power Zone Endurance', 'Power Zone', 'Endurance', 'Speed', 'Intervals', 'HIIT',
-                   'Progression', 'Race Prep', 'Tabata', 'Hills', 'Long', 'Fun', 'Tempo', '5k', '10k', 'Marathon']
+                   'Progression', 'Race Prep', 'Tabata', 'Hills', 'Long', 'Fun', 'Tempo']#, '5k', '10k', 'Marathon']
     for name in class_names:
         for i in df_summary.index:
             if name.lower() in df_summary.loc[i]['name'].lower():
