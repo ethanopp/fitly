@@ -2884,7 +2884,7 @@ def sleep_content_kpi_trend(total_sleep_time, total_time_in_bed, sleep_efficienc
         else:
             return generate_content_kpi_trend('sleep', latest), {'display': 'inherit'}, latest
     else:
-        [], {'display': 'none'}, []
+        return [], {'display': 'none'}, []
 
 
 # Readiness content kpi trend action
@@ -2909,7 +2909,7 @@ def readiness_content_kpi_trend(resting_heart_rate, heart_rate_variability, body
         else:
             return generate_content_kpi_trend('sleep', latest), {'display': 'inherit'}, latest
     else:
-        [], {'display': 'none'}, []
+        return [], {'display': 'none'}, []
 
 
 # Activity content kpi trend action
@@ -2934,7 +2934,7 @@ def activity_content_kpi_trend(goal_progress, total_burn, walking_equivalency, c
         else:
             return generate_content_kpi_trend('activity', latest), {'display': 'inherit'}, latest
     else:
-        [], {'display': 'none'}, []
+        return [], {'display': 'none'}, []
 
 
 @app.callback(
