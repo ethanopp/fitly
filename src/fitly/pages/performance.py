@@ -2064,7 +2064,7 @@ def modal_power_curve(activity, is_open):
         metric = activity.split('|')[2]
         # Only show power zone chart if power data exists
         if metric == 'power_zone':
-            figure, horverData = power_curve(last_id=activity_id, activity_type=activity_type, showlegend=True)
+            figure, horverData = power_curve(last_id=activity_id, activity_type=activity_type, showlegend=True, strydmetrics=False)
             return figure, {'height': '100%'}
         else:
             return {}, {'display': 'None'}
