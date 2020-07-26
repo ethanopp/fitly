@@ -408,7 +408,7 @@ def create_fitness_kpis(date, ctl, ramp, rr_min_threshold, rr_max_threshold, atl
             oura_rationale = 'Readiness score is < 70'
         elif oura_recommendation == 'Low':
             oura_rationale = 'Readiness score is between 70-79'
-        elif oura_recommendation == 'HIIT/MOD':
+        elif oura_recommendation == 'Mod':
             oura_rationale = 'Readiness score is between 80-84'
         elif oura_recommendation == 'High':
             oura_rationale = 'Readiness score is 85 or higher'
