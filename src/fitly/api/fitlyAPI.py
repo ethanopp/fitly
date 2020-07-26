@@ -212,7 +212,7 @@ class FitlyActivity(stravalib.model.Activity):
         '''
 
         # Calculating inol at individual exercise level
-        # https: // www.powerliftingwatch.com / files / prelipins.pdf
+        # https://www.powerliftingwatch.com/files/prelipins.pdf
 
         # Default inol to provide bodyweight exercises where INOL cannot be calculated
         base_inol = .45
@@ -226,6 +226,7 @@ class FitlyActivity(stravalib.model.Activity):
         session, engine = db_connect()
         df = pd.read_sql(
             sql=session.query(fitbod).filter(
+                # Only use past 6 months of workouts to calculate 1rm
                 (date - timedelta(days=180)) <= fitbod.date_utc,
                 fitbod.date_utc <= date + timedelta(days=1)
             ).statement, con=engine).sort_index(ascending=True)
@@ -254,7 +255,6 @@ class FitlyActivity(stravalib.model.Activity):
             df_1rm.at[df_1rm['Weight'] == 0, 'max_reps'] = df_1rm['Volume'] * 1.3
 
             # Filter main df back to current workout which we are assigning 1rms to
-
             df = df[df['date_UTC'].dt.date == date]
 
             # Cap workout time at 2 mins per set - temporary fix until fitbod expoorts at timestamp level
@@ -263,8 +263,7 @@ class FitlyActivity(stravalib.model.Activity):
 
             # Merge in 1rms
             df = df.merge(df_1rm[['Exercise', 'one_rep_max', 'weight_duration_max']], how='left',
-                          left_on='Exercise',
-                          right_on='Exercise')
+                          left_on='Exercise', right_on='Exercise')
 
             # Replace table placeholders with max values
             df['one_rep_max'] = df['one_rep_max_y'].fillna(0.0)
@@ -326,6 +325,9 @@ class FitlyActivity(stravalib.model.Activity):
             # Calculate WSS
             # df['wSS'] = (max_tss_per_sec * df['seconds']) * (df['inol'] / max_inol_possible)
             # return df['wSS'].sum()
+
+            df.to_csv('workout.csv', sep=',')
+
             return workout_tss, ri
 
     def get_summary_analytics(self):
@@ -334,9 +336,7 @@ class FitlyActivity(stravalib.model.Activity):
 
         # Calculate power metrics
         if 'weighttraining' in self.type.lower():
-            pass
-            # TODO: Using hrSS for weight training right now
-            # self.tss, self.ri = self.wss_score()
+            self.tss, self.ri = self.wss_score()
 
         elif self.max_watts is not None and self.ftp is not None:
             self.wap = weighted_average_power(self.df_samples['watts'].to_numpy())
