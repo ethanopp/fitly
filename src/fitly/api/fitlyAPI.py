@@ -269,16 +269,20 @@ class FitlyActivity(stravalib.model.Activity):
             df['one_rep_max'] = df['one_rep_max_y'].fillna(0.0)
             df['weight_duration_max'] = df['weight_duration_max_y'].fillna(0)
 
+            #TODO: Needs Fixing
             # Save 1rms to fitbod table
             session, engine = db_connect()
             for exercise in df[~np.isnan(df['one_rep_max'])]['Exercise'].drop_duplicates():
-                records = session.query(fitbod).filter(cast(fitbod.date_utc, Date) == date,
-                                                       fitbod.exercise == exercise).all()
+                records = session.query(fitbod).filter(func.date(fitbod.date_utc) == date,
+                                                       fitbod.exercise == exercise
+                                                       )
                 for record in records:
                     record.one_rep_max = float(df.loc[df['Exercise'] == exercise]['one_rep_max'].values[0])
                     record.weight_duration_max = int(
                         df.loc[df['Exercise'] == exercise]['weight_duration_max'].values[0])
-                    session.commit()
+                session.flush()
+
+            session.commit()
             engine.dispose()
             session.close()
 

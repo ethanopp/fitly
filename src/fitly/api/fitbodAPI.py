@@ -92,4 +92,5 @@ def pull_fitbod_data():
         # Delete file in local folder
         os.remove(filename)
         # Empty the dir on nextcloud
-        oc.delete(filepath)
+        #TODO: UNCOMMENT
+        # oc.delete(filepath)
