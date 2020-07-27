@@ -347,8 +347,6 @@ class fitbod(Base):
     duration = Column('Duration', Integer())
     iswarmup = Column('isWarmup', Boolean())
     note = Column('Note', String(255))
-    one_rep_max = Column('one_rep_max', Float())
-    weight_duration_max = Column('weight_duration_max', Float())
 
 
 class fitbod_muscles(Base):

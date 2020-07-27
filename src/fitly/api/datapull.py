@@ -80,6 +80,8 @@ def refresh_database(refresh_method='system', truncate=False, truncateDate=None)
                     session.execute(delete(hrvWorkoutStepLog))
                     app.server.logger.debug('Truncating withings')
                     session.execute(delete(withings))
+                    app.server.logger.debug('Truncating fitbod')
+                    session.execute(delete(fitbod))
                     session.commit()
                 except BaseException as e:
                     session.rollback()

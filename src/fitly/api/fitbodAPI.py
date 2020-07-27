@@ -66,24 +66,20 @@ def pull_fitbod_data():
         df['Weight'] = df['Weight(kg)'] * 2.20462
         # Modify columns in df as needed
         df['Date_UTC'] = pd.to_datetime(df['Date']).dt.tz_localize(None)
-        # Placeholder column for 1rm, max_reps
-        df['one_rep_max'] = np.nan
-        df['weight_duration_max'] = np.nan
         # Rename duration
         df = df.rename(columns={'Duration(s)': 'Duration'})
         # Remove unecessary columns
-        df = df[['Date_UTC', 'Exercise', 'Reps', 'Weight', 'Duration', 'isWarmup', 'Note', 'one_rep_max',
-                 'weight_duration_max']]
+        df = df[['Date_UTC', 'Exercise', 'Reps', 'Weight', 'Duration', 'isWarmup', 'Note']]
         # TODO: Date currently is not unique to set - only unique to workout so should not be used as index
         # df = df.set_index('Date_UTC')
         df.index.name = 'id'
         # DB Operations
         session, engine = db_connect()
-        max_date = pd.to_datetime(session.query(func.max(fitbod.date_utc)).first()[0])
-
-        # Filter df to new workouts only for inserting
-        df = df[df['Date_UTC'] > max_date]
-
+        max_date = session.query(func.max(fitbod.date_utc)).first()[0]
+        if max_date:
+            max_date = pd.to_datetime(max_date)
+            # Filter df to new workouts only for appending table
+            df = df[df['Date_UTC'] > max_date]
         # Insert fitbod table into DB
         df.to_sql('fitbod', engine, if_exists='append', index=True)
         session.commit()
@@ -92,5 +88,4 @@ def pull_fitbod_data():
         # Delete file in local folder
         os.remove(filename)
         # Empty the dir on nextcloud
-        #TODO: UNCOMMENT
-        # oc.delete(filepath)
+        oc.delete(filepath)

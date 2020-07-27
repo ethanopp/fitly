@@ -265,27 +265,6 @@ class FitlyActivity(stravalib.model.Activity):
             df = df.merge(df_1rm[['Exercise', 'one_rep_max', 'weight_duration_max']], how='left',
                           left_on='Exercise', right_on='Exercise')
 
-            # Replace table placeholders with max values
-            df['one_rep_max'] = df['one_rep_max_y'].fillna(0.0)
-            df['weight_duration_max'] = df['weight_duration_max_y'].fillna(0)
-
-            #TODO: Needs Fixing
-            # Save 1rms to fitbod table
-            session, engine = db_connect()
-            for exercise in df[~np.isnan(df['one_rep_max'])]['Exercise'].drop_duplicates():
-                records = session.query(fitbod).filter(func.date(fitbod.date_utc) == date,
-                                                       fitbod.exercise == exercise
-                                                       )
-                for record in records:
-                    record.one_rep_max = float(df.loc[df['Exercise'] == exercise]['one_rep_max'].values[0])
-                    record.weight_duration_max = int(
-                        df.loc[df['Exercise'] == exercise]['weight_duration_max'].values[0])
-                session.flush()
-
-            session.commit()
-            engine.dispose()
-            session.close()
-
             df['set_intensity'] = df['Weight'] / df['one_rep_max']
             # Restrict max intensity from being 1 or greater for INOL calc
             df.at[df['set_intensity'] >= 1, 'set_intensity'] = .99
@@ -329,8 +308,6 @@ class FitlyActivity(stravalib.model.Activity):
             # Calculate WSS
             # df['wSS'] = (max_tss_per_sec * df['seconds']) * (df['inol'] / max_inol_possible)
             # return df['wSS'].sum()
-
-            df.to_csv('workout.csv', sep=',')
 
             return workout_tss, ri
 
