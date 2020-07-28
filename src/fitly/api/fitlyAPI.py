@@ -229,7 +229,7 @@ class FitlyActivity(stravalib.model.Activity):
                 # Only use past 6 months of workouts to calculate 1rm
                 (date - timedelta(days=180)) <= fitbod.date_utc,
                 fitbod.date_utc <= date + timedelta(days=1)
-            ).statement, con=engine).sort_index(ascending=True)
+            ).statement, con=engine)
         engine.dispose()
         session.close()
 
