@@ -21,9 +21,9 @@ def get_layout(**kwargs):
             html.Div(className='row', children=[
                 html.Div(className='col-lg-12 text-center mt-2 mb-2', children=[
                     html.Div(id='lifting-date-buttons', children=[
-                        dbc.Button('All Time', id='all-button', color='primary'),
-                        dbc.Button('Year to Date', id='ytd-button', color='primary'),
-                        dbc.Button('Last 6 Weeks', id='l6w-button', color='primary'),
+                        dbc.Button('All Time', id='all-button', color='primary', style={'marginRight': '1vw'}),
+                        dbc.Button('Year to Date', id='ytd-button', color='primary', style={'marginRight': '1vw'}),
+                        dbc.Button('Last 6 Weeks', id='l6w-button', color='primary', style={'marginRight': '1vw'}),
                     ]),
                 ]),
             ]),
@@ -217,16 +217,24 @@ def generate_exercise_charts(timeframe, muscle_options):
               [Input('muscle-options', 'value'),
                Input('all-button', 'n_clicks'),
                Input('ytd-button', 'n_clicks'),
-               Input('l6w-button', 'n_clicks')]
+               Input('l6w-button', 'n_clicks')],
+              [State('all-button', 'style'),
+               State('ytd-button', 'style'),
+               State('l6w-button', 'style')]
               )
-def update_exercise_charts(muscle_options, all_n_clicks, ytd_n_clicks, l6w_n_clicks):
+def update_exercise_charts(muscle_options, all_n_clicks, ytd_n_clicks, l6w_n_clicks, all_style, ytd_style, l6w_style):
     latest_dict = {'all-button': 'all', 'ytd-button': 'ytd', 'l6w-button': 'l6w'}
     style = {'all': {'marginRight': '1vw'}, 'ytd': {'marginRight': '1vw'}, 'l6w': {'marginRight': '1vw'}}
     ctx = dash.callback_context
     if not ctx.triggered:
         latest = 'ytd'
+    elif ctx.triggered[0]['prop_id'] == 'muscle-options.value':
+        for key, value in {'all': all_style, 'ytd': ytd_style, 'l6w': l6w_style}.items():
+            if value == {'marginRight': '1vw', 'color': '#64D9EC', 'borderColor': '#64D9EC'}:
+                latest = key
     else:
         latest = latest_dict[ctx.triggered[0]['prop_id'].split('.')[0]]
+
     style[latest] = {'marginRight': '1vw', 'color': '#64D9EC', 'borderColor': '#64D9EC'}
 
     return generate_exercise_charts(timeframe=latest, muscle_options=muscle_options), style['all'], style['ytd'], style[
