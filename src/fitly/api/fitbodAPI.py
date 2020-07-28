@@ -70,9 +70,10 @@ def pull_fitbod_data():
         df = df.rename(columns={'Duration(s)': 'Duration'})
         # Remove unecessary columns
         df = df[['Date_UTC', 'Exercise', 'Reps', 'Weight', 'Duration', 'isWarmup', 'Note']]
-        # TODO: Date currently is not unique to set - only unique to workout so should not be used as index
+        # TODO: Date currently is not unique to exercise set - only unique to workout so should not be used as index
+        # Autogenerate index for now...
         # df = df.set_index('Date_UTC')
-        df.index.name = 'id'
+
         # DB Operations
         session, engine = db_connect()
         max_date = session.query(func.max(fitbod.date_utc)).first()[0]
@@ -81,7 +82,7 @@ def pull_fitbod_data():
             # Filter df to new workouts only for appending table
             df = df[df['Date_UTC'] > max_date]
         # Insert fitbod table into DB
-        df.to_sql('fitbod', engine, if_exists='append', index=True)
+        df.to_sql('fitbod', engine, if_exists='append', index=False)
         session.commit()
         engine.dispose()
         session.close()
