@@ -585,6 +585,7 @@ def generate_content_kpi_trend(df_name, metric):
     engine.dispose()
     session.close()
 
+    df.index = pd.DatetimeIndex(df.index)
     metricAvg = df[metric].rolling(window=rolling_days).mean()
 
     # Set Graph Titles
@@ -608,6 +609,10 @@ def generate_content_kpi_trend(df_name, metric):
         metricTooltip = ['{:.0f}h {:.0f}m'.format(x // 3600, (x % 3600) // 60) for x in df[metric]]
         metricAvgTooltip = ['<b>{} Day Avg:</b> {:.0f}h {:.0f}m'.format(rolling_days, x // 3600, (x % 3600) // 60) for x
                             in metricAvg]
+        # Update numbers for y axis alignment
+        df[metric] = df[metric] / 60 / 60
+        metricAvg = metricAvg / 60 / 60
+
     elif metric == 'hr_lowest':
         metricTooltip = ['{:.0f} bpm'.format(x) for x in df[metric]]
         metricAvgTooltip = ['<b>{} Day Avg:</b> {:.0f} bpm'.format(rolling_days, x) for x in metricAvg]
@@ -676,10 +681,10 @@ def generate_content_kpi_trend(df_name, metric):
     else:
         buttons = list([
             # Specify row count to get rid of auto x-axis padding when using scatter markers
-            dict(count=(len(df) + 1),
-                 label='ALL',
-                 step='day',
-                 stepmode='backward'),
+            # dict(count=(len(df) + 1),
+            #      label='ALL',
+            #      step='day',
+            #      stepmode='backward'),
             dict(count=1,
                  label='YTD',
                  step='year',
@@ -752,8 +757,12 @@ def generate_content_kpi_trend(df_name, metric):
                               ),
                           ),
                           yaxis=dict(
+                              # TODO: Update once plotly auto updates y axis when using range selector buttons
+                              # https://github.com/plotly/plotly.py/issues/932
+                              range=[df[df.index.year == datetime.now().year][metric].min(),
+                                     df[df.index.year == datetime.now().year][metric].max()],
                               showgrid=False,
-                              showticklabels=False,
+                              showticklabels=True,
                               gridcolor='rgb(73, 73, 73)',
                               gridwidth=.5,
 
