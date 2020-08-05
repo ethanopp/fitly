@@ -757,17 +757,17 @@ def set_peloton_workout_recommendations():
     taken_class_ids = [x.ride.id for x in PelotonWorkout.list()]
 
     # Loop through each workout type to delete all current bookmarks
-    #TODO: uncommenet
-    # for fitness_discipline in fitness_disciplines:
-    #     current_bookmarks = get_schedule(fitness_discipline=fitness_discipline, is_favorite_ride=True)
-    #     if len(current_bookmarks) > 0:
-    #         [remove_bookmark(x) for x in current_bookmarks['id_x']]
+    for fitness_discipline in fitness_disciplines:
+        current_bookmarks = get_schedule(fitness_discipline=fitness_discipline, is_favorite_ride=True)
+        if len(current_bookmarks) > 0:
+            [remove_bookmark(x) for x in current_bookmarks['id_x']]
 
     # Loop through each workout type to add new bookmarks
     for fitness_discipline in fitness_disciplines:
         # If no class types for given HRV step, do not add bookmarks
         try:
-            class_type_id_recommendations = [x['value'] for x in json.loads(athlete_bookmarks.get(fitness_discipline).get(hrv_recommendation))]
+            class_type_id_recommendations = [x['value'] for x in json.loads(
+                athlete_bookmarks.get(fitness_discipline).get(hrv_recommendation))]
         except:
             class_type_id_recommendations = []
 

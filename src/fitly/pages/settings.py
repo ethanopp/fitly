@@ -980,9 +980,7 @@ def save_peloton_bookmark_settings(n_clicks, fitness_discipline, effort, options
             if not athlete_bookmarks_json.get(fitness_discipline).get(effort):
                 athlete_bookmarks_json[fitness_discipline][effort] = {}
 
-            athlete_bookmarks_json[fitness_discipline][effort] = str(
-                [x for x in options if x['value'] in values]).replace(
-                "'", '"')
+            athlete_bookmarks_json[fitness_discipline][effort] = json.dumps([x for x in options if x['value'] in values])
 
             session.query(athlete.peloton_auto_bookmark_ids).filter(
                 athlete.athlete_id == 1).update({athlete.peloton_auto_bookmark_ids: json.dumps(athlete_bookmarks_json)})
