@@ -696,6 +696,9 @@ def get_schedule(fitness_discipline, class_type_id=None, taken_class_ids=[], pag
     # Get our first page, which includes number of successive pages
     res = PelotonAPI._api_request(uri=uri, params=params).json()
 
+    import pprint
+    pprint.pprint(res['data'])
+
     if len(res['data']) > 0:
 
         # Add this pages data to our return list
@@ -744,7 +747,7 @@ def get_bookmarks():
     return PelotonAPI._api_request(uri=uri).json()
 
 
-def set_peloton_workout_recommendations(fitness_disciplines):
+def set_peloton_workout_recommendations():
     # Get HRV Recommendation for the day
     session, engine = db_connect()
     hrv_recommendation = session.query(hrvWorkoutStepLog.hrv_workout_step_desc).order_by(
@@ -754,6 +757,7 @@ def set_peloton_workout_recommendations(fitness_disciplines):
     engine.dispose()
     session.close()
 
+    fitness_disciplines = athlete_bookmarks.keys()
     taken_class_ids = [x.ride.id for x in PelotonWorkout.list()]
 
     # Loop through each workout type to delete all current bookmarks

@@ -10,6 +10,8 @@ import pandas as pd
 from ..app import app
 from ..utils import config, withings_credentials_supplied, oura_credentials_supplied, nextcloud_credentials_supplied
 
+#TODO: UNCOMMEN
+from ..api.pelotonApi import set_peloton_workout_recommendations
 
 def latest_refresh():
     session, engine = db_connect()
@@ -20,6 +22,8 @@ def latest_refresh():
 
 
 def refresh_database(refresh_method='system', truncate=False, truncateDate=None):
+    #TODO: UNCOMMEN
+    set_peloton_workout_recommendations()
     session, engine = db_connect()
     athlete_info = session.query(athlete).filter(athlete.athlete_id == 1).first()
     engine.dispose()
