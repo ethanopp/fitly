@@ -8,6 +8,7 @@ from oura import OuraOAuth2Client
 from ..api.ouraAPI import oura_connected, connect_oura_link, save_oura_token
 from ..api.stravaApi import strava_connected, get_strava_client, connect_strava_link, save_strava_token
 from ..api.withingsAPI import withings_connected, connect_withings_link, save_withings_token
+from ..api.pelotonApi import get_class_types
 from nokia import NokiaAuth, NokiaApi
 from ..api.sqlalchemy_declarative import db_connect, stravaSummary, ouraSleepSummary, athlete, hrvWorkoutStepLog
 from ..api.datapull import refresh_database
@@ -20,6 +21,8 @@ from ..app import app
 from flask import current_app as server
 import re
 from ..utils import config
+import json
+import ast
 
 strava_auth_client = get_strava_client()
 withings_auth_client = NokiaAuth(config.get('withings', 'client_id'), config.get('withings', 'client_secret'),
@@ -33,6 +36,7 @@ def get_layout(**kwargs):
         html.Div(id='settings-layout'),
         html.Div(id='clear-log-dummy', style={'display': 'none'}),
         html.Div(id='token-dummy', style={'display': 'none'}),
+        html.Div(id='peloton-dummy', style={'display': 'none'}),
         dbc.Modal(id="settings-modal", centered=True, autoFocus=True, fade=False, backdrop=True, size='sm',
                   is_open=True,
                   children=[
@@ -192,6 +196,8 @@ def athlete_card():
     engine.dispose()
     session.close()
     color = '' if athlete_info.name and athlete_info.birthday and athlete_info.sex and athlete_info.weight_lbs and athlete_info.resting_hr and athlete_info.run_ftp and athlete_info.ride_ftp else 'border-danger'
+    peloton_class_types = get_class_types()
+
     return dbc.Card(id='athlete-card', className=color, children=[
         dbc.CardHeader(html.H4('Athlete')),
         dbc.CardBody(className='text-center', children=[
@@ -201,7 +207,50 @@ def athlete_card():
             generate_db_setting('weight', 'Weight (lbs)', athlete_info.weight_lbs),
             generate_db_setting('rest-hr', 'Resting HR', athlete_info.resting_hr),
             generate_db_setting('ride-ftp', 'Ride FTP', athlete_info.ride_ftp),
-            generate_db_setting('run-ftp', 'Run FTP', athlete_info.run_ftp)
+            generate_db_setting('run-ftp', 'Run FTP', athlete_info.run_ftp),
+            html.H5('Peloton HRV Recommendation Auto Bookmarking', className='col-12 mb-2 mt-2'),
+            html.Div(className='row mb-2 mt-2', children=[
+                html.Div(className='col-lg-6', children=[
+                    dcc.Dropdown(
+                        id='peloton-bookmark-fitness-discipline-dropdown',
+                        placeholder="Fitness Discipline",
+                        options=[
+                            {'label': f'{x.capitalize()}', 'value': f'{x}'} for x in peloton_class_types.keys()],
+                        multi=False
+                    )
+                ]),
+                html.Div(className='col-lg-6', children=[
+                    dcc.Dropdown(
+                        id='peloton-bookmark-effort-dropdown',
+                        placeholder="HRV Effort Rec.",
+                        options=[
+                            {'label': 'Rest', 'value': 'Rest'},
+                            {'label': 'Low', 'value': 'Low'},
+                            {'label': 'Mod', 'value': 'Mod'},
+                            {'label': 'HIIT', 'value': 'HIIT'},
+                            {'label': 'High', 'value': 'High'}
+                        ],
+                        multi=False
+                    )
+                ]),
+            ]),
+            html.Div(className='row mb-2 mt-2', children=[
+                html.Div(className='col-lg-12', children=[
+                    dcc.Dropdown(
+                        id='peloton-bookmark-class-type-dropdown',
+                        placeholder="Select Fitness Discipline & HRV Effort Rec",
+                        multi=True
+                    )
+                ])
+            ]),
+            html.Div(className='row mb-2 mt-2 text-center', children=[
+                html.Div(className='col-5'),
+                dbc.Button("Save", id='peloton-save-button', n_clicks=0, className='text-center col-2',
+                           color='secondary',
+                           size='sm'),
+                html.Div(className='col-5'),
+            ]),
+
         ])
     ])
 
@@ -553,7 +602,7 @@ def update_athlete_db_value(value, value_name):
         State('weekly-sleep-score-goal-input', 'value'),
         State('weekly-readiness-score-goal-input', 'value'),
     ])
-def activity_score_goal_status(
+def save_athlete_settings(
         name_click, birthday_click, sex_click, weight_click, rest_hr_click, ride_ftp_click, run_ftp_click, wk_act_click,
         slp_goal_click, tss_goal_click, rrmax_click, rrmin_click, min_workout_click, workout_click, yoga_click,
         slp_click, rd_click, name_value, birthday_value, sex_value, weight_value, rest_hr_value, ride_ftp_value,
@@ -702,10 +751,6 @@ def set_fitness_goals(readiness_dummy, hrv_dummy, readiness_switch, hrv_switch):
     session.close()
 
     return style, style
-
-
-# check API connections
-from ..utils import get_url
 
 
 @app.callback(Output('api-connections', 'children'),
@@ -859,6 +904,78 @@ def update_tokens(n_clicks, search):
             auth_code = re.findall('=(?<=code\=)(.*?)(?=\&)', search)[0]
             creds = withings_auth_client.get_credentials(auth_code)
             save_withings_token(creds)
+
+    return None
+
+
+# Peloton dropdown options
+@app.callback(
+    [Output('peloton-bookmark-class-type-dropdown', 'value'),
+     Output('peloton-bookmark-class-type-dropdown', 'options')],
+    [Input('peloton-bookmark-fitness-discipline-dropdown', 'value'),
+     Input('peloton-bookmark-effort-dropdown', 'value')]
+)
+def query_peloton_bookmark_settings(fitness_discipline, effort):
+    if fitness_discipline and effort:
+        # Query athlete table for current peloton settings to show in value of dropdown
+        session, engine = db_connect()
+        athlete_bookmarks = json.loads(session.query(athlete.peloton_auto_bookmark_ids).filter(
+            athlete.athlete_id == 1).first().peloton_auto_bookmark_ids)
+        engine.dispose()
+        session.close()
+        if athlete_bookmarks:
+            try:
+                athlete_bookmarks = ast.literal_eval(athlete_bookmarks.get(fitness_discipline).get(effort))
+                values = [x["value"] for x in athlete_bookmarks]
+            except:
+                values = []
+        else:
+            values = []
+        # Query all possible options from peloton api for dropdown options
+        class_types = get_class_types()[fitness_discipline]
+
+        return values, [{'label': f'{v}', 'value': f'{k}'} for k, v in class_types.items()]
+    else:
+        return [], []
+
+
+# Peloton save to athlete table
+@app.callback(
+    Output('peloton-dummy', 'children'),
+    [Input('peloton-save-button', 'n_clicks')],
+    [State('peloton-bookmark-class-type-dropdown', 'options'),
+     State('peloton-bookmark-class-type-dropdown', 'value'),
+     State('peloton-bookmark-fitness-discipline-dropdown', 'value'),
+     State('peloton-bookmark-effort-dropdown', 'value')]
+)
+def save_peloton_bookmark_settings(n_clicks, options, values, fitness_discipline, effort):
+    if fitness_discipline and effort and n_clicks > 0:
+        # Query athlete table to get current bookmark settings
+        session, engine = db_connect()
+        athlete_bookmarks = session.query(athlete.peloton_auto_bookmark_ids).filter(
+            athlete.athlete_id == 1).first()
+
+        # update peloton bookmark settings per the inputs
+        athlete_bookmarks_json = json.loads(athlete_bookmarks.peloton_auto_bookmark_ids)
+
+        # Check if fitness discipline exists
+        if not athlete_bookmarks_json.get(fitness_discipline):
+            athlete_bookmarks_json[fitness_discipline] = {}
+        # Check if fitness discipline / effort exists
+        if not athlete_bookmarks_json.get(fitness_discipline).get(effort):
+            athlete_bookmarks_json[fitness_discipline][effort] = {}
+
+        athlete_bookmarks_json[fitness_discipline][effort] = str([x for x in options if x['value'] in values]).replace(
+            "'", '"')
+
+        session.query(athlete.peloton_auto_bookmark_ids).filter(
+            athlete.athlete_id == 1).update({athlete.peloton_auto_bookmark_ids: json.dumps(athlete_bookmarks_json)})
+
+        # write back to database
+        session.commit()
+
+        engine.dispose()
+        session.close()
 
     return None
 

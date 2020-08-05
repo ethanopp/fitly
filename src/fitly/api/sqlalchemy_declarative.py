@@ -81,6 +81,7 @@ class athlete(Base):
     hr_zone_threshold_2 = Column('hr_zone_threshold_2', Float())
     hr_zone_threshold_3 = Column('hr_zone_threshold_3', Float())
     hr_zone_threshold_4 = Column('hr_zone_threshold_4', Float())
+    peloton_auto_bookmark_ids = Column('peloton_auto_bookmark_ids', String(9999))
 
 
 class hrvWorkoutStepLog(Base):

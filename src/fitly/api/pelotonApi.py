@@ -7,7 +7,8 @@ import decimal
 from datetime import datetime, timezone, date, timedelta
 from ..utils import config
 import pandas as pd
-from .sqlalchemy_declarative import db_connect, hrvWorkoutStepLog
+from .sqlalchemy_declarative import db_connect, hrvWorkoutStepLog, athlete
+import json
 
 # Pulled from
 # https://github.com/geudrik/peloton-api
@@ -628,6 +629,32 @@ def peloton_mapping_df():
     return df
 
 
+def get_class_types():
+    """ Returns dict of class types """
+    uri = '/api/v2/ride/archived'
+    params = {
+        'content_format': 'audio,video',
+        'limit': 10,
+        'page': 0,
+        'sort_by': 'original_air_time',
+        'desc': 'true'
+    }
+
+    # Get our first page, which includes number of successive pages
+    res = PelotonAPI._api_request(uri=uri, params=params).json()
+
+    peloton_class_types = res['class_types']
+    peloton_class_dict = {}
+    for x in peloton_class_types:
+        if x['is_active']:
+            peloton_class_dict[x['fitness_discipline']] = {}
+    for x in peloton_class_types:
+        if x['is_active']:
+            peloton_class_dict[x['fitness_discipline']][str(x['id'])] = x['name']
+
+    return peloton_class_dict
+
+
 def get_schedule(fitness_discipline, class_type_id=None, taken_class_ids=[], pages=10, limit=10, is_favorite_ride=False,
                  genre=None, difficulty=None):
     """ Returns list of on-demand workouts"""
@@ -723,53 +750,12 @@ def set_peloton_workout_recommendations(fitness_disciplines):
     session, engine = db_connect()
     hrv_recommendation = session.query(hrvWorkoutStepLog.hrv_workout_step_desc).order_by(
         hrvWorkoutStepLog.date.desc()).first().hrv_workout_step_desc
+    athlete_bookmarks = json.loads(session.query(athlete.peloton_auto_bookmark_ids).filter(
+        athlete.athlete_id == 1).first().peloton_auto_bookmark_ids)
     engine.dispose()
     session.close()
 
     taken_class_ids = [x.ride.id for x in PelotonWorkout.list()]
-
-    # TODO: Incorporate length of class into recommendations
-    class_type_dict = {
-        'running': {'Low':
-                        {'class_type_ids': ['19efefbcf7394ff8bac0ac89a674c545', 'feda7eed0d8247f2868314eaa74f37fd']},
-                    # Endurance, Fun
-                    'Mod':
-                        {'class_type_ids': ['a81cd52ccc3140edb1fbf28dbf880791']},  # Speed
-                    'HIIT':
-                        {'class_type_ids': ['e2a1f782a89e45abacd962f5aa105990']},  # Intervals
-                    'High':
-                        {'class_type_ids': ['e2a1f782a89e45abacd962f5aa105990']}},  # Intervals
-
-        'outdoor': {'Low':
-                        {'class_type_ids': ['23732a102a5f425db1ddaff21e35405e', '69c8c93acf3e46b290694e69ca8db450']},
-                    # Endurance, Fun
-                    'Mod':
-                        {'class_type_ids': ['db1f7d7342c844a79f2621ab3d4bc183']},  # Speed
-                    'HIIT':
-                        {'class_type_ids': ['ee0b994867b946728e880e96297a180e']},  # Intervals
-                    'High':
-                        {'class_type_ids': ['ee0b994867b946728e880e96297a180e']}},  # Intervals
-
-        'yoga': {'Rest':
-                     {'class_type_ids': ['8fe8155b47a64da0a50a0c314fcd393c']},  # Restorative
-                 'Low':
-                     {'class_type_ids': ['56c834e143d4423799fc1d3f3fd70ec8']},  # Flow
-                 'Mod':
-                     {'class_type_ids': ['28172f66e4824a8fbd8b756e6c265ff4']}},  # Power
-
-        'stretching': {'Low':
-                           {'class_type_ids': ['b6885c9659f04a308164d9809bf58acb']},  # Pre/Post
-                       'Mod':
-                           {'class_type_ids': ['b6885c9659f04a308164d9809bf58acb']},  # Pre/Post
-                       'HIIT':
-                           {'class_type_ids': ['b6885c9659f04a308164d9809bf58acb', '127c41262894455686bf11267239ba79']},
-                       # Pre/Post, Full Body
-                       'High': {
-                           'class_type_ids': ['b6885c9659f04a308164d9809bf58acb', '127c41262894455686bf11267239ba79']}
-                       # Pre/Post, Full Body
-                       },
-
-    }
 
     # Loop through each workout type to delete all current bookmarks
     for fitness_discipline in fitness_disciplines:
@@ -781,7 +767,7 @@ def set_peloton_workout_recommendations(fitness_disciplines):
     for fitness_discipline in fitness_disciplines:
         # If no class types for given HRV step, do not add bookmarks
         try:
-            recommendation = class_type_dict[fitness_discipline][hrv_recommendation]
+            recommendation = [x['value'] for x in athlete_bookmarks[fitness_discipline][hrv_recommendation]]
         except:
             continue
         class_type_ids = recommendation['class_type_ids']
