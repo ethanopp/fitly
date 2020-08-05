@@ -647,10 +647,9 @@ def get_class_types():
     peloton_class_dict = {}
     for x in peloton_class_types:
         if x['is_active']:
-            peloton_class_dict[x['fitness_discipline']] = {}
-    for x in peloton_class_types:
-        if x['is_active']:
-            peloton_class_dict[x['fitness_discipline']][str(x['id'])] = x['name']
+            if not peloton_class_dict.get(x['fitness_discipline']):
+                peloton_class_dict[x['fitness_discipline']] = {}
+            peloton_class_dict[x['fitness_discipline']][x['id']] = x['name']
 
     return peloton_class_dict
 
