@@ -696,9 +696,6 @@ def get_schedule(fitness_discipline, class_type_id=None, taken_class_ids=[], pag
     # Get our first page, which includes number of successive pages
     res = PelotonAPI._api_request(uri=uri, params=params).json()
 
-    import pprint
-    pprint.pprint(res['data'])
-
     if len(res['data']) > 0:
 
         # Add this pages data to our return list
@@ -722,7 +719,6 @@ def get_schedule(fitness_discipline, class_type_id=None, taken_class_ids=[], pag
                                   right_on='id')
         # Limit # of bookmarks
         workouts = workouts.head(limit)
-
         return workouts
     else:
         return []
@@ -761,21 +757,23 @@ def set_peloton_workout_recommendations():
     taken_class_ids = [x.ride.id for x in PelotonWorkout.list()]
 
     # Loop through each workout type to delete all current bookmarks
-    for fitness_discipline in fitness_disciplines:
-        current_bookmarks = get_schedule(fitness_discipline=fitness_discipline, is_favorite_ride=True)
-        if len(current_bookmarks) > 0:
-            [remove_bookmark(x) for x in current_bookmarks['id_x']]
+    #TODO: uncommenet
+    # for fitness_discipline in fitness_disciplines:
+    #     current_bookmarks = get_schedule(fitness_discipline=fitness_discipline, is_favorite_ride=True)
+    #     if len(current_bookmarks) > 0:
+    #         [remove_bookmark(x) for x in current_bookmarks['id_x']]
 
     # Loop through each workout type to add new bookmarks
     for fitness_discipline in fitness_disciplines:
         # If no class types for given HRV step, do not add bookmarks
         try:
-            recommendation = [x['value'] for x in athlete_bookmarks[fitness_discipline][hrv_recommendation]]
+            class_type_id_recommendations = [x['value'] for x in json.loads(athlete_bookmarks.get(fitness_discipline).get(hrv_recommendation))]
         except:
-            continue
-        class_type_ids = recommendation['class_type_ids']
-        limit = int(10 / len(class_type_ids))
-        for class_type_id in class_type_ids:
-            new_bookmarks = get_schedule(fitness_discipline=fitness_discipline, class_type_id=class_type_id,
-                                         limit=limit, taken_class_ids=taken_class_ids)
-            [add_bookmark(x) for x in new_bookmarks['id_x']]
+            class_type_id_recommendations = []
+
+        if len(class_type_id_recommendations) > 0:
+            limit = int(10 / len(class_type_id_recommendations))
+            for class_type_id in class_type_id_recommendations:
+                new_bookmarks = get_schedule(fitness_discipline=fitness_discipline, class_type_id=class_type_id,
+                                             limit=limit, taken_class_ids=taken_class_ids)
+                [add_bookmark(x) for x in new_bookmarks['id_x']]

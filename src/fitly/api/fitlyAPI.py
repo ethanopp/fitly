@@ -831,7 +831,7 @@ def hrv_training_workflow(min_non_warmup_workout_time, athlete_id=1):
             df['date'] = df['date'].dt.date
             df.to_sql('hrv_workout_step_log', engine, if_exists='append', index=False)
 
-            if peloton_credentials_supplied :
+            if peloton_credentials_supplied:
                 set_peloton_workout_recommendations()
 
     engine.dispose()
