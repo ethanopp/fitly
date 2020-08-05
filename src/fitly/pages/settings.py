@@ -245,10 +245,16 @@ def athlete_card():
             ]),
             html.Div(className='row mb-2 mt-2 text-center', children=[
                 html.Div(className='col-5'),
-                dbc.Button("Save", id='peloton-save-button', n_clicks=0, className='text-center col-2',
-                           color='secondary',
-                           size='sm'),
-                html.Div(className='col-5'),
+                # dbc.Button("Save", id='peloton-save-button', n_clicks=0, className='text-center col-2',
+                #            color='secondary',
+                #            size='sm'),
+                html.Button(id='peloton-bookmark-input-submit', className='col-2 fa fa-upload',
+                            style={'display': 'inline-block', 'border': '0px'}),
+
+                html.I(id='peloton-bookmark-input-status', className='col-2 fa fa-check',
+                       style={'display': 'inline-block', 'color': 'rgba(0,0,0,0)',
+                              'fontSize': '150%'}),
+                html.Div(className='col-1'),
             ]),
 
         ])
@@ -303,11 +309,11 @@ def generate_db_setting(id, title, value, placeholder=None):
     return (
         html.Div(id=id, className='row mb-2 mt-2', children=[
             html.H6(title, className='col-5  mb-0', style={'display': 'inline-block'}),
-            dcc.Input(id=id + '-input', className=' col-2 ml-2', type='text', value=value, placeholder=placeholder),
-            html.Button(id=id + '-input-submit', className='col-2 fa fa-upload ml-2',
+            dcc.Input(id=id + '-input', className=' col-5', type='text', value=value, placeholder=placeholder),
+            html.Button(id=id + '-input-submit', className='col-2 fa fa-upload',
                         style={'display': 'inline-block', 'border': '0px'}),
 
-            html.I(id=id + '-input-status', className='col-2 fa fa-check ml-2',
+            html.I(id=id + '-input-status', className='col-2 fa fa-check',
                    style={'display': 'inline-block', 'color': 'rgba(0,0,0,0)',
                           'fontSize': '150%'})
         ])
@@ -339,7 +345,7 @@ def goal_parameters():
                 daq.BooleanSwitch(
                     id='use-tss-for-goal-switch',
                     on=use_hrv,
-                    className='col-3 offset-2'
+                    className='col-2 offset-5'
                 )
             ]),
             html.Div(className='row mb-2 mt-2', children=[
@@ -348,7 +354,7 @@ def goal_parameters():
                 daq.BooleanSwitch(
                     id='use-readiness-for-goal-switch',
                     on=use_readiness,
-                    className='col-3 offset-2'
+                    className='col-2 offset-5'
                 )
             ]),
             generate_db_setting(id='weekly-workout-goal', title='Weekly Workout Goal',
@@ -941,43 +947,55 @@ def query_peloton_bookmark_settings(fitness_discipline, effort):
 
 # Peloton save to athlete table
 @app.callback(
-    Output('peloton-dummy', 'children'),
-    [Input('peloton-save-button', 'n_clicks')],
+    Output('peloton-bookmark-input-status', 'style'),
+    [Input('peloton-bookmark-input-submit', 'n_clicks'),
+     Input('peloton-bookmark-fitness-discipline-dropdown', 'value'),
+     Input('peloton-bookmark-effort-dropdown', 'value')],
     [State('peloton-bookmark-class-type-dropdown', 'options'),
-     State('peloton-bookmark-class-type-dropdown', 'value'),
-     State('peloton-bookmark-fitness-discipline-dropdown', 'value'),
-     State('peloton-bookmark-effort-dropdown', 'value')]
+     State('peloton-bookmark-class-type-dropdown', 'value')]
 )
-def save_peloton_bookmark_settings(n_clicks, options, values, fitness_discipline, effort):
-    if fitness_discipline and effort and n_clicks > 0:
-        # Query athlete table to get current bookmark settings
-        session, engine = db_connect()
-        athlete_bookmarks = session.query(athlete.peloton_auto_bookmark_ids).filter(
-            athlete.athlete_id == 1).first()
+def save_peloton_bookmark_settings(n_clicks, fitness_discipline, effort, options, values):
+    latest = None
+    ctx = dash.callback_context
+    if ctx.triggered:
+        latest = ctx.triggered[0]['prop_id'].split('.')[0]
 
-        # update peloton bookmark settings per the inputs
-        athlete_bookmarks_json = json.loads(athlete_bookmarks.peloton_auto_bookmark_ids)
+    if latest:
+        if latest == 'peloton-bookmark-fitness-discipline-dropdown' or latest == 'peloton-bookmark-effort-dropdown':
+            return {'display': 'none'}
 
-        # Check if fitness discipline exists
-        if not athlete_bookmarks_json.get(fitness_discipline):
-            athlete_bookmarks_json[fitness_discipline] = {}
-        # Check if fitness discipline / effort exists
-        if not athlete_bookmarks_json.get(fitness_discipline).get(effort):
-            athlete_bookmarks_json[fitness_discipline][effort] = {}
+        elif fitness_discipline and effort and latest == 'peloton-bookmark-input-submit':
+            # Query athlete table to get current bookmark settings
+            session, engine = db_connect()
+            athlete_bookmarks = session.query(athlete.peloton_auto_bookmark_ids).filter(
+                athlete.athlete_id == 1).first()
 
-        athlete_bookmarks_json[fitness_discipline][effort] = str([x for x in options if x['value'] in values]).replace(
-            "'", '"')
+            # update peloton bookmark settings per the inputs
+            athlete_bookmarks_json = json.loads(athlete_bookmarks.peloton_auto_bookmark_ids)
 
-        session.query(athlete.peloton_auto_bookmark_ids).filter(
-            athlete.athlete_id == 1).update({athlete.peloton_auto_bookmark_ids: json.dumps(athlete_bookmarks_json)})
+            # Check if fitness discipline exists
+            if not athlete_bookmarks_json.get(fitness_discipline):
+                athlete_bookmarks_json[fitness_discipline] = {}
+            # Check if fitness discipline / effort exists
+            if not athlete_bookmarks_json.get(fitness_discipline).get(effort):
+                athlete_bookmarks_json[fitness_discipline][effort] = {}
 
-        # write back to database
-        session.commit()
+            athlete_bookmarks_json[fitness_discipline][effort] = str(
+                [x for x in options if x['value'] in values]).replace(
+                "'", '"')
 
-        engine.dispose()
-        session.close()
+            session.query(athlete.peloton_auto_bookmark_ids).filter(
+                athlete.athlete_id == 1).update({athlete.peloton_auto_bookmark_ids: json.dumps(athlete_bookmarks_json)})
 
-    return None
+            # write back to database
+            session.commit()
+
+            engine.dispose()
+            session.close()
+
+            return {'color': 'green', 'fontSize': '150%'}
+    else:
+        return {'display': 'none'}
 
 
 # Main Dashboard Generation Callback with password modal
