@@ -145,9 +145,10 @@ def pull_activity_data(oura, days_back=7):
         df_activity_summary = pd.DataFrame.from_dict(oura_data)
         df_activity_summary['summary_date'] = pd.to_datetime(df_activity_summary['summary_date']).dt.date
         df_activity_summary.set_index('summary_date', inplace=True)
-        df_activity_summary['day_end_local'] = pd.to_datetime(df_activity_summary['day_end'].apply(lambda x: x[:-6]))
+        df_activity_summary['day_end_local'] = pd.to_datetime(
+            df_activity_summary['day_end']).apply(lambda x: x.replace(tzinfo=None))
         df_activity_summary['day_start_local'] = pd.to_datetime(
-            df_activity_summary['day_start'].apply(lambda x: x[:-6]))
+            df_activity_summary['day_start']).apply(lambda x: x.replace(tzinfo=None))
         df_activity_summary = df_activity_summary.drop(columns=['met_1min', 'day_end', 'day_start'], axis=1)
 
         # Generate Activity Samples
@@ -237,9 +238,10 @@ def pull_sleep_data(oura, days_back=7):
         df_sleep_summary['report_date'] = (pd.to_datetime(df_sleep_summary['summary_date']) + timedelta(days=1)).dt.date
         df_sleep_summary = df_sleep_summary.set_index('report_date')
         # Remove timestamps from bedtimes as we want whatever the time was locally
-        df_sleep_summary['bedtime_end_local'] = pd.to_datetime(df_sleep_summary['bedtime_end'].apply(lambda x: x[:-6]))
+        df_sleep_summary['bedtime_end_local'] = pd.to_datetime(
+            df_sleep_summary['bedtime_end']).apply(lambda x: x.replace(tzinfo=None))
         df_sleep_summary['bedtime_start_local'] = pd.to_datetime(
-            df_sleep_summary['bedtime_start'].apply(lambda x: x[:-6]))
+            df_sleep_summary['bedtime_start']).apply(lambda x: x.replace(tzinfo=None))
 
         df_sleep_summary = df_sleep_summary.drop(columns=['rmssd_5min', 'hr_5min', 'bedtime_end', 'bedtime_start'],
                                                  axis=1)
