@@ -764,16 +764,17 @@ def set_peloton_workout_recommendations():
 
     # Loop through each workout type to add new bookmarks
     for fitness_discipline in fitness_disciplines:
+        class_type_recommendations = json.loads(
+            athlete_bookmarks.get(fitness_discipline).get(hrv_recommendation))
         # If no class types for given HRV step, do not add bookmarks
-        try:
-            class_type_id_recommendations = [x['value'] for x in json.loads(
-                athlete_bookmarks.get(fitness_discipline).get(hrv_recommendation))]
-        except:
-            class_type_id_recommendations = []
+        if len(class_type_recommendations) > 0:
+            limit = int(20 / len(class_type_recommendations))
+            # Allow for outdoor workout bookmarks
+            limit = limit * 2 if fitness_discipline == 'running' else limit
 
-        if len(class_type_id_recommendations) > 0:
-            limit = int(10 / len(class_type_id_recommendations))
-            for class_type_id in class_type_id_recommendations:
-                new_bookmarks = get_schedule(fitness_discipline=fitness_discipline, class_type_id=class_type_id,
+            for d in class_type_recommendations:
+                # Allow for outdoor workout bookmarks
+                fitness_discipline = 'outdoor' if 'outdoor' in d['label'].lower() else fitness_discipline
+                new_bookmarks = get_schedule(fitness_discipline=fitness_discipline, class_type_id=d['value'],
                                              limit=limit, taken_class_ids=taken_class_ids)
                 [add_bookmark(x) for x in new_bookmarks['id_x']]
