@@ -227,7 +227,7 @@ Fitly does not pull workout data directly from peloton, strava is the main hub f
 
 For those working out to peloton classes, but not necessarily recording their data via the peloton device (using stryd pod on tread, using wahoo fitness trainer with peloton digital app, etc.), fitly will match workouts started around the same time to workouts published to strava, and update the titles of the strava workout with the peloton class name.
 
-If using Oura, HRV recommendations can be used to auto-bookmark new classes on your peloton device. Class types to be bookmarked can be configured on the settings page (i.e. on days where HRV recommendation is "Low" effort, auto bookmark some new "Running" workouts of the class type "Fun Run", "Endurance Run", "Ourdoor Fun Run", and "Ourdoor Endurance Run")
+If using Oura, HRV recommendations can be used to auto-bookmark new classes on your peloton device daily. Class types to be bookmarked can be configured on the settings page (i.e. on days where HRV recommendation is "Low" effort, auto bookmark some new "Running" workouts of the class type "Fun Run", "Endurance Run", "Ourdoor Fun Run", and "Ourdoor Endurance Run")
 
 ![Image description](https://i.imgur.com/q654WHY.png)
 
