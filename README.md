@@ -223,7 +223,11 @@ Pull critical power (ftp) from Stryd. Since Stryd does not share their proprieta
 Enter username and password into config.ini file.
 
 ### Peloton
-Currently only being used to update titles of workouts on strava. Mainly for use with peloton digital app. (i.e record with stryd/wahoo fitness etc. while listening to peloton class on phone/ipad)
+Fitly does not pull workout data directly from peloton, strava is the main hub for our workout data (so sync peloton directly to strava).
+
+For those working out to peloton classes, but not necessarily recording their data via the peloton device (using stryd pod on tread, using wahoo fitness trainer with peloton digital app, etc.), fitly will match workouts started around the same time to workouts published to strava, and update the titles of the strava workout with the peloton class name.
+
+If using Oura, HRV recommendations can be used to auto-bookmark new classes on your peloton device. Class types to be bookmarked can be configured on the settings page (i.e. on days where HRV recommendation is "Low" effort, auto bookmark some new "Running" workouts of the class type "Fun Run", "Endurance Run", "Ourdoor Fun Run", and "Ourdoor Endurance Run")
 
 Enter username and password into config.ini file.
 
