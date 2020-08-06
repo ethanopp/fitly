@@ -448,7 +448,7 @@ def generate_settings_dashboard():
             html.Div(id='goal-container', className='col-lg-4',
                      children=[html.Div(id='goals', children=goal_parameters())]),
         ]),
-        html.Div(className='row mt-2', children=[
+        html.Div(className='row mt-2 mb-2', children=[
             html.Div(id='logs-container', className='col-lg-12',
                      children=[
                          dbc.Card(style={'height': '25vh'}, children=[
