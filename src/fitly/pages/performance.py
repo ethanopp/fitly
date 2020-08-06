@@ -25,7 +25,7 @@ def get_layout(**kwargs):
 
     return html.Div([
         # Dummy div for simultaneous callbacks on page load
-        dbc.Modal(id="annotation-modal", centered=True, autoFocus=True, fade=False, backdrop='static', size='lg',
+        dbc.Modal(id="annotation-modal", centered=True, autoFocus=True, fade=False, backdrop='static', size='xl',
                   children=[
                       dbc.ModalHeader(id='annotation-modal-header', children=['Annotations']),
                       dbc.ModalBody(id='annotation-modal-body',
@@ -45,7 +45,7 @@ def get_layout(**kwargs):
                                                              style={'display': 'inline-block'}),
 
                                                      html.Div(className='col text-center mb-2', children=[
-                                                         dcc.Input(id='annotation-password',
+                                                         dbc.Input(id='annotation-password', bs_size="sm",
                                                                    type='password', placeholder='Password', value=''),
                                                      ]),
 
@@ -67,7 +67,7 @@ def get_layout(**kwargs):
                   children=[
                       dbc.ModalHeader(id='activity-modal-header'),
                       dbc.ModalBody([
-                          dcc.Loading(
+                          dbc.Spinner(color='info', children=[
                               html.Div(id='activity-modal-body', className='row mt-2 mb-2', children=[
                                   html.Div(className='col-lg-10', children=[
                                       html.Div(className='row', children=[
@@ -89,9 +89,9 @@ def get_layout(**kwargs):
                                   html.Div(id='modal-workout-stats', className='col-lg-2',
                                            style={'height': '100%'}),
                               ]),
-                          ),
+                          ]),
 
-                          dcc.Loading(
+                          dbc.Spinner(color='info', children=[
                               html.Div(id="activity-modal-body-2", className='row mt-2 mb-2',
                                        children=[
                                            html.Div(className='col-lg-6', children=[
@@ -113,7 +113,7 @@ def get_layout(**kwargs):
                                            ]),
 
                                        ])
-                          ),
+                          ]),
                       ]),
 
                       dbc.ModalFooter(

@@ -1653,7 +1653,7 @@ def generate_sleep_modal_summary(days=7):
         ]),
         html.Div(className='row', children=[
             html.Div(className='col-lg-12', children=[
-                dcc.Loading(children=[
+                dbc.Spinner(color='info', children=[
 
                     dcc.Graph(id='sleep-modal-full-chart',
                               config={'displayModeBar': False}
@@ -2302,7 +2302,7 @@ def generate_readiness_modal_summary(days=7):
         ]),
         html.Div(className='row', children=[
             html.Div(className='col-lg-12', children=[
-                dcc.Loading(children=[
+                dbc.Spinner(color='info', children=[
 
                     dcc.Graph(id='readiness-modal-full-chart',
                               config={'displayModeBar': False}
@@ -2773,7 +2773,7 @@ def generate_activity_modal_summary(days=7):
         ]),
         html.Div(className='row', children=[
             html.Div(className='col-lg-12', children=[
-                dcc.Loading(children=[
+                dbc.Spinner(color='info', children=[
 
                     dcc.Graph(id='activity-modal-full-chart',
                               config={'displayModeBar': False}
@@ -3290,11 +3290,11 @@ def get_layout(**kwargs):
                          ])
                      ]),
 
-            dcc.Loading(
+            dbc.Spinner(color='info', children=[
 
                 html.Div(id='kpi-shelf', className='row mt-2 mb-2')
-
-            ),
+            ]
+                        ),
 
             html.Div(id='oura-containers', className='row', children=[
                 dbc.Modal(id="oura-sleep-summary-modal", centered=True, fade=False, autoFocus=True, backdrop=True,

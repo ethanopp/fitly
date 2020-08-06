@@ -42,7 +42,7 @@ def get_layout(**kwargs):
                   children=[
                       dbc.ModalHeader("Enter Admin Password"),
                       dbc.ModalBody(className='text-center', children=[
-                          dcc.Input(id='settings-password', type='password', placeholder='Password', value='')]),
+                          dbc.Input(id='settings-password', type='password', placeholder='Password', bs_size="sm", value='')]),
                       dbc.ModalFooter(html.Div([
                           dcc.Link(
                               dbc.Button("Close", id='close-button', n_clicks=0, className='mr-2', color='secondary',
@@ -309,7 +309,7 @@ def generate_db_setting(id, title, value, placeholder=None):
     return (
         html.Div(id=id, className='row mb-2 mt-2', children=[
             html.H6(title, className='col-5  mb-0', style={'display': 'inline-block'}),
-            dcc.Input(id=id + '-input', className=' col-5', type='text', value=value, placeholder=placeholder),
+            dbc.Input(id=id + '-input', className=' col-5', type='text', bs_size="sm", value=value, placeholder=placeholder),
             html.Button(id=id + '-input-submit', className='col-2 fa fa-upload',
                         style={'display': 'inline-block', 'border': '0px'}),
 
@@ -433,7 +433,7 @@ def generate_settings_dashboard():
                             dbc.Button('Truncate All', id='truncate-db-button', size='md',
                                        color='primary',
                                        n_clicks=0)]),
-                        html.Div(className='col-12 mb-2', children=[dcc.Loading(children=[
+                        html.Div(className='col-12 mb-2', children=[dbc.Spinner(color='info', children=[
                             html.Div(id='truncate-refresh-status'),
                             html.Div(id='refresh-status'),
                             html.Div(id='truncate-hrv-status'),
