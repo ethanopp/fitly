@@ -111,8 +111,8 @@ class FitlyActivity(stravalib.model.Activity):
         peloton_df = peloton_mapping_df()
         start = roundTime(self.start_date)
         activity = peloton_df[
-            (peloton_df['start'] >= (start - timedelta(minutes=5))) & (
-                    peloton_df['start'] <= (start + timedelta(minutes=5)))]
+            (peloton_df['start'] >= (start - timedelta(minutes=10))) & (
+                    peloton_df['start'] <= (start + timedelta(minutes=10)))]
         if len(activity) > 0:
             self.peloton_title = activity.name.values[0]
             self.name = self.peloton_title if len(self.peloton_title) > 0 else self.name
