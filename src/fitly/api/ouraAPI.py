@@ -155,23 +155,23 @@ def pull_activity_data(oura, days_back=7):
         df_1min_list, df_5min_list = [], []
         for x in oura_data:
             # build 1 min metrics df
-            df_1min = pd.Series(x['met_1min'], name='met_1min').to_frame()
-            df_1min['timestamp_local'] = pd.to_datetime(x['day_start']) + pd.to_timedelta(df_1min.index, unit='m')
+            df_1min = pd.Series(x.get('met_1min'), name='met_1min').to_frame()
+            df_1min['timestamp_local'] = pd.to_datetime(x.get('day_start')) + pd.to_timedelta(df_1min.index, unit='m')
             df_1min = df_1min.set_index('timestamp_local')
             # Remove timezone info from date, we are just storing whatever the local time was, where the person was
             df_1min.index = df_1min.index.tz_localize(None)
-            df_1min['summary_date'] = pd.to_datetime(x['summary_date']).date()
+            df_1min['summary_date'] = pd.to_datetime(x.get('summary_date')).date()
             df_1min_list.append(df_1min)
 
             # build 5 min metrics df
-            df_5min = pd.Series([int(y) for y in x['class_5min']], name='class_5min').to_frame()
+            df_5min = pd.Series([int(y) for y in x.get('class_5min')], name='class_5min').to_frame()
             df_5min['class_5min_desc'] = df_5min['class_5min'].fillna('5').astype('str').map(
                 {'0': 'Rest', '1': 'Inactive', '2': 'Low', '3': 'Medium', '4': 'High', '5': 'Non-Wear'})
-            df_5min['timestamp_local'] = pd.to_datetime(x['day_start']) + pd.to_timedelta(df_5min.index * 5, unit='m')
+            df_5min['timestamp_local'] = pd.to_datetime(x.get('day_start')) + pd.to_timedelta(df_5min.index * 5, unit='m')
             df_5min = df_5min.set_index('timestamp_local')
             # Remove timezone info from date, we are just storing whatever the local time was, where the person was
             df_5min.index = df_5min.index.tz_localize(None)
-            df_5min['summary_date'] = pd.to_datetime(x['summary_date']).date()
+            df_5min['summary_date'] = pd.to_datetime(x.get('summary_date')).date()
             df_5min_list.append(df_5min)
 
         df_1min = pd.concat(df_1min_list)
@@ -249,14 +249,16 @@ def pull_sleep_data(oura, days_back=7):
         # Sleep Samples
         df_samples_list = []
         for x in oura_data:
-            df = pd.concat([pd.Series(x['hr_5min'], name='hr_5min'), pd.Series(x['rmssd_5min'], name='rmssd_5min'),
-                            pd.Series([int(y) for y in x['hypnogram_5min']], name='hypnogram_5min')],
+            df = pd.concat([pd.Series(x.get('hr_5min'), name='hr_5min'), pd.Series(x.get('rmssd_5min'), name='rmssd_5min'),
+                            pd.Series([int(y) for y in x.get('hypnogram_5min')], name='hypnogram_5min')],
                            axis=1)
             df['hypnogram_5min_desc'] = df['hypnogram_5min'].map(
                 {1: 'Deep', 2: 'Light', 3: 'REM', 4: 'Awake'})
-            df['timestamp_local'] = pd.to_datetime(x['bedtime_start']) + pd.to_timedelta(df.index * 5, unit='m')
 
-            df['summary_date'] = pd.to_datetime(x['summary_date']).date()
+            df.index +=1
+            df['timestamp_local'] = (pd.to_datetime(x.get('bedtime_start')) + pd.to_timedelta(df.index * 5, unit='m')) - pd.to_timedelta(5, unit='m')
+
+            df['summary_date'] = pd.to_datetime(x.get('summary_date')).date()
             df['report_date'] = df['summary_date'] + timedelta(days=1)
             df = df.set_index('timestamp_local')
             # Remove timezone info from date, we are just storing whatever the local time was, where the person was
