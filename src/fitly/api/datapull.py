@@ -20,6 +20,10 @@ def latest_refresh():
 
 
 def refresh_database(refresh_method='system', truncate=False, truncateDate=None):
+
+    from ..api.pelotonApi import set_peloton_workout_recommendations
+    set_peloton_workout_recommendations()
+
     session, engine = db_connect()
     athlete_info = session.query(athlete).filter(athlete.athlete_id == 1).first()
     engine.dispose()
