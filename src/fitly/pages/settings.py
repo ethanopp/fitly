@@ -20,7 +20,7 @@ from ..api.fitlyAPI import hrv_training_workflow
 from ..app import app
 from flask import current_app as server
 import re
-from ..utils import peloton_credentials_supplied, config
+from ..utils import peloton_credentials_supplied, oura_credentials_supplied, withings_credentials_supplied, config
 import json
 import ast
 
@@ -55,14 +55,17 @@ def get_layout(**kwargs):
 
 
 def check_oura_connection():
-    # If not connected, send to auth app page to start token request
-    if not oura_connected():
-        return html.A(className='text-center col-lg-12', children=[
-            dbc.Button('Connect Oura', id='connect-oura-button', color='primary', className='text-center mb-2',
-                       size='md')],
-                      href=connect_oura_link(oura_auth_client))
+    if oura_credentials_supplied:
+        # If not connected, send to auth app page to start token request
+        if not oura_connected():
+            return html.A(className='text-center col-lg-12', children=[
+                dbc.Button('Connect Oura', id='connect-oura-button', color='primary', className='text-center mb-2',
+                           size='md')],
+                          href=connect_oura_link(oura_auth_client))
+        else:
+            return html.H4('Oura Connected!', className='text-center col-lg-12', )
     else:
-        return html.H4('Oura Connected!', className='text-center col-lg-12', )
+        return html.Div()
 
 
 def check_strava_connection():
@@ -77,16 +80,19 @@ def check_strava_connection():
 
 
 def check_withings_connection():
-    # If not connected, send to auth app page to start token request
-    if not withings_connected():
-        return html.A(className='text-center col-lg-12', children=[
-            dbc.Button('Connect Withings', id='connect-withings-btton', color='primary', className='text-center mb-2',
-                       size='md')],
-                      href=connect_withings_link(
-                          NokiaAuth(config.get('withings', 'client_id'), config.get('withings', 'client_secret'),
-                                    callback_uri=config.get('withings', 'redirect_uri'))))
+    if withings_credentials_supplied:
+        # If not connected, send to auth app page to start token request
+        if not withings_connected():
+            return html.A(className='text-center col-lg-12', children=[
+                dbc.Button('Connect Withings', id='connect-withings-btton', color='primary', className='text-center mb-2',
+                           size='md')],
+                          href=connect_withings_link(
+                              NokiaAuth(config.get('withings', 'client_id'), config.get('withings', 'client_secret'),
+                                        callback_uri=config.get('withings', 'redirect_uri'))))
+        else:
+            return html.H4('Withings Connected!', className='text-center col-lg-12', )
     else:
-        return html.H4('Withings Connected!', className='text-center col-lg-12', )
+        return html.Div()
 
 
 def generate_cycle_power_zone_card():
