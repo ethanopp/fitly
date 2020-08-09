@@ -20,7 +20,7 @@ from ..api.fitlyAPI import hrv_training_workflow
 from ..app import app
 from flask import current_app as server
 import re
-from ..utils import config
+from ..utils import peloton_credentials_supplied, config
 import json
 import ast
 
@@ -198,17 +198,8 @@ def athlete_card():
     color = '' if athlete_info.name and athlete_info.birthday and athlete_info.sex and athlete_info.weight_lbs and athlete_info.resting_hr and athlete_info.run_ftp and athlete_info.ride_ftp else 'border-danger'
     peloton_class_types = get_class_types()
 
-    return dbc.Card(id='athlete-card', className=color, children=[
-        dbc.CardHeader(html.H4('Athlete')),
-        dbc.CardBody(className='text-center', children=[
-            generate_db_setting('name', 'Name', athlete_info.name),
-            generate_db_setting('birthday', 'Birthday (YYYY-MM-DD)', athlete_info.birthday),
-            generate_db_setting('sex', 'Sex (M/F)', athlete_info.sex),
-            generate_db_setting('weight', 'Weight (lbs)', athlete_info.weight_lbs),
-            generate_db_setting('rest-hr', 'Resting HR', athlete_info.resting_hr),
-            generate_db_setting('ride-ftp', 'Ride FTP', athlete_info.ride_ftp),
-            generate_db_setting('run-ftp', 'Run FTP', athlete_info.run_ftp),
-            html.H5('Peloton HRV Recommendation Auto Bookmarking', className='col-12 mb-2 mt-2'),
+    if peloton_credentials_supplied:
+        peloton_bookmark_settings = html.Div(children=[html.H5('Peloton HRV Recommendation Auto Bookmarking', className='col-12 mb-2 mt-2'),
             html.Div(className='row mb-2 mt-2', children=[
                 html.Div(className='col-lg-6', children=[
                     dcc.Dropdown(
@@ -255,7 +246,24 @@ def athlete_card():
                        style={'display': 'inline-block', 'color': 'rgba(0,0,0,0)',
                               'fontSize': '150%'}),
                 html.Div(className='col-1'),
-            ]),
+            ])
+        ])
+    else:
+        peloton_bookmark_settings = html.Div()
+
+    return dbc.Card(id='athlete-card', className=color, children=[
+        dbc.CardHeader(html.H4('Athlete')),
+        dbc.CardBody(className='text-center', children=[
+            generate_db_setting('name', 'Name', athlete_info.name),
+            generate_db_setting('birthday', 'Birthday (YYYY-MM-DD)', athlete_info.birthday),
+            generate_db_setting('sex', 'Sex (M/F)', athlete_info.sex),
+            generate_db_setting('weight', 'Weight (lbs)', athlete_info.weight_lbs),
+            generate_db_setting('rest-hr', 'Resting HR', athlete_info.resting_hr),
+            generate_db_setting('ride-ftp', 'Ride FTP', athlete_info.ride_ftp),
+            generate_db_setting('run-ftp', 'Run FTP', athlete_info.run_ftp),
+            peloton_bookmark_settings
+
+
 
         ])
     ])
