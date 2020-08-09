@@ -42,7 +42,8 @@ def get_layout(**kwargs):
                   children=[
                       dbc.ModalHeader("Enter Admin Password"),
                       dbc.ModalBody(className='text-center', children=[
-                          dbc.Input(id='settings-password', type='password', placeholder='Password', bs_size="sm", value='')]),
+                          dbc.Input(id='settings-password', type='password', placeholder='Password', bs_size="sm",
+                                    value='')]),
                       dbc.ModalFooter(html.Div([
                           dcc.Link(
                               dbc.Button("Close", id='close-button', n_clicks=0, className='mr-2', color='secondary',
@@ -84,7 +85,8 @@ def check_withings_connection():
         # If not connected, send to auth app page to start token request
         if not withings_connected():
             return html.A(className='text-center col-lg-12', children=[
-                dbc.Button('Connect Withings', id='connect-withings-btton', color='primary', className='text-center mb-2',
+                dbc.Button('Connect Withings', id='connect-withings-btton', color='primary',
+                           className='text-center mb-2',
                            size='md')],
                           href=connect_withings_link(
                               NokiaAuth(config.get('withings', 'client_id'), config.get('withings', 'client_secret'),
@@ -205,55 +207,57 @@ def athlete_card():
     peloton_class_types = get_class_types()
 
     if peloton_credentials_supplied:
-        peloton_bookmark_settings = html.Div(children=[html.H5('Peloton HRV Recommendation Auto Bookmarking', className='col-12 mb-2 mt-2'),
-            html.Div(className='row mb-2 mt-2', children=[
-                html.Div(className='col-lg-6', children=[
-                    dcc.Dropdown(
-                        id='peloton-bookmark-fitness-discipline-dropdown',
-                        placeholder="Fitness Discipline",
-                        options=[
-                            {'label': f'{x.capitalize()}', 'value': f'{x}'} for x in peloton_class_types.keys()],
-                        multi=False
-                    )
-                ]),
-                html.Div(className='col-lg-6', children=[
-                    dcc.Dropdown(
-                        id='peloton-bookmark-effort-dropdown',
-                        placeholder="HRV Effort Rec.",
-                        options=[
-                            {'label': 'Rest', 'value': 'Rest'},
-                            {'label': 'Low', 'value': 'Low'},
-                            {'label': 'Mod', 'value': 'Mod'},
-                            {'label': 'HIIT', 'value': 'HIIT'},
-                            {'label': 'High', 'value': 'High'}
-                        ],
-                        multi=False
-                    )
-                ]),
-            ]),
-            html.Div(className='row mb-2 mt-2', children=[
-                html.Div(className='col-lg-12', children=[
-                    dcc.Dropdown(
-                        id='peloton-bookmark-class-type-dropdown',
-                        placeholder="Select Fitness Discipline & HRV Effort Rec",
-                        multi=True
-                    )
-                ])
-            ]),
-            html.Div(className='row mb-2 mt-2 text-center', children=[
-                html.Div(className='col-5'),
-                # dbc.Button("Save", id='peloton-save-button', n_clicks=0, className='text-center col-2',
-                #            color='secondary',
-                #            size='sm'),
-                html.Button(id='peloton-bookmark-input-submit', className='col-2 fa fa-upload',
-                            style={'display': 'inline-block', 'border': '0px'}),
+        peloton_bookmark_settings = html.Div(
+            children=[html.H5('Peloton HRV Recommendation Auto Bookmarking', className='col-12 mb-2 mt-2'),
+                      html.Div(className='row mb-2 mt-2', children=[
+                          html.Div(className='col-lg-6', children=[
+                              dcc.Dropdown(
+                                  id='peloton-bookmark-fitness-discipline-dropdown',
+                                  placeholder="Fitness Discipline",
+                                  options=[
+                                      {'label': f'{x.capitalize()}', 'value': f'{x}'} for x in
+                                      peloton_class_types.keys()],
+                                  multi=False
+                              )
+                          ]),
+                          html.Div(className='col-lg-6', children=[
+                              dcc.Dropdown(
+                                  id='peloton-bookmark-effort-dropdown',
+                                  placeholder="HRV Effort Rec.",
+                                  options=[
+                                      {'label': 'Rest', 'value': 'Rest'},
+                                      {'label': 'Low', 'value': 'Low'},
+                                      {'label': 'Mod', 'value': 'Mod'},
+                                      {'label': 'HIIT', 'value': 'HIIT'},
+                                      {'label': 'High', 'value': 'High'}
+                                  ],
+                                  multi=False
+                              )
+                          ]),
+                      ]),
+                      html.Div(className='row mb-2 mt-2', children=[
+                          html.Div(className='col-lg-12', children=[
+                              dcc.Dropdown(
+                                  id='peloton-bookmark-class-type-dropdown',
+                                  placeholder="Select Fitness Discipline & HRV Effort Rec",
+                                  multi=True
+                              )
+                          ])
+                      ]),
+                      html.Div(className='row mb-2 mt-2 text-center', children=[
+                          html.Div(className='col-5'),
+                          # dbc.Button("Save", id='peloton-save-button', n_clicks=0, className='text-center col-2',
+                          #            color='secondary',
+                          #            size='sm'),
+                          html.Button(id='peloton-bookmark-input-submit', className='col-2 fa fa-upload',
+                                      style={'display': 'inline-block', 'border': '0px'}),
 
-                html.I(id='peloton-bookmark-input-status', className='col-2 fa fa-check',
-                       style={'display': 'inline-block', 'color': 'rgba(0,0,0,0)',
-                              'fontSize': '150%'}),
-                html.Div(className='col-1'),
-            ])
-        ])
+                          html.I(id='peloton-bookmark-input-status', className='col-2 fa fa-check',
+                                 style={'display': 'inline-block', 'color': 'rgba(0,0,0,0)',
+                                        'fontSize': '150%'}),
+                          html.Div(className='col-1'),
+                      ])
+                      ])
     else:
         peloton_bookmark_settings = html.Div()
 
@@ -268,8 +272,6 @@ def athlete_card():
             generate_db_setting('ride-ftp', 'Ride FTP', athlete_info.ride_ftp),
             generate_db_setting('run-ftp', 'Run FTP', athlete_info.run_ftp),
             peloton_bookmark_settings
-
-
 
         ])
     ])
@@ -323,7 +325,8 @@ def generate_db_setting(id, title, value, placeholder=None):
     return (
         html.Div(id=id, className='row mb-2 mt-2', children=[
             html.H6(title, className='col-5  mb-0', style={'display': 'inline-block'}),
-            dbc.Input(id=id + '-input', className=' col-5', type='text', bs_size="sm", value=value, placeholder=placeholder),
+            dbc.Input(id=id + '-input', className=' col-5', type='text', bs_size="sm", value=value,
+                      placeholder=placeholder),
             html.Button(id=id + '-input-submit', className='col-2 fa fa-upload',
                         style={'display': 'inline-block', 'border': '0px'}),
 
@@ -399,6 +402,16 @@ def get_logs():
 
 
 def generate_settings_dashboard():
+    # Only display reset hrv plan button if there is hrv data (from oura)
+    if oura_credentials_supplied:
+        reset_hrv_plan_button = html.Div(className='col-12 mb-2', children=[
+            dbc.Button('Reset HRV Plan', id='truncate-hrv-button', size='md', color='primary', n_clicks=0)
+        ])
+    else:
+        reset_hrv_plan_button = html.Div(className='col-12 mb-2', children=[
+            dbc.Button('Reset HRV Plan', id='truncate-hrv-button', style={'display': 'none'}, n_clicks=0)
+        ])
+
     return html.Div([
         html.Div(id='settings-shelf-1', className='row mt-2',
                  children=[
@@ -438,11 +451,7 @@ def generate_settings_dashboard():
                                            id='truncate-date-db-button',
                                            n_clicks=0)]),
                         ]),
-                        html.Div(className='col-12 mb-2', children=[
-                            dbc.Button('Reset HRV Plan', id='truncate-hrv-button', size='md',
-                                       color='primary',
-                                       n_clicks=0)
-                        ]),
+                        reset_hrv_plan_button,
                         html.Div(className='col-12 mb-2', children=[
                             dbc.Button('Truncate All', id='truncate-db-button', size='md',
                                        color='primary',
@@ -452,7 +461,7 @@ def generate_settings_dashboard():
                             html.Div(id='refresh-status'),
                             html.Div(id='truncate-hrv-status'),
                         ])
-                        ]),
+                                                                    ]),
                     ])
                 ])
             ]),
@@ -994,7 +1003,8 @@ def save_peloton_bookmark_settings(n_clicks, fitness_discipline, effort, options
             if not athlete_bookmarks_json.get(fitness_discipline).get(effort):
                 athlete_bookmarks_json[fitness_discipline][effort] = {}
 
-            athlete_bookmarks_json[fitness_discipline][effort] = json.dumps([x for x in options if x['value'] in values])
+            athlete_bookmarks_json[fitness_discipline][effort] = json.dumps(
+                [x for x in options if x['value'] in values])
 
             session.query(athlete.peloton_auto_bookmark_ids).filter(
                 athlete.athlete_id == 1).update({athlete.peloton_auto_bookmark_ids: json.dumps(athlete_bookmarks_json)})
