@@ -709,28 +709,20 @@ def get_schedule(fitness_discipline, class_type_id=None, taken_class_ids=[], lim
                 [ret.append(workout) for workout in res['data']]
 
         else:
-            # Add the first page data to our return list
-            ret = [workout for workout in res['data']]
-            # If taken_class_ids is supplied, remove classes already taken
-            [ret.remove(x) for x in ret if x['id'] not in taken_class_ids]
+            # Add the first page data to our return list, only add classes if not already taken
+            ret = [workout for workout in res['data'] if workout['id'] not in taken_class_ids]
 
             # If there are not enough workouts in our list, go to next page
-            while len(ret) < limit and params['page'] > res['page_count']:
+            while len(ret) < limit and params['page'] < res['page_count']:
                 # We've got page 0, so add page at beginning of loop
                 params['page'] += 1
                 res = PelotonAPI._api_request(uri=uri, params=params).json()
                 [ret.append(workout) for workout in res['data'] if workout['id'] not in taken_class_ids]
 
             # Only take up to limit when adding new bookmarks
-            # ret = ret[:limit]
-
+            ret = ret[:limit]
 
         workouts = pd.DataFrame(ret)
-
-        #TODO: do we need this?
-        # class_types = pd.DataFrame(res['class_types'])
-        # workouts = workouts.merge(class_types[['id', 'display_name']], how='left', left_on='ride_type_id',
-        #                           right_on='id')
 
         return workouts
     else:
@@ -774,7 +766,7 @@ def set_peloton_workout_recommendations():
         current_bookmarks = get_schedule(fitness_discipline=fitness_discipline, is_favorite_ride=True)
         if len(current_bookmarks) > 0:
             [remove_bookmark(x) for x in current_bookmarks['id']]
-
+        # Be sure to delete outdoor as well since 'outdoor' is not returned by peloton api as a fitness discipline
         if fitness_discipline == 'running':
             current_bookmarks = get_schedule(fitness_discipline='outdoor', is_favorite_ride=True)
             if len(current_bookmarks) > 0:
@@ -793,8 +785,8 @@ def set_peloton_workout_recommendations():
                 # Allow for outdoor workout bookmarks
                 fitness_discipline_outdoor_toggle = 'outdoor' if 'outdoor' in d['label'].lower() else fitness_discipline
 
-
-                new_bookmarks = get_schedule(fitness_discipline=fitness_discipline_outdoor_toggle, class_type_id=d['value'],
+                new_bookmarks = get_schedule(fitness_discipline=fitness_discipline_outdoor_toggle,
+                                             class_type_id=d['value'],
                                              limit=limit, taken_class_ids=taken_class_ids)
                 if len(new_bookmarks) > 0:
                     [add_bookmark(x) for x in new_bookmarks['id']]
