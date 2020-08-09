@@ -102,6 +102,20 @@ def pull_readiness_data(oura, days_back=7):
                 pd.to_datetime(df_readiness_summary['summary_date']) + timedelta(days=1)).dt.date
         df_readiness_summary.set_index('report_date', inplace=True)
 
+        # add a new 'primary key' column (hash of the row) on each row which we'll use to cleanup bad data
+        ids = pd.DataFrame(df_readiness_summary.apply(lambda x: hash(tuple(x)), axis = 1))
+        df_readiness_summary['id'] = ids
+
+        # when we have 2 entries for the same report_date, we want to exclude the first one (lower period_id)
+        dupes = df_readiness_summary.groupby('report_date').filter(lambda x: len(x) > 1)
+        dupes = (dupes.assign(rn=dupes.groupby(['report_date'])['period_id']
+                          .rank(method='first', ascending=True))
+                          .query('rn == 1'))
+
+        # we want everything from df_readiness_summary NOT IN dupes
+        df_readiness_summary = df_readiness_summary[~df_readiness_summary['id'].isin(dupes['id'])]
+        df_readiness_summary = df_readiness_summary.drop(columns=['id'])
+
         return df_readiness_summary
     else:
         return []
