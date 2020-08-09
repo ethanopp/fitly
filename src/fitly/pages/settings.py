@@ -123,30 +123,39 @@ def generate_cycle_power_zone_card():
         dbc.CardBody(className='text-center', children=[
 
             html.H5('Cycling FTP: {}'.format(cftp)),
-            html.H6('Zone 1: {:.0f}'.format((cftp * cycle_power_zone_threshold_1)),
+            # html.H6('Zone 1: {:.0f}'.format((cftp * cycle_power_zone_threshold_1)),
+            #         className='col'),
+
+            generate_db_setting('cycle-zone1', 'Z1: <= {:.0f}'.format((cftp * cycle_power_zone_threshold_1)),
+                                cycle_power_zone_threshold_1),
+            generate_db_setting('cycle-zone2',
+                                'Z2: {:.0f} - {:.0f}'.format((cftp * cycle_power_zone_threshold_1) + 1,
+                                                             cftp * cycle_power_zone_threshold_2),
+                                cycle_power_zone_threshold_2),
+
+            generate_db_setting('cycle-zone3',
+                                'Z3: {:.0f} - {:.0f}'.format((cftp * cycle_power_zone_threshold_2) + 1,
+                                                             cftp * cycle_power_zone_threshold_3),
+                                cycle_power_zone_threshold_3),
+
+            generate_db_setting('cycle-zone4',
+                                'Z4: {:.0f} - {:.0f}'.format((cftp * cycle_power_zone_threshold_3) + 1,
+                                                             cftp * cycle_power_zone_threshold_4),
+                                cycle_power_zone_threshold_4),
+
+            generate_db_setting('cycle-zone5',
+                                'Z5: {:.0f} - {:.0f}'.format((cftp * cycle_power_zone_threshold_4) + 1,
+                                                             cftp * cycle_power_zone_threshold_5),
+                                cycle_power_zone_threshold_5),
+
+            generate_db_setting('cycle-zone6',
+                                'Z6: {:.0f} - {:.0f}'.format((cftp * cycle_power_zone_threshold_5) + 1,
+                                                             cftp * cycle_power_zone_threshold_6),
+                                cycle_power_zone_threshold_6),
+
+            html.H6('Zone 7: >= {:.0f}'.format((cftp * cycle_power_zone_threshold_6) + 1),
                     className='col'),
-            html.H6(
-                'Zone 2: {:.0f} - {:.0f}'.format((cftp * cycle_power_zone_threshold_1) + 1,
-                                                 cftp * cycle_power_zone_threshold_2),
-                className='col'),
-            html.H6(
-                'Zone 3: {:.0f} - {:.0f}'.format((cftp * cycle_power_zone_threshold_2) + 1,
-                                                 cftp * cycle_power_zone_threshold_3),
-                className='col'),
-            html.H6(
-                'Zone 4: {:.0f} - {:.0f}'.format((cftp * cycle_power_zone_threshold_3) + 1,
-                                                 cftp * cycle_power_zone_threshold_4),
-                className='col'),
-            html.H6(
-                'Zone 5: {:.0f} - {:.0f}'.format((cftp * cycle_power_zone_threshold_4) + 1,
-                                                 cftp * cycle_power_zone_threshold_5),
-                className='col'),
-            html.H6(
-                'Zone 6: {:.0f} - {:.0f}'.format((cftp * cycle_power_zone_threshold_5) + 1,
-                                                 cftp * cycle_power_zone_threshold_6),
-                className='col'),
-            html.H6('Zone 7: > {:.0f}'.format((cftp * cycle_power_zone_threshold_6) + 1),
-                    className='col')
+
         ])
 
     ])
@@ -177,22 +186,26 @@ def generate_run_power_zone_card():
         dbc.CardHeader(html.H4('Running Power Zones')),
         dbc.CardBody(className='text-center', children=[
             html.H5('Running FTP: {}'.format(rftp)),
-            html.H6('Zone 1: {:.0f}'.format((rftp * run_power_zone_threshold_1)),
-                    className='col'),
-            html.H6(
-                'Zone 2: {:.0f} - {:.0f}'.format((rftp * run_power_zone_threshold_1) + 1,
-                                                 rftp * run_power_zone_threshold_2),
-                className='col'),
-            html.H6(
-                'Zone 3: {:.0f} - {:.0f}'.format((rftp * run_power_zone_threshold_2) + 1,
-                                                 rftp * run_power_zone_threshold_3),
-                className='col'),
-            html.H6(
-                'Zone 4: {:.0f} - {:.0f}'.format((rftp * run_power_zone_threshold_3) + 1,
-                                                 rftp * run_power_zone_threshold_4),
-                className='col'),
 
-            html.H6('Zone 5: > {:.0f}'.format((rftp * run_power_zone_threshold_4) + 1),
+            generate_db_setting('run-zone1', 'Zone 1: <= {:.0f}'.format((rftp * run_power_zone_threshold_1)),
+                                run_power_zone_threshold_1),
+
+            generate_db_setting('run-zone2',
+                                'Z2: {:.0f} - {:.0f}'.format((rftp * run_power_zone_threshold_1) + 1,
+                                                             rftp * run_power_zone_threshold_2),
+                                run_power_zone_threshold_2),
+
+            generate_db_setting('run-zone3',
+                                'Z3: {:.0f} - {:.0f}'.format((rftp * run_power_zone_threshold_2) + 1,
+                                                             rftp * run_power_zone_threshold_3),
+                                run_power_zone_threshold_3),
+
+            generate_db_setting('run-zone4',
+                                'Z4: {:.0f} - {:.0f}'.format((rftp * run_power_zone_threshold_3) + 1,
+                                                             rftp * run_power_zone_threshold_4),
+                                run_power_zone_threshold_4),
+
+            html.H6('Zone 5: >= {:.0f}'.format((rftp * run_power_zone_threshold_4) + 1),
                     className='col')
         ])
     ])
@@ -306,25 +319,22 @@ def generate_hr_zone_card():
     return dbc.Card([
         dbc.CardHeader(html.H4('Heart Rate Zones')),
         dbc.CardBody(className='text-center', children=[
-
             html.H5('Based of Resting Heart Rate: {}'.format(rhr)),
-            html.H6('Aerobic Z1: <= {:.0f}'.format(z1), className='col'),
-            html.H6('Aerobic Z2 : {:.0f} - {:.0f}'.format(z1 + 1, z2),
-                    className='col'),
-            html.H6('Aerobic Z3: {:.0f} - {:.0f}'.format(z2 + 1, z3),
-                    className='col'),
-            html.H6('Anaerobic Z4: {:.0f} - {:.0f}'.format(z3 + 1, z4),
-                    className='col'),
-            html.H6('Anaerobic Z5: >= {:.0f}'.format(z4 + 1), className='col')
+            generate_db_setting('hr-zone1', 'Z1: <= {:.0f}'.format(z1), hr_zone_threshold_1),
+            generate_db_setting('hr-zone2', 'Z2 : {:.0f} - {:.0f}'.format(z1 + 1, z2), hr_zone_threshold_2),
+            generate_db_setting('hr-zone3', 'Z3: {:.0f} - {:.0f}'.format(z2 + 1, z3), hr_zone_threshold_3),
+            generate_db_setting('hr-zone4', 'Z4: {:.0f} - {:.0f}'.format(z3 + 1, z4), hr_zone_threshold_4),
+            html.H6('Z5: >= {:.0f}'.format(z4 + 1), className='col')
 
         ])
     ])
 
 
+#TODO: FIX FORMATTING, NOT CENTERED
 def generate_db_setting(id, title, value, placeholder=None):
     return (
-        html.Div(id=id, className='row mb-2 mt-2', children=[
-            html.H6(title, className='col-5  mb-0', style={'display': 'inline-block'}),
+        html.Div(id=id, className='row mb-2 mt-2', style={'verticalAlign':'middle'}, children=[
+            html.H6(title, className='col-5 mb-0', style={'display': 'inline-block', 'verticalAlign':'middle'}),
             dbc.Input(id=id + '-input', className=' col-5', type='text', bs_size="sm", value=value,
                       placeholder=placeholder),
             html.Button(id=id + '-input-submit', className='col-2 fa fa-upload',
@@ -366,6 +376,7 @@ def goal_parameters():
                 )
             ]),
             html.Div(className='row mb-2 mt-2', children=[
+                # TODO: Currently results in 7 items on home page... think through consolidating workout/yoga into 1 donut
                 html.H6('Use readiness for workout / yoga goals', className='col-5 mb-0',
                         style={'display': 'inline-block'}),
                 daq.BooleanSwitch(
@@ -503,46 +514,9 @@ def generate_settings_dashboard():
 
 def update_athlete_db_value(value, value_name):
     session, engine = db_connect()
-    athlete_info = session.query(athlete).filter(athlete.athlete_id == 1).first()
-    # Set the appropriate value in db based on value_name
-    if value_name == 'ftp_test_notification_week_threshold':
-        athlete_info.ftp_test_notification_week_threshold = value
-    elif value_name == 'weekly_activity_score_goal':
-        athlete_info.weekly_activity_score_goal = value
-    elif value_name == 'daily_sleep_hr_target':
-        athlete_info.daily_sleep_hr_target = value
-    elif value_name == 'weekly_tss_goal':
-        athlete_info.weekly_tss_goal = value
-    elif value_name == 'rr_max_goal':
-        athlete_info.rr_max_goal = value
-    elif value_name == 'rr_min_goal':
-        athlete_info.rr_max_goal = value
-    elif value_name == 'min_non_warmup_workout_time':
-        athlete_info.min_non_warmup_workout_time = value
-    elif value_name == 'weekly_workout_goal':
-        athlete_info.weekly_workout_goal = value
-    elif value_name == 'weekly_yoga_goal':
-        athlete_info.weekly_yoga_goal = value
-    elif value_name == 'weekly_sleep_score_goal':
-        athlete_info.weekly_sleep_score_goal = value
-    elif value_name == 'weekly_readiness_score_goal':
-        athlete_info.weekly_readiness_score_goal = value
-    elif value_name == 'weekly_activity_score_goal':
-        athlete_info.weekly_activity_score_goal = value
-    elif value_name == 'name':
-        athlete_info.name = value
-    elif value_name == 'birthday':
-        athlete_info.birthday = datetime.strptime(value, '%Y-%m-%d')
-    elif value_name == 'sex':
-        athlete_info.sex = value
-    elif value_name == 'weight':
-        athlete_info.weight_lbs = value
-    elif value_name == 'rest_hr':
-        athlete_info.resting_hr = value
-    elif value_name == 'ride_ftp':
-        athlete_info.ride_ftp = value
-    elif value_name == 'run_ftp':
-        athlete_info.run_ftp = value
+    # TODO: Update athlete_filter if expanding to more users
+    athlete_info = session.query(athlete).filter(athlete.athlete_id == 1)
+    athlete_info.update({value_name: value})
     # Execute the insert
     try:
         session.commit()
@@ -591,7 +565,35 @@ def update_athlete_db_value(value, value_name):
     Output('weekly-sleep-score-goal-input-submit', 'style'),
     Output('weekly-sleep-score-goal-input-status', 'style'),
     Output('weekly-readiness-score-goal-input-submit', 'style'),
-    Output('weekly-readiness-score-goal-input-status', 'style')
+    Output('weekly-readiness-score-goal-input-status', 'style'),
+    Output('cycle-zone1-input-submit', 'style'),
+    Output('cycle-zone1-input-status', 'style'),
+    Output('cycle-zone2-input-submit', 'style'),
+    Output('cycle-zone2-input-status', 'style'),
+    Output('cycle-zone3-input-submit', 'style'),
+    Output('cycle-zone3-input-status', 'style'),
+    Output('cycle-zone4-input-submit', 'style'),
+    Output('cycle-zone4-input-status', 'style'),
+    Output('cycle-zone5-input-submit', 'style'),
+    Output('cycle-zone5-input-status', 'style'),
+    Output('cycle-zone6-input-submit', 'style'),
+    Output('cycle-zone6-input-status', 'style'),
+    Output('run-zone1-input-submit', 'style'),
+    Output('run-zone1-input-status', 'style'),
+    Output('run-zone2-input-submit', 'style'),
+    Output('run-zone2-input-status', 'style'),
+    Output('run-zone3-input-submit', 'style'),
+    Output('run-zone3-input-status', 'style'),
+    Output('run-zone4-input-submit', 'style'),
+    Output('run-zone4-input-status', 'style'),
+    Output('hr-zone1-input-submit', 'style'),
+    Output('hr-zone1-input-status', 'style'),
+    Output('hr-zone2-input-submit', 'style'),
+    Output('hr-zone2-input-status', 'style'),
+    Output('hr-zone3-input-submit', 'style'),
+    Output('hr-zone3-input-status', 'style'),
+    Output('hr-zone4-input-submit', 'style'),
+    Output('hr-zone4-input-status', 'style'),
 ],
     [
         Input('name-input-submit', 'n_clicks'),
@@ -610,7 +612,22 @@ def update_athlete_db_value(value, value_name):
         Input('weekly-workout-goal-input-submit', 'n_clicks'),
         Input('weekly-yoga-goal-input-submit', 'n_clicks'),
         Input('weekly-sleep-score-goal-input-submit', 'n_clicks'),
-        Input('weekly-readiness-score-goal-input-submit', 'n_clicks')
+        Input('weekly-readiness-score-goal-input-submit', 'n_clicks'),
+        Input('cycle-zone1-input-submit', 'n_clicks'),
+        Input('cycle-zone2-input-submit', 'n_clicks'),
+        Input('cycle-zone3-input-submit', 'n_clicks'),
+        Input('cycle-zone4-input-submit', 'n_clicks'),
+        Input('cycle-zone5-input-submit', 'n_clicks'),
+        Input('cycle-zone6-input-submit', 'n_clicks'),
+        Input('run-zone1-input-submit', 'n_clicks'),
+        Input('run-zone2-input-submit', 'n_clicks'),
+        Input('run-zone3-input-submit', 'n_clicks'),
+        Input('run-zone4-input-submit', 'n_clicks'),
+        Input('hr-zone1-input-submit', 'n_clicks'),
+        Input('hr-zone2-input-submit', 'n_clicks'),
+        Input('hr-zone3-input-submit', 'n_clicks'),
+        Input('hr-zone4-input-submit', 'n_clicks'),
+
     ],
     [
         State('name-input', 'value'),
@@ -630,15 +647,35 @@ def update_athlete_db_value(value, value_name):
         State('weekly-yoga-goal-input', 'value'),
         State('weekly-sleep-score-goal-input', 'value'),
         State('weekly-readiness-score-goal-input', 'value'),
+        State('cycle-zone1-input', 'value'),
+        State('cycle-zone2-input', 'value'),
+        State('cycle-zone3-input', 'value'),
+        State('cycle-zone4-input', 'value'),
+        State('cycle-zone5-input', 'value'),
+        State('cycle-zone6-input', 'value'),
+        State('run-zone1-input', 'value'),
+        State('run-zone2-input', 'value'),
+        State('run-zone3-input', 'value'),
+        State('run-zone4-input', 'value'),
+        State('hr-zone1-input', 'value'),
+        State('hr-zone2-input', 'value'),
+        State('hr-zone3-input', 'value'),
+        State('hr-zone4-input', 'value'),
     ])
 def save_athlete_settings(
         name_click, birthday_click, sex_click, weight_click, rest_hr_click, ride_ftp_click, run_ftp_click, wk_act_click,
         slp_goal_click, tss_goal_click, rrmax_click, rrmin_click, min_workout_click, workout_click, yoga_click,
-        slp_click, rd_click, name_value, birthday_value, sex_value, weight_value, rest_hr_value, ride_ftp_value,
-        run_ftp_value, wk_act_value, slp_goal_value, tss_goal_value, rrmax_value, rrmin_value, min_workout_value,
-        workout_value, yoga_value, slp_value, rd_value
+        slp_click, rd_click, cycle_zone1_click, cycle_zone2_click, cycle_zone3_click, cycle_zone4_click,
+        cycle_zone5_click, cycle_zone6_click, run_zone1_click, run_zone2_click, run_zone3_click, run_zone4_click,
+        hr_zone1_click, hr_zone2_click, hr_zone3_click, hr_zone4_click, name_value, birthday_value, sex_value,
+        weight_value, rest_hr_value, ride_ftp_value, run_ftp_value, wk_act_value, slp_goal_value, tss_goal_value,
+        rrmax_value, rrmin_value, min_workout_value, workout_value, yoga_value, slp_value, rd_value,
+        cycle_zone1_value, cycle_zone2_value, cycle_zone3_value, cycle_zone4_value, cycle_zone5_value,
+        cycle_zone6_value, run_zone1_value, run_zone2_value, run_zone3_value, run_zone4_value, hr_zone1_value,
+        hr_zone2_value, hr_zone3_value, hr_zone4_value,
+
 ):
-    num_metrics = 17
+    num_metrics = 31
     output_styles = []
     for _ in range(num_metrics):
         output_styles.extend([{'display': 'inline-block', 'border': '0px'}, {
@@ -663,7 +700,22 @@ def save_athlete_settings(
                        'weekly-workout-goal-input-submit': 'weekly_workout_goal',
                        'weekly-yoga-goal-input-submit': 'weekly_yoga_goal',
                        'weekly-sleep-score-goal-input-submit': 'weekly_sleep_score_goal',
-                       'weekly-readiness-score-goal-input-submit': 'weekly_readiness_score_goal'}
+                       'weekly-readiness-score-goal-input-submit': 'weekly_readiness_score_goal',
+                       'cycle-zone1-input-submit': 'cycle_power_zone_threshold_1',
+                       'cycle-zone2-input-submit': 'cycle_power_zone_threshold_2',
+                       'cycle-zone3-input-submit': 'cycle_power_zone_threshold_3',
+                       'cycle-zone4-input-submit': 'cycle_power_zone_threshold_4',
+                       'cycle-zone5-input-submit': 'cycle_power_zone_threshold_5',
+                       'cycle-zone6-input-submit': 'cycle_power_zone_threshold_6',
+                       'run-zone1-input-submit': 'run_power_zone_threshold_1',
+                       'run-zone2-input-submit': 'run_power_zone_threshold_2',
+                       'run-zone3-input-submit': 'run_power_zone_threshold_3',
+                       'run-zone4-input-submit': 'run_power_zone_threshold_4',
+                       'hr-zone1-input-submit': 'hr_power_zone_threshold_1',
+                       'hr-zone2-input-submit': 'hr_power_zone_threshold_2',
+                       'hr-zone3-input-submit': 'hr_power_zone_threshold_3',
+                       'hr-zone4-input-submit': 'hr_power_zone_threshold_4',
+                       }
 
         output_indexer = [
             'name',
@@ -682,7 +734,22 @@ def save_athlete_settings(
             'weekly_workout_goal',
             'weekly_yoga_goal',
             'weekly_sleep_score_goal',
-            'weekly_readiness_score_goal'
+            'weekly_readiness_score_goal',
+            'cycle_power_zone_threshold_1',
+            'cycle_power_zone_threshold_2',
+            'cycle_power_zone_threshold_3',
+            'cycle_power_zone_threshold_4',
+            'cycle_power_zone_threshold_5',
+            'cycle_power_zone_threshold_6',
+            'run_power_zone_threshold_1',
+            'run_power_zone_threshold_2',
+            'run_power_zone_threshold_3',
+            'run_power_zone_threshold_4',
+            'hr_power_zone_threshold_1',
+            'hr_power_zone_threshold_2',
+            'hr_power_zone_threshold_3',
+            'hr_power_zone_threshold_4',
+
         ]
         values = {
             'name': name_value,
@@ -702,6 +769,20 @@ def save_athlete_settings(
             'weekly_yoga_goal': yoga_value,
             'weekly_sleep_score_goal': slp_value,
             'weekly_readiness_score_goal': rd_value,
+            'cycle_power_zone_threshold_1': cycle_zone1_value,
+            'cycle_power_zone_threshold_2': cycle_zone2_value,
+            'cycle_power_zone_threshold_3': cycle_zone3_value,
+            'cycle_power_zone_threshold_4': cycle_zone4_value,
+            'cycle_power_zone_threshold_5': cycle_zone5_value,
+            'cycle_power_zone_threshold_6': cycle_zone6_value,
+            'run_power_zone_threshold_1': run_zone1_value,
+            'run_power_zone_threshold_2': run_zone2_value,
+            'run_power_zone_threshold_3': run_zone3_value,
+            'run_power_zone_threshold_4': run_zone4_value,
+            'hr_power_zone_threshold_1': hr_zone1_value,
+            'hr_power_zone_threshold_2': hr_zone2_value,
+            'hr_power_zone_threshold_3': hr_zone3_value,
+            'hr_power_zone_threshold_4': hr_zone4_value,
         }
 
         index1 = output_indexer.index(latest_dict[latest]) * 2
