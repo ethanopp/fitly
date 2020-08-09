@@ -1,4 +1,6 @@
 # Fit.ly
+This repo is a fork from https://github.com/ethanopp/fitly
+
 Web analytics for endurance athletes
 ![Image description](https://imgur.com/HoxtkJm.png)
 ![Image description](https://imgur.com/jWK6F0O.png)
