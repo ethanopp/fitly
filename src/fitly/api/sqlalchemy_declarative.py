@@ -361,7 +361,6 @@ Base.metadata.create_all(engine)
 athlete_exists = True if len(session.query(athlete).all()) > 0 else False
 # If no athlete created in db, create one
 if not athlete_exists:
-#TODO: Force user to enter certain athlete details prior to being able to pull data (i.e. weight, sex, rest_hr, etc.)
     dummy_athlete = athlete(
         min_non_warmup_workout_time=900,
         weekly_tss_goal=150,
