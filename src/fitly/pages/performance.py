@@ -28,9 +28,9 @@ def get_layout(**kwargs):
         dbc.Modal(id="annotation-modal", centered=True, autoFocus=True, fade=False, backdrop='static', size='xl',
                   children=[
                       dbc.ModalHeader(id='annotation-modal-header', children=['Annotations']),
-                      dbc.ModalBody(id='annotation-modal-body',
+                      dbc.ModalBody(id='annotation-modal-body', className='align-items-center text-center',
                                     children=[
-                                        html.Div(className='col-lg-12 text-center mb-2', style={'padding': 0},
+                                        html.Div(className='col-lg-12 mb-2', style={'padding': 0},
                                                  children=[
                                                      html.Div(id='annotation-table-container', className='col mb-2',
                                                               style={'padding': 0},
@@ -44,12 +44,12 @@ def get_layout(**kwargs):
                                                              className='col',
                                                              style={'display': 'inline-block'}),
 
-                                                     html.Div(className='col text-center mb-2', children=[
+                                                     html.Div(className='col mb-2', children=[
                                                          dbc.Input(id='annotation-password', bs_size="sm",
                                                                    type='password', placeholder='Password', value=''),
                                                      ]),
 
-                                                     html.Div(className='col text-center mb-2', children=[
+                                                     html.Div(className='col mb-2', children=[
                                                          dbc.Button("Save",
                                                                     id="save-close-annotation-modal-button",
                                                                     color='primary', size='sm', n_clicks=0),
@@ -120,7 +120,7 @@ def get_layout(**kwargs):
                           dbc.Button("Close", id="close-activity-modal-button", color='primary', n_clicks=0)
                       ),
                   ]),
-        html.Div(className='row mt-2 mb-2', children=[
+        html.Div(className='row align-items-center text-center mt-2 mb-2', children=[
             html.Div(id='pmd-header-and-chart', className='col-lg-8',
                      children=[
                          dbc.Card([
@@ -128,7 +128,7 @@ def get_layout(**kwargs):
                                  # generates from hoverData callback
 
                                  html.Div(id='pmd-kpi'),
-                                 html.Div(id='pmc-controls', className='row text-center mb-2', children=[
+                                 html.Div(id='pmc-controls', className='row mb-2', children=[
                                      html.Div(className='col-lg-8 offset-lg-1', children=[
                                          html.Div(className='row', children=[
                                              html.Div(id='run-pmc', className='col-2',
@@ -424,7 +424,7 @@ def create_fitness_kpis(date, ctl, ramp, rr_min_threshold, rr_max_threshold, atl
     readiness_score = round(readiness_score) if readiness_score else 'N/A'
     injury_risk = 'High' if ramp >= rr_max_threshold else 'Medium' if ramp >= rr_min_threshold else 'Low'
 
-    return [html.Div(className='row text-center', children=[
+    return [html.Div(className='row', children=[
 
         ### Date KPI ###
         html.Div(className='col-lg-2', children=[
@@ -496,7 +496,7 @@ def create_fitness_kpis(date, ctl, ramp, rr_min_threshold, rr_max_threshold, atl
                     target="oura-readiness", ),
     ]),
 
-            html.Div(id='workout-recommendation', className='row text-center', children=[
+            html.Div(id='workout-recommendation', className='row', children=[
                 html.Div(className='col-lg-4',
                          children=[
                              html.H6('HRV Recommendation: {}'.format(plan_recommendation), id='hrv-rationale')]),
@@ -1329,7 +1329,7 @@ def workout_distribution(run_status, ride_status, all_status):
     #     'str')
 
     class_names = ['Power Zone Max', 'Power Zone Endurance', 'Power Zone', 'Endurance', 'Speed', 'Intervals', 'HIIT',
-                   'Progression', 'Race Prep', 'Tabata', 'Hills', 'Long', 'Fun', 'Tempo']#, '5k', '10k', 'Marathon']
+                   'Progression', 'Race Prep', 'Tabata', 'Hills', 'Long', 'Fun', 'Tempo']  # , '5k', '10k', 'Marathon']
     for name in class_names:
         for i in df_summary.index:
             if name.lower() in df_summary.loc[i]['name'].lower():
@@ -1435,39 +1435,30 @@ def workout_distribution(run_status, ride_status, all_status):
 
 def workout_summary_kpi(df_samples):
     return [
-        html.Div(className='text-center', style={'height': '25%'}, children=[
-            html.Div(children=[
-                html.H5('Power', className='text-center mb-0'),
-                html.P('Max: {:.0f}'.format(df_samples['watts'].max()), className='text-center mb-0'),
-                html.P('Avg: {:.0f}'.format(df_samples['watts'].mean()), className='text-center mb-0'),
-                html.P('Min: {:.0f}'.format(df_samples['watts'].min()), className='text-center mb-0')
-            ])
+        html.Div(className='align-items-center text-center', style={'height': '25%'}, children=[
+            html.H5('Power', className=' mb-0'),
+            html.P('Max: {:.0f}'.format(df_samples['watts'].max()), className='mb-0'),
+            html.P('Avg: {:.0f}'.format(df_samples['watts'].mean()), className='mb-0'),
+            html.P('Min: {:.0f}'.format(df_samples['watts'].min()), className='mb-0')
         ]),
-        html.Div(className='text-center', style={'height': '25%'}, children=[
-            html.Div(children=[
-                html.H5('Heartrate', className='text-center mb-0'),
-                html.P('Max: {:.0f}'.format(df_samples['heartrate'].max()), className='text-center mb-0'),
-                html.P('Avg: {:.0f}'.format(df_samples['heartrate'].mean()), className='text-center mb-0'),
-                html.P('Min: {:.0f}'.format(df_samples['heartrate'].min()), className='text-center mb-0')
-            ])
+        html.Div(className='align-items-center text-center', style={'height': '25%'}, children=[
+            html.H5('Heartrate', className='mb-0'),
+            html.P('Max: {:.0f}'.format(df_samples['heartrate'].max()), className='mb-0'),
+            html.P('Avg: {:.0f}'.format(df_samples['heartrate'].mean()), className=' mb-0'),
+            html.P('Min: {:.0f}'.format(df_samples['heartrate'].min()), className=' mb-0')
         ]),
-        html.Div(className='text-center', style={'height': '25%'}, children=[
-            html.Div(children=[
-                html.H5('Speed', className='text-center mb-0'),
-                html.P('Max: {:.0f}'.format(df_samples['velocity_smooth'].max()), className='text-center mb-0'),
-                html.P('Avg: {:.0f}'.format(df_samples['velocity_smooth'].mean()), className='text-center mb-0'),
-                html.P('Min: {:.0f}'.format(df_samples['velocity_smooth'].min()), className='text-center mb-0')
-            ])
+        html.Div(className='align-items-center text-center', style={'height': '25%'}, children=[
+            html.H5('Speed', className=' mb-0'),
+            html.P('Max: {:.0f}'.format(df_samples['velocity_smooth'].max()), className=' mb-0'),
+            html.P('Avg: {:.0f}'.format(df_samples['velocity_smooth'].mean()), className=' mb-0'),
+            html.P('Min: {:.0f}'.format(df_samples['velocity_smooth'].min()), className='mb-0')
         ]),
-        html.Div(className='text-center', style={'height': '25%'}, children=[
-            html.Div(children=[
-                html.H5('Cadence', className='text-center mb-0'),
-                html.P('Max: {:.0f}'.format(df_samples['cadence'].max()), className='text-center mb-0'),
-                html.P('Avg: {:.0f}'.format(df_samples['cadence'].mean()), className='text-center mb-0'),
-                html.P('Min: {:.0f}'.format(df_samples['cadence'].min()), className='text-center mb-0')
-            ])
+        html.Div(className='align-items-center text-center', style={'height': '25%'}, children=[
+            html.H5('Cadence', className=' mb-0'),
+            html.P('Max: {:.0f}'.format(df_samples['cadence'].max()), className=' mb-0'),
+            html.P('Avg: {:.0f}'.format(df_samples['cadence'].mean()), className=' mb-0'),
+            html.P('Min: {:.0f}'.format(df_samples['cadence'].min()), className=' mb-0')
         ]),
-
     ]
 
 
@@ -1586,152 +1577,6 @@ def workout_details(df_samples, start_seconds=None, end_seconds=None):
                     font=dict(
                         color='rgb(220,220,220)'
                     ),
-                    # annotations=[
-                    #     dict(
-                    #         text="Power",
-                    #         font=annotation_font,
-                    #         xref="paper",
-                    #         yref="paper",
-                    #         yanchor="bottom",
-                    #         xanchor="center",
-                    #         align="center",
-                    #         x=0.5,
-                    #         y=1,
-                    #         showarrow=False
-                    #     ),
-                    #     dict(
-                    #         text="Max: {:.0f}".format(df_samples['watts'].max()),
-                    #         font=annotation_font,
-                    #         xref="paper",
-                    #         yref="paper",
-                    #         yanchor="bottom",
-                    #         xanchor="center",
-                    #         align="center",
-                    #         x=1,
-                    #         y=1,
-                    #         showarrow=False
-                    #     ),
-                    #     dict(
-                    #         text="Avg: {:.0f}".format(df_samples['watts'].mean()),
-                    #         font=annotation_font,
-                    #         xref="paper",
-                    #         yref="paper",
-                    #         yanchor="bottom",
-                    #         xanchor="center",
-                    #         align="center",
-                    #         x=0,
-                    #         y=1,
-                    #         showarrow=False
-                    #     ),
-                    #     dict(
-                    #         text="Heart Rate",
-                    #         font=annotation_font,
-                    #         xref="paper",
-                    #         yref="paper",
-                    #         yanchor="bottom",
-                    #         xanchor="center",
-                    #         align="center",
-                    #         x=0.5,
-                    #         y=.7,
-                    #         showarrow=False
-                    #     ),
-                    #     dict(
-                    #         text="Max: {:.0f}".format(df_samples['heartrate'].max()),
-                    #         font=annotation_font,
-                    #         xref="paper",
-                    #         yref="paper",
-                    #         yanchor="bottom",
-                    #         xanchor="center",
-                    #         align="center",
-                    #         x=1,
-                    #         y=.7,
-                    #         showarrow=False
-                    #     ),
-                    #     dict(
-                    #         text="Avg: {:.0f}".format(df_samples['heartrate'].mean()),
-                    #         font=annotation_font,
-                    #         xref="paper",
-                    #         yref="paper",
-                    #         yanchor="bottom",
-                    #         xanchor="center",
-                    #         align="center",
-                    #         x=0,
-                    #         y=.7,
-                    #         showarrow=False
-                    #     ),
-                    #     dict(
-                    #         text="Cadence",
-                    #         font=annotation_font,
-                    #         xref="paper",
-                    #         yref="paper",
-                    #         yanchor="bottom",
-                    #         xanchor="center",
-                    #         align="center",
-                    #         x=0.5,
-                    #         y=.45,
-                    #         showarrow=False
-                    #     ),
-                    #     dict(
-                    #         text="Max: {:.0f}".format(df_samples['cadence'].max()),
-                    #         font=annotation_font,
-                    #         xref="paper",
-                    #         yref="paper",
-                    #         yanchor="bottom",
-                    #         xanchor="center",
-                    #         align="center",
-                    #         x=1,
-                    #         y=.45,
-                    #         showarrow=False
-                    #     ),
-                    #     dict(
-                    #         text="Avg: {:.0f}".format(df_samples['cadence'].mean()),
-                    #         font=annotation_font,
-                    #         xref="paper",
-                    #         yref="paper",
-                    #         yanchor="bottom",
-                    #         xanchor="center",
-                    #         align="center",
-                    #         x=0,
-                    #         y=.45,
-                    #         showarrow=False
-                    #     ),
-                    #     dict(
-                    #         text="Speed",
-                    #         font=annotation_font,
-                    #         xref="paper",
-                    #         yref="paper",
-                    #         yanchor="bottom",
-                    #         xanchor="center",
-                    #         align="center",
-                    #         x=0.5,
-                    #         y=.2,
-                    #         showarrow=False
-                    #     ),
-                    #     dict(
-                    #         text="Max: {:.0f}".format(df_samples['velocity_smooth'].max()),
-                    #         font=annotation_font,
-                    #         xref="paper",
-                    #         yref="paper",
-                    #         yanchor="bottom",
-                    #         xanchor="center",
-                    #         align="center",
-                    #         x=1,
-                    #         y=.2,
-                    #         showarrow=False
-                    #     ),
-                    #     dict(
-                    #         text="Avg: {:.0f}".format(df_samples['velocity_smooth'].mean()),
-                    #         font=annotation_font,
-                    #         xref="paper",
-                    #         yref="paper",
-                    #         yanchor="bottom",
-                    #         xanchor="center",
-                    #         align="center",
-                    #         x=0,
-                    #         y=.2,
-                    #         showarrow=False
-                    #     ),
-                    # ],
 
                     hovermode='x',
                     margin={'l': 40, 'b': 25, 't': 5, 'r': 40},
@@ -2064,7 +1909,8 @@ def modal_power_curve(activity, is_open):
         metric = activity.split('|')[2]
         # Only show power zone chart if power data exists
         if metric == 'power_zone':
-            figure, horverData = power_curve(last_id=activity_id, activity_type=activity_type, showlegend=True, strydmetrics=False)
+            figure, horverData = power_curve(last_id=activity_id, activity_type=activity_type, showlegend=True,
+                                             strydmetrics=False)
             return figure, {'height': '100%'}
         else:
             return {}, {'display': 'None'}

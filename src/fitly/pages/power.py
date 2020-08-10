@@ -1207,16 +1207,15 @@ def update_fitness_kpis(hoverData, power_unit):
 def get_layout(**kwargs):
     return html.Div([
 
-        html.Div(className='row', children=[
-            html.Div(id='power-dashboard-header-container', className='col-12 text-center mt-2 mb-2', children=[
+        html.Div(className='row align-items-center text-center', children=[
+            html.Div(id='power-dashboard-header-container', className='col-12 mt-2 mb-2', children=[
 
                 html.I(id='running-icon', className='fa fa-running',
-                       style={'fontSize': '2rem', 'display': 'inline-block', 'vertical-align': 'middle'}),
+                       style={'fontSize': '2rem', 'display': 'inline-block'}),
                 daq.ToggleSwitch(id='activity-type-toggle', className='mr-2 ml-2', style={'display': 'inline-block'}),
 
                 html.I(id='bicycle-icon', className='fa fa-bicycle',
-                       style={'fontSize': '2rem', 'display': 'inline-block', 'vertical-align': 'middle',
-                              'color': teal}),
+                       style={'fontSize': '2rem', 'display': 'inline-block', 'color': teal}),
                 dbc.Tooltip('Analyze cycling activities', target="bicycle-icon"),
                 dbc.Tooltip('Toggle activity type', target="activity-type-toggle"),
                 dbc.Tooltip('Analyze running activities', target="running-icon"),
@@ -1225,15 +1224,14 @@ def get_layout(**kwargs):
                               'paddingRight': '1%'}),
 
                 html.I(id='bolt-icon', className='fa fa-bolt',
-                       style={'fontSize': '2rem', 'display': 'inline-block', 'vertical-align': 'middle',
+                       style={'fontSize': '2rem', 'display': 'inline-block',
                               'color': teal}),
 
                 daq.ToggleSwitch(id='power-unit-toggle', className='mr-2 ml-2', style={'display': 'inline-block'},
                                  value=False),
 
                 html.I(id='weight-icon', className='fa fa-weight',
-                       style={'fontSize': '2rem', 'display': 'inline-block',
-                              'vertical-align': 'middle'}),
+                       style={'fontSize': '2rem', 'display': 'inline-block'}),
 
                 dbc.Tooltip('Show watts', target="bolt-icon"),
                 dbc.Tooltip('Toggle power unit', target="power-unit-toggle"),
@@ -1266,7 +1264,7 @@ def get_layout(**kwargs):
                      ]),
                  ]),
         html.Div(id='power-profile-header',
-                 className='row text-center mt-2 mb-2', children=[
+                 className='row align-items-center text-center mt-2 mb-2', children=[
                 html.Div(className='col', children=[
                     html.H6('Power Profiles by'),
                     html.Div(id='power-profile-buttons', className='col', children=[

@@ -391,7 +391,7 @@ def generate_kpi_donut(kpi_name, metric, goal, current_streak, best_streak, colo
     remaining = 1 - progress if progress > 0 else 1
     if not color:
         color = teal if progress >= 1 else white
-    return [html.H6(className='text-center mb-2', children=['{}'.format(kpi_name)]),
+    return [html.H6(className='mb-2', children=['{}'.format(kpi_name)]),
             dcc.Graph(id=kpi_name + '-donut-chart',
                       config={
                           'displayModeBar': False,
@@ -704,7 +704,7 @@ def generate_content_kpi_trend(df_name, metric):
         ])
         margin = {'l': 35, 'b': 30, 't': 0, 'r': 35}
 
-    return html.Div(id=metric + '-kpi-title', className='col-lg-12 text-center', children=[
+    return html.Div(id=metric + '-kpi-title', className='col-lg-12', children=[
         html.H6(children=[metricTitle[metric]]),
         dcc.Graph(id=metric + '-kpi-trend', config={'displayModeBar': False},
                   figure={
@@ -1428,16 +1428,16 @@ def generate_oura_sleep_content(date):
                 ])
             ]),
 
-            html.Div(className='row text-center', children=[
+            html.Div(className='row', children=[
                 html.Div(id='sleep-stages-day-trend', className='col', children=[
-                    html.H6('Sleep Stages', style={'display': 'inline-block', 'marginBottom': '0%'}),
+                    html.H6('Sleep Stages', style={'marginBottom': '0%'}),
                     html.Div(id='sleep-stages-chart-container', className='col',
                              children=generate_sleep_stages_chart(date)),
                 ])
             ]),
             html.Div(className='row', children=[
                 html.Div(id='sleep-contributors', className='col-lg-12', children=[
-                    html.H6('Sleep Contributors', className='text-center'),
+                    html.H6('Sleep Contributors'),
                     generate_contributor_bar(df=df, id='total-sleep', column_name='score_total',
                                              top_left_title='Total Sleep',
                                              top_right_title='{}h {}m'.format(df['total'].max() // 3600,
@@ -1609,7 +1609,7 @@ def generate_sleep_modal_summary(days=7):
                                      })
 
     return [
-        html.Div(id='sleep-modal-last-7-container', className='row mb-2 text-center',
+        html.Div(id='sleep-modal-last-7-container', className='row align-items-center text-center mb-2',
                  style={'whiteSpace': 'normal'}, children=[
                 html.Div(id='sleep-score-last-7', className='col-lg-4', children=[
                     html.Div(id='sleep-score-last-7-title', className='col-lg-12',
@@ -1643,8 +1643,8 @@ def generate_sleep_modal_summary(days=7):
                 ]),
             ]),
 
-        html.Div(className='row', children=[
-            html.Div(id='sleep-groupby-controls', className='col-lg-12 text-center mb-2 mt-2', children=[
+        html.Div(className='row align-items-center text-center', children=[
+            html.Div(id='sleep-groupby-controls', className='col-lg-12 mb-2 mt-2', children=[
                 dbc.Button('Year', id='sleep-year-button', n_clicks=0, size='sm', className='mr-3'),
                 dbc.Button('Month', id='sleep-month-button', n_clicks=0, size='sm', className='mr-3'),
                 dbc.Button('Week', id='sleep-week-button', n_clicks=0, size='sm', className='mr-3'),
@@ -1993,16 +1993,16 @@ def generate_oura_readiness_content(date):
                 ])
             ]),
 
-            html.Div(className='row text-center', children=[
+            html.Div(className='row', children=[
                 html.Div(id='resting-heart-rate-day-trend', className='col', children=[
-                    html.H6('Resting Heart Rate', style={'display': 'inline-block', 'marginBottom': '0%'}),
+                    html.H6('Resting Heart Rate', style={'marginBottom': '0%'}),
                     html.Div(id='resting-heart-rate-chart-conainer', className='col',
                              children=generate_rhr_day_chart(date)),
                 ])
             ]),
             html.Div(className='row', children=[
                 html.Div(id='readiness-contributors', className='col-lg-12', children=[
-                    html.H6('Readiness Contributors', className='text-center'),
+                    html.H6('Readiness Contributors'),
                     generate_contributor_bar(df=df_contributors, id='resting-heart-rate',
                                              column_name='score_resting_hr',
                                              top_left_title='Resting Heart Rate',
@@ -2260,7 +2260,7 @@ def generate_readiness_modal_summary(days=7):
                                  })
 
     return [
-        html.Div(id='readiness-modal-last-7-container', className='row mb-2 text-center',
+        html.Div(id='readiness-modal-last-7-container', className='row align-items-center text-center mb-2',
                  style={'whiteSpace': 'normal'}, children=[
                 html.Div(id='readiness-score-last-7', className='col-lg-4', children=[
                     html.Div(id='readiness-score-last-7-title',
@@ -2292,8 +2292,8 @@ def generate_readiness_modal_summary(days=7):
                 ]),
             ]),
 
-        html.Div(className='row', children=[
-            html.Div(id='readiness-groupby-controls', className='col-lg-12 text-center mb-2 mt-2', children=[
+        html.Div(className='row align-items-center text-center', children=[
+            html.Div(id='readiness-groupby-controls', className='col-lg-12 mb-2 mt-2', children=[
                 dbc.Button('Year', id='readiness-year-button', n_clicks=0, size='sm', className='mr-3'),
                 dbc.Button('Month', id='readiness-month-button', n_clicks=0, size='sm', className='mr-3'),
                 dbc.Button('Week', id='readiness-week-button', n_clicks=0, size='sm', className='mr-3'),
@@ -2563,16 +2563,16 @@ def generate_oura_activity_content(date):
                 ])
             ]),
 
-            html.Div(className='row text-center', children=[
+            html.Div(className='row', children=[
                 html.Div(id='daily-movement-day-trend', className='col', children=[
-                    html.H6('Daily Movement', style={'display': 'inline-block', 'marginBottom': '0%'}),
+                    html.H6('Daily Movement', style={'marginBottom': '0%'}),
                     html.Div(id='daily-movement-chart-conainer', className='col',
                              children=generate_daily_movement_chart(date)),
                 ])
             ]),
             html.Div(className='row', children=[
                 html.Div(id='activity-contributors', className='col-lg-12', children=[
-                    html.H6('Activity Contributors', className='text-center'),
+                    html.H6('Activity Contributors'),
                     generate_contributor_bar(df=df, id='stay-active',
                                              column_name='score_stay_active',
                                              top_left_title='Stay Active',
@@ -2729,7 +2729,7 @@ def generate_activity_modal_summary(days=7):
                                       })
 
     return [
-        html.Div(id='activity-modal-last-7-container', className='row mb-2 text-center',
+        html.Div(id='activity-modal-last-7-container', className='row align-items-center text-center mb-2',
                  style={'whiteSpace': 'normal'}, children=[
                 html.Div(id='activity-score-last-7', className='col-lg-4', children=[
                     html.Div(id='activity-score-last-7-title',
@@ -2763,8 +2763,8 @@ def generate_activity_modal_summary(days=7):
                              )
                 ]),
             ]),
-        html.Div(className='row', children=[
-            html.Div(id='activity-groupby-controls', className='col-lg-12 text-center mb-2 mt-2', children=[
+        html.Div(className='row align-items-center text-center', children=[
+            html.Div(id='activity-groupby-controls', className='col-lg-12 mb-2 mt-2', children=[
                 dbc.Button('Year', id='activity-year-button', n_clicks=0, size='sm', className='mr-3'),
                 dbc.Button('Month', id='activity-month-button', n_clicks=0, size='sm', className='mr-3'),
                 dbc.Button('Week', id='activity-week-button', n_clicks=0, size='sm', className='mr-3'),
@@ -3269,18 +3269,18 @@ def get_layout(**kwargs):
     if not oura_credentials_supplied:
         return html.H1('Please provide oura credentials in config', className='text-center')
     else:
-        return html.Div([
+        return html.Div(className='align-items-center text-center', children=[
             html.Div(id='week-selection', className='row mt-2 mb-2',
                      children=[
-                         html.Div(className='col-lg-12 text-center', children=[
+                         html.Div(className='col-lg-12', children=[
                              dbc.Card([
                                  dbc.CardBody(style={'paddingTop': '0', 'paddingBottom': '0'}, children=[
 
-                                     html.Div(className='col-lg-12 text-center', children=[
+                                     html.Div(className='col-lg-12', children=[
                                          html.P('Week Ending', className='mb-0',
                                                 style={'color': teal, 'fontSize': '1rem'}),
                                      ]),
-                                     html.Div(className='col-lg-12 text-center', children=[
+                                     html.Div(className='col-lg-12', children=[
                                          html.Button(id='back-week', className='fa fa-arrow-left mr-2', n_clicks=0),
                                          html.H4(id='week-ending', style={'display': 'inline-block'}),
                                          html.Button(id='forward-week', className='fa fa-arrow-right ml-2'),
@@ -3335,7 +3335,7 @@ def get_layout(**kwargs):
                         dbc.CardBody(id='oura-sleep-container',
                                      children=[
                                          html.Div(className='row', children=[
-                                             html.Div(id='oura-sleep-kpi', className='col-lg-12 text-center',
+                                             html.Div(id='oura-sleep-kpi', className='col-lg-12',
                                                       children=[
                                                           html.P(id='sleep-date', className='mb-0',
                                                                  style={'display': 'inline-block',
@@ -3384,7 +3384,7 @@ def get_layout(**kwargs):
                         dbc.CardBody(id='oura-readiness-container',
                                      children=[
                                          html.Div(className='row', children=[
-                                             html.Div(id='oura-readiness-kpi', className='col-lg-12 text-center',
+                                             html.Div(id='oura-readiness-kpi', className='col-lg-12',
                                                       children=[
 
                                                           html.P(id='readiness-date', className='mb-0',
@@ -3431,7 +3431,7 @@ def get_layout(**kwargs):
                         dbc.CardBody(id='oura-activity-container',
                                      children=[
                                          html.Div(className='row', children=[
-                                             html.Div(id='oura-activity-kpi', className='col-lg-12 text-center',
+                                             html.Div(id='oura-activity-kpi', className='col-lg-12',
                                                       children=[
 
                                                           html.P(id='activity-date', className='mb-0',

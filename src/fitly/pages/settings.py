@@ -41,7 +41,7 @@ def get_layout(**kwargs):
                   is_open=True,
                   children=[
                       dbc.ModalHeader("Enter Admin Password"),
-                      dbc.ModalBody(className='text-center', children=[
+                      dbc.ModalBody(className='align-items-center text-center', children=[
                           dbc.Input(id='settings-password', type='password', placeholder='Password', bs_size="sm",
                                     value='')]),
                       dbc.ModalFooter(html.Div([
@@ -59,12 +59,12 @@ def check_oura_connection():
     if oura_credentials_supplied:
         # If not connected, send to auth app page to start token request
         if not oura_connected():
-            return html.A(className='text-center col-lg-12', children=[
-                dbc.Button('Connect Oura', id='connect-oura-button', color='primary', className='text-center mb-2',
+            return html.A(className='col-lg-12', children=[
+                dbc.Button('Connect Oura', id='connect-oura-button', color='primary', className='mb-2',
                            size='md')],
                           href=connect_oura_link(oura_auth_client))
         else:
-            return html.H4('Oura Connected!', className='text-center col-lg-12', )
+            return html.H4('Oura Connected!', className='col-lg-12', )
     else:
         return html.Div()
 
@@ -72,27 +72,27 @@ def check_oura_connection():
 def check_strava_connection():
     # If not connected, send to auth app page to start token request
     if not strava_connected():
-        return html.A(className='text-center col-lg-12', children=[
-            dbc.Button('Connect Strava', id='connect-strava-button', color='primary', className='text-center mb-2',
+        return html.A(className='col-lg-12', children=[
+            dbc.Button('Connect Strava', id='connect-strava-button', color='primary', className='mb-2',
                        size='md')],
                       href=connect_strava_link(get_strava_client()))
     else:
-        return html.H4('Strava Connected!', className='text-center col-lg-12', )
+        return html.H4('Strava Connected!', className='col-lg-12', )
 
 
 def check_withings_connection():
     if withings_credentials_supplied:
         # If not connected, send to auth app page to start token request
         if not withings_connected():
-            return html.A(className='text-center col-lg-12', children=[
+            return html.A(className='col-lg-12', children=[
                 dbc.Button('Connect Withings', id='connect-withings-btton', color='primary',
-                           className='text-center mb-2',
+                           className='mb-2',
                            size='md')],
                           href=connect_withings_link(
                               NokiaAuth(config.get('withings', 'client_id'), config.get('withings', 'client_secret'),
                                         callback_uri=config.get('withings', 'redirect_uri'))))
         else:
-            return html.H4('Withings Connected!', className='text-center col-lg-12', )
+            return html.H4('Withings Connected!', className='col-lg-12', )
     else:
         return html.Div()
 
@@ -120,7 +120,7 @@ def generate_cycle_power_zone_card():
 
     return dbc.Card([
         dbc.CardHeader(html.H4('Cycling Power Zones')),
-        dbc.CardBody(className='text-center', children=[
+        dbc.CardBody([
 
             html.H5('Cycling FTP: {}'.format(cftp)),
             # html.H6('Zone 1: {:.0f}'.format((cftp * cycle_power_zone_threshold_1)),
@@ -184,7 +184,7 @@ def generate_run_power_zone_card():
 
     return dbc.Card([
         dbc.CardHeader(html.H4('Running Power Zones')),
-        dbc.CardBody(className='text-center', children=[
+        dbc.CardBody([
             html.H5('Running FTP: {}'.format(rftp)),
 
             generate_db_setting('run-zone1', 'Z1: <= {:.0f}'.format((rftp * run_power_zone_threshold_1)),
@@ -276,7 +276,7 @@ def athlete_card():
 
     return dbc.Card(id='athlete-card', className=color, children=[
         dbc.CardHeader(html.H4('Athlete')),
-        dbc.CardBody(className='text-center', children=[
+        dbc.CardBody([
             generate_db_setting('name', 'Name', athlete_info.name),
             generate_db_setting('birthday', 'Birthday (YYYY-MM-DD)', athlete_info.birthday),
             generate_db_setting('sex', 'Sex (M/F)', athlete_info.sex),
@@ -318,7 +318,7 @@ def generate_hr_zone_card():
 
     return dbc.Card([
         dbc.CardHeader(html.H4('Heart Rate Zones')),
-        dbc.CardBody(className='text-center', children=[
+        dbc.CardBody([
             html.H5('Based of Resting Heart Rate: {}'.format(rhr)),
             generate_db_setting('hr-zone1', 'Z1: <= {:.0f}'.format(z1), hr_zone_threshold_1),
             generate_db_setting('hr-zone2', 'Z2 : {:.0f} - {:.0f}'.format(z1 + 1, z2), hr_zone_threshold_2),
@@ -330,13 +330,12 @@ def generate_hr_zone_card():
     ])
 
 
-#TODO: FIX FORMATTING, NOT CENTERED
 def generate_db_setting(id, title, value, placeholder=None):
     return (
         # html.Div(id=id, className='row mb-2 mt-2', children=[
         html.Div(id=id, className='row align-items-center mb-2 mt-2', children=[
             html.H6(title, className='col-5 mb-0'),
-            dbc.Input(id=id + '-input', className=' col-5', type='text', bs_size="sm", value=value,
+            dbc.Input(id=id + '-input', className='text-center col-5', type='text', bs_size="sm", value=value,
                       placeholder=placeholder),
             html.Button(id=id + '-input-submit', className='col-2 fa fa-upload',
                         style={'display': 'inline-block', 'border': '0px'}),
@@ -357,7 +356,7 @@ def goal_parameters():
     use_hrv = True if athlete_info.weekly_workout_goal == 100 and athlete_info.weekly_yoga_goal == 100 else False
     return dbc.Card([
         dbc.CardHeader(html.H4('Goals')),
-        dbc.CardBody(className='text-center', children=[
+        dbc.CardBody(className='align-items-center text-center', children=[
 
             generate_db_setting(id='min-workout-time-goal', title='Min. Activity Minutes',
                                 value=athlete_info.min_non_warmup_workout_time / 60),
@@ -425,13 +424,13 @@ def generate_settings_dashboard():
         ])
 
     return html.Div([
-        html.Div(id='settings-shelf-1', className='row mt-2',
+        html.Div(id='settings-shelf-1', className='row align-items-start text-center mt-2',
                  children=[
                      html.Div(id='data sources', className='col-lg-3',
                               children=[
                                   dbc.Card(className='mb-2', children=[
                                       dbc.CardHeader(html.H4('App Connections')),
-                                      dbc.CardBody(className='text-center', children=html.Div(id='api-connections'))
+                                      dbc.CardBody(children=html.Div(id='api-connections'))
                                   ]),
                               ]),
                      html.Div(id='run-power-zones', className='col-lg-3', children=generate_run_power_zone_card()),
@@ -439,11 +438,11 @@ def generate_settings_dashboard():
                      html.Div(id='hr-zones', className='col-lg-3', children=generate_hr_zone_card()),
                  ]),
 
-        html.Div(className='row mt-2', children=[
+        html.Div(id='settings-shelf-2', className='row align-items-start text-center mt-2', children=[
             html.Div(id='database-container', className='col-lg-4', children=[
                 dbc.Card(className='mb-2', children=[
                     dbc.CardHeader(html.H4('Database')),
-                    dbc.CardBody(className='text-center', children=[
+                    dbc.CardBody(children=[
                         html.Div(className='col-12 mb-2', children=[
                             dbc.Button('Refresh', color='primary', size='md',
                                        id='refresh-db-button', n_clicks=0)]),
@@ -483,7 +482,7 @@ def generate_settings_dashboard():
             html.Div(id='goal-container', className='col-lg-4',
                      children=[html.Div(id='goals', children=goal_parameters())]),
         ]),
-        html.Div(className='row mt-2 mb-2', children=[
+        html.Div(id='settings-shelf-3', className='row align-items-start text-center mt-2 mb-2', children=[
             html.Div(id='logs-container', className='col-lg-12',
                      children=[
                          dbc.Card(style={'height': '25vh'}, children=[

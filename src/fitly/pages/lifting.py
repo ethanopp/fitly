@@ -18,8 +18,8 @@ def get_layout(**kwargs):
         return html.H1('Please provide nextcloud credentials in config', className='text-center')
     else:
         return html.Div([
-            html.Div(className='row', children=[
-                html.Div(className='col-lg-12 text-center mt-2 mb-2', children=[
+            html.Div(className='row align-items-center text-center', children=[
+                html.Div(className='col-lg-12 mt-2 mb-2', children=[
                     html.Div(id='lifting-date-buttons', children=[
                         dbc.Button('All Time', id='all-button', color='primary', style={'marginRight': '1vw'}),
                         dbc.Button('Year to Date', id='ytd-button', color='primary', style={'marginRight': '1vw'}),
@@ -27,8 +27,8 @@ def get_layout(**kwargs):
                     ]),
                 ]),
             ]),
-            html.Div(id='lifting-header', className='row', children=[
-                html.Div(className='col-lg-6 offset-md-3 align-self-center text-center mt-2 mb-2', children=[
+            html.Div(id='lifting-header', className='row align-items-center text-center', children=[
+                html.Div(className='col-lg-6 offset-md-3 mt-2 mb-2', children=[
 
                     dcc.Dropdown(id='muscle-options', className='bg-light',
                                  style={'backgroundColor': 'rgba(0,0,0,0)'},
