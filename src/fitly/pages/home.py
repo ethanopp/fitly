@@ -2986,8 +2986,7 @@ def update_last_clicked(sleepClick, readinessClick, activityClick):
     [Input('sleep-date', 'children')]
 )
 def show_sleep_exclamation(dummy):
-    show = {'display': 'inline-block', 'fontSize': '1.25rem', 'color': orange, 'paddingLeft': '1%',
-            'textAlign': 'center', 'verticalAlign': 'middle'}
+    show = {'display': 'inline-block', 'fontSize': '1rem', 'color': orange, 'paddingLeft': '1%'}
     hide = {'display': 'none'}
     session, engine = db_connect()
     max_sleep_date = session.query(func.max(ouraSleepSummary.report_date)).first()[0]
@@ -3007,8 +3006,7 @@ def show_sleep_exclamation(dummy):
     [Input('readiness-date', 'children')]
 )
 def show_readiness_exclamation(dummy):
-    show = {'display': 'inline-block', 'fontSize': '1.25rem', 'color': orange, 'paddingLeft': '1%',
-            'textAlign': 'center', 'verticalAlign': 'middle'}
+    show = {'display': 'inline-block', 'fontSize': '1rem', 'color': orange, 'paddingLeft': '1%'}
     hide = {'display': 'none'}
     session, engine = db_connect()
     max_sleep_date = session.query(func.max(ouraSleepSummary.report_date)).first()[0]
@@ -3028,8 +3026,7 @@ def show_readiness_exclamation(dummy):
     [Input('activity-date', 'children')]
 )
 def show_activity_exclamation(dummy):
-    show = {'display': 'inline-block', 'fontSize': '1.25rem', 'color': orange, 'paddingLeft': '1%',
-            'textAlign': 'center', 'verticalAlign': 'middle'}
+    show = {'display': 'inline-block', 'fontSize': '1rem', 'color': orange, 'paddingLeft': '1%'}
     hide = {'display': 'none'}
     session, engine = db_connect()
     max_sleep_date = session.query(func.max(ouraSleepSummary.report_date)).first()[0]
@@ -3330,7 +3327,7 @@ def get_layout(**kwargs):
                               ),
                           ]),
 
-                html.Div(className='col-lg-4', children=[
+                html.Div(className='col-lg-4 align-items-center text-center', children=[
                     dbc.Card([
                         dbc.CardBody(id='oura-sleep-container',
                                      children=[
@@ -3379,7 +3376,7 @@ def get_layout(**kwargs):
                     ])
                 ]),
 
-                html.Div(className='col-lg-4', children=[
+                html.Div(className='col-lg-4 align-items-center text-center', children=[
                     dbc.Card([
                         dbc.CardBody(id='oura-readiness-container',
                                      children=[
@@ -3426,7 +3423,7 @@ def get_layout(**kwargs):
                     ])
                 ]),
 
-                html.Div(className='col-lg-4', children=[
+                html.Div(className='col-lg-4 align-items-center text-center', children=[
                     dbc.Card([
                         dbc.CardBody(id='oura-activity-container',
                                      children=[
