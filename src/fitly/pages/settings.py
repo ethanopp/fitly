@@ -153,8 +153,8 @@ def generate_cycle_power_zone_card():
                                                              cftp * cycle_power_zone_threshold_6),
                                 cycle_power_zone_threshold_6),
 
-            html.H6('Zone 7: >= {:.0f}'.format((cftp * cycle_power_zone_threshold_6) + 1),
-                    className='col'),
+            html.H6('Z7: >= {:.0f}'.format((cftp * cycle_power_zone_threshold_6) + 1),
+                    className='col-5 mb-0'),
 
         ])
 
@@ -187,7 +187,7 @@ def generate_run_power_zone_card():
         dbc.CardBody(className='text-center', children=[
             html.H5('Running FTP: {}'.format(rftp)),
 
-            generate_db_setting('run-zone1', 'Zone 1: <= {:.0f}'.format((rftp * run_power_zone_threshold_1)),
+            generate_db_setting('run-zone1', 'Z1: <= {:.0f}'.format((rftp * run_power_zone_threshold_1)),
                                 run_power_zone_threshold_1),
 
             generate_db_setting('run-zone2',
@@ -205,8 +205,8 @@ def generate_run_power_zone_card():
                                                              rftp * run_power_zone_threshold_4),
                                 run_power_zone_threshold_4),
 
-            html.H6('Zone 5: >= {:.0f}'.format((rftp * run_power_zone_threshold_4) + 1),
-                    className='col')
+            html.H6('Z5: >= {:.0f}'.format((rftp * run_power_zone_threshold_4) + 1),
+                    className='col-5 mb-0')
         ])
     ])
 
@@ -324,7 +324,7 @@ def generate_hr_zone_card():
             generate_db_setting('hr-zone2', 'Z2 : {:.0f} - {:.0f}'.format(z1 + 1, z2), hr_zone_threshold_2),
             generate_db_setting('hr-zone3', 'Z3: {:.0f} - {:.0f}'.format(z2 + 1, z3), hr_zone_threshold_3),
             generate_db_setting('hr-zone4', 'Z4: {:.0f} - {:.0f}'.format(z3 + 1, z4), hr_zone_threshold_4),
-            html.H6('Z5: >= {:.0f}'.format(z4 + 1), className='col')
+            html.H6('Z5: >= {:.0f}'.format(z4 + 1), className='col-5 mb-0')
 
         ])
     ])
@@ -333,15 +333,16 @@ def generate_hr_zone_card():
 #TODO: FIX FORMATTING, NOT CENTERED
 def generate_db_setting(id, title, value, placeholder=None):
     return (
-        html.Div(id=id, className='row mb-2 mt-2', style={'verticalAlign':'middle'}, children=[
-            html.H6(title, className='col-5 mb-0', style={'display': 'inline-block', 'verticalAlign':'middle'}),
+        # html.Div(id=id, className='row mb-2 mt-2', children=[
+        html.Div(id=id, className='row align-items-center mb-2 mt-2', children=[
+            html.H6(title, className='col-5 mb-0'),
             dbc.Input(id=id + '-input', className=' col-5', type='text', bs_size="sm", value=value,
                       placeholder=placeholder),
             html.Button(id=id + '-input-submit', className='col-2 fa fa-upload',
                         style={'display': 'inline-block', 'border': '0px'}),
 
             html.I(id=id + '-input-status', className='col-2 fa fa-check',
-                   style={'display': 'inline-block', 'color': 'rgba(0,0,0,0)',
+                   style={'display': 'none', 'color': 'rgba(0,0,0,0)',
                           'fontSize': '150%'})
         ])
     )
@@ -679,7 +680,7 @@ def save_athlete_settings(
     output_styles = []
     for _ in range(num_metrics):
         output_styles.extend([{'display': 'inline-block', 'border': '0px'}, {
-            'display': 'inline-block', 'color': 'rgba(0,0,0,0)', 'fontSize': '150%'}])
+            'display': 'none'}])
 
     ctx = dash.callback_context
     if ctx.triggered:
@@ -795,7 +796,7 @@ def save_athlete_settings(
             output_styles[index2] = {'color': 'green', 'fontSize': '150%'}
         else:
             output_styles[index1] = {'display': 'inline-block', 'border': '0px'}
-            output_styles[index2] = {'display': 'inline-block', 'color': 'rgba(0,0,0,0)', 'fontSize': '150%'}
+            output_styles[index2] = {'display': 'none'}
 
     return output_styles
 
