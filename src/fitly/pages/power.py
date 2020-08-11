@@ -158,7 +158,7 @@ def power_profiles(interval, activity_type='ride', power_unit='mmp', group='M'):
 
     return figure
 
-
+#TODO: Currently breaking if df data not found (i.e. no cycle workouts within last 90 days)
 def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend=False, strydmetrics=True):
     activity_type = '%' + activity_type + '%'
 

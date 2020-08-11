@@ -70,8 +70,8 @@ def pull_fitbod_data():
         df = df.rename(columns={'Duration(s)': 'Duration'})
         # Remove unecessary columns
         df = df[['Date_UTC', 'Exercise', 'Reps', 'Weight', 'Duration', 'isWarmup', 'Note']]
-        # TODO: Date currently is not unique to exercise set - only unique to workout so should not be used as index
-        # Autogenerate index for now...
+        # Date currently is not unique to exercise set - only unique to workout so should not be used as index
+        # Autogenerate index for now until (if?) fitbod updates their export to data to have a PK (timestamp)
         # df = df.set_index('Date_UTC')
 
         # DB Operations
