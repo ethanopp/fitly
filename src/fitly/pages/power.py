@@ -9,6 +9,7 @@ from dash.dependencies import Input, Output, State
 from ..api.sqlalchemy_declarative import db_connect, stravaSummary, stravaSamples, stravaBestSamples, athlete, withings
 from ..app import app
 from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
 from ..utils import config, stryd_credentials_supplied
 from sqlalchemy import func, or_
 import math
@@ -158,7 +159,7 @@ def power_profiles(interval, activity_type='ride', power_unit='mmp', group='M'):
 
     return figure
 
-#TODO: Currently breaking if df data not found (i.e. no cycle workouts within last 90 days)
+
 def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend=False, strydmetrics=True):
     activity_type = '%' + activity_type + '%'
 
@@ -183,41 +184,52 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
                                                               datetime.now() - timedelta(days=90))
                                                       ).statement, con=engine)
 
-    TD_df_L90D['act_name'] = TD_df_L90D['activity_id'].map(act_dict['act_name'])
+    td_data_exists = len(TD_df_L90D) > 0
+    # If training distribution data exists
+    if td_data_exists:
+        TD_df_L90D['act_name'] = TD_df_L90D['activity_id'].map(act_dict['act_name'])
 
-    # Join in weight at the time of workout for calculating FTP_W/kg at point in time (of workout)
-    TD_df_L90D = TD_df_L90D.merge(pd.read_sql(
-        sql=session.query(stravaSummary.activity_id, stravaSummary.weight).filter(
-            stravaSummary.activity_id.in_(TD_df_L90D['activity_id'].unique().tolist())).statement,
-        con=engine),
-        how='left', right_on='activity_id', left_on='activity_id')
-    TD_df_L90D.set_index(TD_df_L90D['interval'], inplace=True)
+        # Join in weight at the time of workout for calculating FTP_W/kg at point in time (of workout)
+        TD_df_L90D = TD_df_L90D.merge(pd.read_sql(
+            sql=session.query(stravaSummary.activity_id, stravaSummary.weight).filter(
+                stravaSummary.activity_id.in_(TD_df_L90D['activity_id'].unique().tolist())).statement,
+            con=engine),
+            how='left', right_on='activity_id', left_on='activity_id')
+        TD_df_L90D.set_index(TD_df_L90D['interval'], inplace=True)
+        TD_df_L90D['ftp_wkg'] = TD_df_L90D['ftp'] / (TD_df_L90D['weight'] * 0.453592)
 
-    TD_df_L90D['ftp_wkg'] = TD_df_L90D['ftp'] / (TD_df_L90D['weight'] * 0.453592)
-    workout_ftp = TD_df_L90D.ftp_wkg.values[0] if power_unit == 'watts_per_kg' else TD_df_L90D.ftp.values[0]
+        ### Calculations for L90D workouts based on todays weights for stryd comparisons ###
+        # Stryd uses "Current FTP" and "Current Weight" across all workouts for last 90 days
+        # To align with their percentiles, we need to use "current" metrics to compare against any workout within last 90 days
+        # Stryd also only computes based off of W, so need to hardcode percentils to W even when toggling W/kg in fitly
+        current_weight_kg = session.query(withings).order_by(withings.date_utc.desc()).first().weight * 0.453592
+        last_workout = TD_df_L90D[TD_df_L90D['date'] == TD_df_L90D['date'].max()]
+        current_ftp_w = last_workout.ftp.values[0]
+        endurance_df_mmp = TD_df_L90D.loc[TD_df_L90D[TD_df_L90D['mmp'] > (current_ftp_w / 2)].index.max()]
+        fatigue_df_mmp = TD_df_L90D.loc[TD_df_L90D[TD_df_L90D['mmp'] > current_ftp_w].index.max()]
 
-    muscle_power = TD_df_L90D.loc[10][power_unit]
+        # For actual power curve chart, we will use ftp as of when the workout was done for a more accurate chart or PRs
+        workout_ftp = TD_df_L90D.ftp_wkg.values[0] if power_unit == 'watts_per_kg' else TD_df_L90D.ftp.values[0]
+        endurance_df = TD_df_L90D.loc[TD_df_L90D[TD_df_L90D[power_unit] > (workout_ftp / 2)].index.max()]
+        fatigue_df = TD_df_L90D.loc[TD_df_L90D[TD_df_L90D[power_unit] > workout_ftp].index.max()]
 
-    endurance_df = TD_df_L90D.loc[TD_df_L90D[TD_df_L90D[power_unit] > (workout_ftp / 2)].index.max()]
-    fatigue_df = TD_df_L90D.loc[TD_df_L90D[TD_df_L90D[power_unit] > workout_ftp].index.max()]
-    # hardcode in W to compare against stryd
-    endurance_df_mmp = TD_df_L90D.loc[TD_df_L90D[TD_df_L90D['mmp'] > (workout_ftp / 2)].index.max()]
-    fatigue_df_mmp = TD_df_L90D.loc[TD_df_L90D[TD_df_L90D['mmp'] > workout_ftp].index.max()]
+        # Muscle power is just best 10 second power (weight/ftp do not matter)
+        muscle_power = TD_df_L90D.loc[10][power_unit]
 
-    TD_df_at = pd.read_sql(
-        sql=session.query(
-            func.max(stravaBestSamples.mmp).label('mmp'), stravaBestSamples.activity_id, stravaBestSamples.ftp,
-            stravaBestSamples.interval, stravaBestSamples.time_interval,
-            stravaBestSamples.date, stravaBestSamples.timestamp_local, stravaBestSamples.watts_per_kg,
-        ).group_by(stravaBestSamples.interval).filter(stravaBestSamples.type.ilike(activity_type),
-                                                      or_(stravaBestSamples.interval == 10,
-                                                          stravaBestSamples.interval == int(fatigue_df.name),
-                                                          stravaBestSamples.interval == int(endurance_df.name)),
-                                                      ).statement, con=engine, index_col='interval')
+        TD_df_at = pd.read_sql(
+            sql=session.query(
+                func.max(stravaBestSamples.mmp).label('mmp'), stravaBestSamples.activity_id, stravaBestSamples.ftp,
+                stravaBestSamples.interval, stravaBestSamples.time_interval,
+                stravaBestSamples.date, stravaBestSamples.timestamp_local, stravaBestSamples.watts_per_kg,
+            ).group_by(stravaBestSamples.interval).filter(stravaBestSamples.type.ilike(activity_type),
+                                                          or_(stravaBestSamples.interval == 10,
+                                                              stravaBestSamples.interval == int(fatigue_df.name),
+                                                              stravaBestSamples.interval == int(endurance_df.name)),
+                                                          ).statement, con=engine, index_col='interval')
 
-    muscle_power_best = True if TD_df_at.loc[10][power_unit] == muscle_power else False
-    endurance_best = True if TD_df_at.loc[endurance_df.name][power_unit] == endurance_df[power_unit] else False
-    fatigue_best = True if TD_df_at.loc[fatigue_df.name][power_unit] == fatigue_df[power_unit] else False
+        muscle_power_best = True if TD_df_at.loc[10][power_unit] == muscle_power else False
+        endurance_best = True if TD_df_at.loc[endurance_df.name][power_unit] == endurance_df[power_unit] else False
+        fatigue_best = True if TD_df_at.loc[fatigue_df.name][power_unit] == fatigue_df[power_unit] else False
 
     # 1 second intervals from 0-60 seconds
     interval_lengths = [i for i in range(1, 61)]
@@ -306,12 +318,6 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
         {'y': (round(recent_best_interval_df.loc[60]['mmp']) if len(
             recent_best_interval_df) > 0 else 0), 'customdata': 'x_x_w'}
     ]}
-
-    ### Calculations for historical workouts based on todays weights for stryd comparisons
-    current_weight_kg = session.query(withings).order_by(withings.date_utc.desc()).first().weight * 0.453592
-    last_workout = TD_df_L90D[TD_df_L90D['date'] == TD_df_L90D['date'].max()]
-    current_ftp = last_workout.watts_per_kg.values[0] if power_unit == 'watts_per_kg' else last_workout.ftp.values[0]
-    current_cp_wkg = current_weight_kg / last_workout.ftp.values[0]
 
     # Check if value L90D values are all time bests
     # Make 2nd line for L90D PR and highlight orange and remove points from L90D df to avoid duplicate tooltips
@@ -445,12 +451,12 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
         go.layout.Annotation(
             font={'size': 10, 'color': orange if fatigue_best else white},
             x=.1,
-            y=current_ftp,
+            y=workout_ftp,
             xref="x",
             yref="y",
             text='''100% CP (L90D): <b>{:.2f}</b> W/kg'''.format(
-                current_ftp) if power_unit == 'watts_per_kg' else '''100% CP (L90D): <b>{:.0f}</b> W'''.format(
-                current_ftp),
+                workout_ftp) if power_unit == 'watts_per_kg' else '''100% CP (L90D): <b>{:.0f}</b> W'''.format(
+                workout_ftp),
             showarrow=True,
             arrowhead=1,
             arrowcolor='rgba(0,0,0,0)',
@@ -462,12 +468,12 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
         go.layout.Annotation(
             font={'size': 10, 'color': orange if endurance_best else white},
             x=.1,
-            y=current_ftp / 2,
+            y=workout_ftp / 2,
             xref="x",
             yref="y",
             text='''50% CP (L90D): <b>{:.2f}</b> W/kg'''.format(
-                current_ftp / 2) if power_unit == 'watts_per_kg' else '''50% CP (L90D): <b>{:.0f}</b> W'''.format(
-                current_ftp / 2),
+                workout_ftp / 2) if power_unit == 'watts_per_kg' else '''50% CP (L90D): <b>{:.0f}</b> W'''.format(
+                workout_ftp / 2),
             showarrow=True,
             arrowhead=1,
             arrowcolor='rgba(0,0,0,0)',
@@ -475,14 +481,43 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
             ax=75,
             ay=-10,
         ),
+    ] if td_data_exists else []
 
-    ]
+    shapes = [
+        # Power Curve Lines
+        # Muscle Power
+        dict(
+            type='line', y0=0, y1=muscle_power, xref='x', yref='y', x0=10, x1=10,
+            line=dict(
+                color="Grey",
+                width=1,
+                dash="dot",
+            ),
+        ),
+        # Fatigue Resistance
+        dict(
+            type='line', y0=workout_ftp, y1=workout_ftp, xref='x', yref='y', x0=.9,
+            line=dict(
+                color="Grey",
+                width=1,
+                dash="dot",
+            ),
+        ),
+        # Endurance
+        dict(
+            type='line', y0=workout_ftp / 2, y1=workout_ftp / 2, xref='x', yref='y', x0=.9,
+            line=dict(
+                color="Grey",
+                width=1,
+                dash="dot",
+            ),
+        )
+    ] if td_data_exists else []
 
-    shapes = []
-    if stryd_credentials_supplied and strydmetrics:
+    if stryd_credentials_supplied and strydmetrics and td_data_exists:
         ### STRYD TRAINING DISTRIBUTION USES CURRENT WEIGHT WHEN CALCULATING W/KG ###
         ### TRAINING DIST BARS WILL DO THE SAME TO BETTER ALIGN WITH PERCENTILES ###
-        ### ACTUAL DATA SHOWN IN POWER CURVE WILL BE BASED ON WEIGHT AT THE TIME OF RECORDING FOR BETTER ACCURACY ###
+        ### ACTUAL DATA SHOWN IN POWER CURVE WILL BE BASED ON FTP AT THE TIME OF RECORDING FOR BETTER ACCURACY ###
 
         # Make room on canvas for training dist bars
         td = get_training_distribution()
@@ -525,36 +560,7 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
                 hoverinfo='text', orientation='h'),
         ])
 
-        shapes = [
-            # Power Curve Lines
-
-            # Muscle Power
-            dict(
-                type='line', y0=0, y1=muscle_power, xref='x', yref='y', x0=10, x1=10,
-                line=dict(
-                    color="Grey",
-                    width=1,
-                    dash="dot",
-                ),
-            ),
-            # Fatigue Resistance
-            dict(
-                type='line', y0=current_ftp, y1=current_ftp, xref='x', yref='y', x0=.9,
-                line=dict(
-                    color="Grey",
-                    width=1,
-                    dash="dot",
-                ),
-            ),
-            # Endurance
-            dict(
-                type='line', y0=current_ftp / 2, y1=current_ftp / 2, xref='x', yref='y', x0=.9,
-                line=dict(
-                    color="Grey",
-                    width=1,
-                    dash="dot",
-                ),
-            ),
+        shapes.extend([
             # Training distribution charts lines
             dict(type='line', xref='x2', yref='y2', x0=50, x1=50, y0=0, y1=.8,
                  line=dict(color=white, width=1, dash="dot", ), ),
@@ -579,9 +585,9 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
 
             dict(type='line', xref='x5', yref='y2', x0=td['percentile']['endurance'] * 100,
                  x1=td['percentile']['endurance'] * 100, y0=-1, y1=1,
-                 line=dict(color=white, width=2, ), ),
-
-        ]
+                 line=dict(color=white, width=2)
+                 )
+        ])
         annotations.extend([
             go.layout.Annotation(
                 font={'size': 12, 'color': white}, x=50, y=1.2, xref="x2", yref="y2",
@@ -615,19 +621,16 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
             ),
             shapes=shapes,
             annotations=annotations,
-
             xaxis=dict(
                 showgrid=False,
                 # tickformat="%H:%M:%S",
                 # range=[best_interval_df.index.min(),best_interval_df.index.max()],
                 # range=[np.log10(best_interval_df.index.min()), np.log10(best_interval_df.index.max())],
                 type='log',
-
-                tickvals=[1, 2, 5, 10, 30, 60, 120, 5 * 60, 10 * 60, 20 * 60, 60 * 60, 60 * 90],
-                ticktext=['1s', '2s', '5s', '10s', '30s', '1m', '2m', '5m', '10m', '20m', '60m',
-                          '90m'],
+                # tickangle=0,
+                tickvals=[1, 2, 5, 10, 30, 60, 120, 5 * 60, 10 * 60, 20 * 60, 60 * 60, 60 * 120],
+                ticktext=['1s', '2s', '5s', '10s', '30s', '1m', '2m', '5m', '10m', '20m', '60m', '120m'],
             ),
-
             yaxis=dict(
                 domain=[0, .9],
                 showgrid=True,
@@ -641,7 +644,6 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
                     'traceorder': 'normal', 'bgcolor': 'rgba(127, 127, 127, 0)'},
             autosize=True,
             hovermode='x',
-
             # TD Fitness
             xaxis2=dict(domain=[.01, .24], showgrid=False, zeroline=False, showticklabels=False, range=[0, 100], ),
             # Muscle Power
@@ -661,68 +663,7 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
                 color='rgb(220,220,220)'
             ),
             shapes=shapes,
-            annotations=[
-                # Muscle Power
-                go.layout.Annotation(
-                    font={'size': 10, 'color': orange if muscle_power_best else white},
-                    x=1,
-                    y=muscle_power,
-                    xref="x",
-                    yref="y",
-                    text='''Muscle Power (L90D)<br>Max 10 Sec Power: <b>{:.2f}</b> W/kg'''.format(
-                        muscle_power) if power_unit == 'watts_per_kg' else '''Muscle Power (L90D)<br>Max 10 Sec Power: <b>{:.0f}</b> W'''.format(
-                        muscle_power),
-                    showarrow=False,
-                    arrowhead=1,
-                    arrowcolor='Grey',
-                    bgcolor='rgba(81,89,95,.5)',
-                    # bordercolor='rgba(0, 0, 0, 0.6)',
-                    # ax=30,
-                    ay=-10,
-                ),
-                # Fatigue Resistance
-                go.layout.Annotation(
-                    font={'size': 10, 'color': orange if fatigue_best else white},
-                    x=.1,
-                    y=current_ftp,
-                    xref="x",
-                    yref="y",
-                    text='''Fatigue Resistance 100% CP (L90D)<br>Longest Above <b>{:.2f}</b> W/kg:<b> {:%H:%M:%S}'''.format(
-                        current_ftp,
-                        fatigue_df[
-                            'time_interval']) if power_unit == 'watts_per_kg' else '''Fatigue Resistance 100% CP (L90D)<br>Longest Above <b>{:.0f}</b> W:<b> {:%H:%M:%S}'''.format(
-                        current_ftp, fatigue_df['time_interval']),
-                    showarrow=True,
-                    arrowhead=1,
-                    arrowcolor='rgba(0,0,0,0)',
-                    bgcolor='rgba(81,89,95,.5)',
-                    # bordercolor='rgba(0, 0, 0, 0.6)',
-                    ax=78,
-                    ay=-10,
-                ),
-
-                go.layout.Annotation(
-                    font={'size': 10, 'color': orange if endurance_best else white},
-                    x=.1,
-                    y=current_ftp / 2,
-                    xref="x",
-                    yref="y",
-                    text='''Endurance 50% CP (L90D)<br>Longest Above <b>{:.2f}</b> W/kg:<b> {:%H:%M:%S}'''.format(
-                        current_ftp / 2,
-                        endurance_df[
-                            'time_interval']) if power_unit == 'watts_per_kg' else '''Endurance 50% CP (L90D)<br>Longest Above <b>{:.0f}</b> W:<b> {:%H:%M:%S}'''.format(
-                        current_ftp / 2, endurance_df['time_interval']),
-                    showarrow=True,
-                    arrowhead=1,
-                    arrowcolor='rgba(0,0,0,0)',
-                    bgcolor='rgba(81,89,95,.5)',
-                    # bordercolor='rgba(0, 0, 0, 0.6)',
-                    ax=75,
-                    ay=-10,
-                ),
-
-            ],
-
+            annotations=annotations,
             xaxis=dict(
                 showgrid=False,
                 # tickformat="%H:%M:%S",
@@ -777,14 +718,22 @@ def create_ftp_chart(activity_type='ride', power_unit='watts'):
     activity_type = '%' + activity_type + '%'
     session, engine = db_connect()
     df_ftp = pd.read_sql(
-        sql=session.query(stravaSummary).filter(stravaSummary.type.ilike(activity_type)).statement, con=engine,
+        sql=session.query(stravaSummary).filter(stravaSummary.type.ilike(activity_type),
+                                                stravaSummary.start_date_utc >= (
+                                                        datetime.utcnow() - relativedelta(months=12))
+                                                ).statement, con=engine,
         index_col='start_day_local')[
         ['activity_id', 'ftp', 'weight']]
     engine.dispose()
     session.close()
 
+    if len(df_ftp) < 1:
+        return None, {}
+
     df_ftp.set_index(pd.DatetimeIndex(df_ftp.index), inplace=True)
-    df_ftp = df_ftp.resample('M').max()
+
+    # Get latest FTP of each month (instead of max in case ftp decreases)
+    df_ftp = df_ftp.groupby(df_ftp.index.month).apply(pd.Series.tail, 1).reset_index(level=0, drop=True).sort_index()
 
     # Filter summary table on activities that have a different FTP from the previous activity
     df_ftp['previous_ftp'] = df_ftp['ftp'].shift(1)
@@ -794,9 +743,6 @@ def create_ftp_chart(activity_type='ride', power_unit='watts'):
     metric = 'ftp' if power_unit == 'ftp' else 'watts_per_kg'
     tooltip = '<b>{:.0f} W {}' if metric == 'ftp' else '<b>{:.2f} W/kg {}'
     title = 'Current FTP {:.0f} W' if metric == 'ftp' else 'Current FTP {:.2f} W/kg'
-
-    if len(df_ftp) < 1:
-        return None, {}
 
     df_ftp['ftp_%'] = ['{}{:.0f}%'.format('+' if x > 0 else '', x) if x != 0 else '' for x in
                        (((df_ftp[metric] - df_ftp[metric].shift(1)) / df_ftp[metric].shift(1)) * 100).fillna(0)]
@@ -837,7 +783,7 @@ def create_ftp_chart(activity_type='ride', power_unit='watts'):
             xaxis=dict(
                 showticklabels=True,
                 tickvals=df_ftp.index,
-                ticktext=df_ftp['start_day_local'].apply(lambda x: datetime.strftime(x, "%b '%y")),
+                ticktext=df_ftp['start_day_local'].apply(lambda x: datetime.strftime(x, "%b")),
                 showgrid=False
             ),
             yaxis=dict(
@@ -1242,7 +1188,7 @@ def get_layout(**kwargs):
 
         html.Div(id='power-curve-and-zone', className='row mt-2 mb-2',
                  children=[
-                     html.Div(className='col-lg-6', children=[
+                     html.Div(className='col-lg-8', children=[
                          dbc.Card(children=[
                              dbc.CardHeader(id='power-curve-kpis'),
                              dbc.CardBody(
@@ -1250,7 +1196,7 @@ def get_layout(**kwargs):
                                            style={'height': '100%'}))
                          ]),
                      ]),
-                     html.Div(className='col-lg-6', children=[
+                     html.Div(className='col-lg-4', children=[
                          dbc.Card(children=[
                              dbc.CardHeader(html.H4(id='ftp-current')),
                              dbc.Tooltip(
