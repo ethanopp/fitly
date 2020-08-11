@@ -722,8 +722,7 @@ def create_ftp_chart(activity_type='ride', power_unit='watts'):
                                                 stravaSummary.start_date_utc >= (
                                                         datetime.utcnow() - relativedelta(months=12))
                                                 ).statement, con=engine,
-        index_col='start_day_local')[
-        ['activity_id', 'ftp', 'weight']]
+        index_col='start_day_local')[['activity_id', 'ftp', 'weight']]
     engine.dispose()
     session.close()
 
@@ -733,16 +732,18 @@ def create_ftp_chart(activity_type='ride', power_unit='watts'):
     df_ftp.set_index(pd.DatetimeIndex(df_ftp.index), inplace=True)
 
     # Get latest FTP of each month (instead of max in case ftp decreases)
-    df_ftp = df_ftp.groupby(df_ftp.index.month).apply(pd.Series.tail, 1).reset_index(level=0, drop=True).sort_index()
+    df_ftp = df_ftp.groupby(df_ftp.index.month).apply(pd.Series.tail, 1).reset_index(level=0,
+                                                                                     drop=True).sort_index().resample(
+        'M').max().ffill().interpolate()
 
     # Filter summary table on activities that have a different FTP from the previous activity
-    df_ftp['previous_ftp'] = df_ftp['ftp'].shift(1)
-    df_ftp = df_ftp[df_ftp['previous_ftp'] != df_ftp['ftp']]
+    # df_ftp['previous_ftp'] = df_ftp['ftp'].shift(1)
+    # df_ftp = df_ftp[df_ftp['previous_ftp'] != df_ftp['ftp']]
 
     df_ftp['watts_per_kg'] = df_ftp['ftp'] / (df_ftp['weight'] / 2.20462)
     metric = 'ftp' if power_unit == 'ftp' else 'watts_per_kg'
     tooltip = '<b>{:.0f} W {}' if metric == 'ftp' else '<b>{:.2f} W/kg {}'
-    title = 'Current FTP {:.0f} W' if metric == 'ftp' else 'Current FTP {:.2f} W/kg'
+    title = 'Current FTP {:.0f} W (L12M)' if metric == 'ftp' else 'Current FTP {:.2f} W/kg (L12M)'
 
     df_ftp['ftp_%'] = ['{}{:.0f}%'.format('+' if x > 0 else '', x) if x != 0 else '' for x in
                        (((df_ftp[metric] - df_ftp[metric].shift(1)) / df_ftp[metric].shift(1)) * 100).fillna(0)]
