@@ -121,43 +121,32 @@ def generate_cycle_power_zone_card():
     return dbc.Card([
         dbc.CardHeader(html.H4(className='text-left', children='Cycling Power Zones')),
         dbc.CardBody([
-
             html.H5('Cycling FTP: {}'.format(cftp)),
-            # html.H6('Zone 1: {:.0f}'.format((cftp * cycle_power_zone_threshold_1)),
-            #         className='col'),
-
             generate_db_setting('cycle-zone1', 'Z1: <= {:.0f}'.format((cftp * cycle_power_zone_threshold_1)),
                                 cycle_power_zone_threshold_1),
             generate_db_setting('cycle-zone2',
                                 'Z2: {:.0f} - {:.0f}'.format((cftp * cycle_power_zone_threshold_1) + 1,
                                                              cftp * cycle_power_zone_threshold_2),
                                 cycle_power_zone_threshold_2),
-
             generate_db_setting('cycle-zone3',
                                 'Z3: {:.0f} - {:.0f}'.format((cftp * cycle_power_zone_threshold_2) + 1,
                                                              cftp * cycle_power_zone_threshold_3),
                                 cycle_power_zone_threshold_3),
-
             generate_db_setting('cycle-zone4',
                                 'Z4: {:.0f} - {:.0f}'.format((cftp * cycle_power_zone_threshold_3) + 1,
                                                              cftp * cycle_power_zone_threshold_4),
                                 cycle_power_zone_threshold_4),
-
             generate_db_setting('cycle-zone5',
                                 'Z5: {:.0f} - {:.0f}'.format((cftp * cycle_power_zone_threshold_4) + 1,
                                                              cftp * cycle_power_zone_threshold_5),
                                 cycle_power_zone_threshold_5),
-
             generate_db_setting('cycle-zone6',
                                 'Z6: {:.0f} - {:.0f}'.format((cftp * cycle_power_zone_threshold_5) + 1,
                                                              cftp * cycle_power_zone_threshold_6),
                                 cycle_power_zone_threshold_6),
-
             html.H6('Z7: >= {:.0f}'.format((cftp * cycle_power_zone_threshold_6) + 1),
                     className='col-5 mb-0'),
-
         ])
-
     ])
 
     # html.Div(className='col', children=[
@@ -189,22 +178,18 @@ def generate_run_power_zone_card():
 
             generate_db_setting('run-zone1', 'Z1: <= {:.0f}'.format((rftp * run_power_zone_threshold_1)),
                                 run_power_zone_threshold_1),
-
             generate_db_setting('run-zone2',
                                 'Z2: {:.0f} - {:.0f}'.format((rftp * run_power_zone_threshold_1) + 1,
                                                              rftp * run_power_zone_threshold_2),
                                 run_power_zone_threshold_2),
-
             generate_db_setting('run-zone3',
                                 'Z3: {:.0f} - {:.0f}'.format((rftp * run_power_zone_threshold_2) + 1,
                                                              rftp * run_power_zone_threshold_3),
                                 run_power_zone_threshold_3),
-
             generate_db_setting('run-zone4',
                                 'Z4: {:.0f} - {:.0f}'.format((rftp * run_power_zone_threshold_3) + 1,
                                                              rftp * run_power_zone_threshold_4),
                                 run_power_zone_threshold_4),
-
             html.H6('Z5: >= {:.0f}'.format((rftp * run_power_zone_threshold_4) + 1),
                     className='col-5 mb-0')
         ])
@@ -262,11 +247,11 @@ def athlete_card():
                           # dbc.Button("Save", id='peloton-save-button', n_clicks=0, className='text-center col-2',
                           #            color='secondary',
                           #            size='sm'),
-                          html.Button(id='peloton-bookmark-input-submit', className='col-2 fa fa-upload d-inline-block',
-                                      style={'border': '0px'}),
+                          html.Button(id='peloton-bookmark-input-submit', className='col-2 fa fa-upload',
+                                      style={'display': 'inline-block', 'border': '0px'}),
 
                           html.I(id='peloton-bookmark-input-status', className='col-2 fa fa-check',
-                                 style={'color': 'rgba(0,0,0,0)',
+                                 style={'display': 'inline-block', 'color': 'rgba(0,0,0,0)',
                                         'fontSize': '150%'}),
                           html.Div(className='col-1'),
                       ])
@@ -317,7 +302,7 @@ def generate_hr_zone_card():
     z4 = round((hrr * hr_zone_threshold_4) + rhr)
 
     return dbc.Card([
-        dbc.CardHeader(html.H4(className='text-left', children='Heart Power Zones')),
+        dbc.CardHeader(html.H4(className='text-left', children='Heart Rate Zones')),
         dbc.CardBody([
             html.H5('Based of Resting Heart Rate: {}'.format(rhr)),
             generate_db_setting('hr-zone1', 'Z1: <= {:.0f}'.format(z1), hr_zone_threshold_1),
@@ -337,8 +322,8 @@ def generate_db_setting(id, title, value, placeholder=None):
             html.H6(title, className='col-5 mb-0'),
             dbc.Input(id=id + '-input', className='text-center col-5', type='text', bs_size="sm", value=value,
                       placeholder=placeholder),
-            html.Button(id=id + '-input-submit', className='col-2 fa fa-upload d-inline-block',
-                        style={'border': '0px'}),
+            html.Button(id=id + '-input-submit', className='col-2 fa fa-upload',
+                        style={'display': 'inline-block', 'border': '0px'}),
 
             html.I(id=id + '-input-status', className='col-2 fa fa-check',
                    style={'display': 'none', 'color': 'rgba(0,0,0,0)',
@@ -357,7 +342,6 @@ def goal_parameters():
     return dbc.Card([
         dbc.CardHeader(html.H4(className='text-left', children='Goals')),
         dbc.CardBody(className='align-items-center text-center', children=[
-
             generate_db_setting(id='min-workout-time-goal', title='Min. Activity Minutes',
                                 value=athlete_info.min_non_warmup_workout_time / 60),
             generate_db_setting(id='weekly-tss-goal', title='Weekly TSS Goal', value=athlete_info.weekly_tss_goal),
@@ -365,9 +349,9 @@ def goal_parameters():
                                 value=athlete_info.rr_max_goal),
             generate_db_setting(id='rr-min-goal', title='Low Ramp Rate Injury Threshold',
                                 value=athlete_info.rr_min_goal),
-
             html.Div(className='row mb-2 mt-2', children=[
-                html.H6('Use weekly TSS for fitness goals', className='col-5  mb-0 d-inline-block'),
+                html.H6('Use weekly TSS for fitness goals', className='col-5  mb-0',
+                        style={'display': 'inline-block'}),
                 daq.BooleanSwitch(
                     id='use-tss-for-goal-switch',
                     on=use_hrv,
@@ -376,7 +360,8 @@ def goal_parameters():
             ]),
             html.Div(className='row mb-2 mt-2', children=[
                 # TODO: Currently results in 7 items on home page... think through consolidating workout/yoga into 1 donut
-                html.H6('Use readiness for workout / yoga goals', className='col-5 mb-0 d-inline-block'),
+                html.H6('Use readiness for workout / yoga goals', className='col-5 mb-0',
+                        style={'display': 'inline-block'}),
                 daq.BooleanSwitch(
                     id='use-readiness-for-goal-switch',
                     on=use_readiness,
@@ -386,7 +371,6 @@ def goal_parameters():
             generate_db_setting(id='weekly-workout-goal', title='Weekly Workout Goal',
                                 value=athlete_info.weekly_workout_goal),
             generate_db_setting(id='weekly-yoga-goal', title='Weekly Yoga Goal', value=athlete_info.weekly_yoga_goal),
-
             generate_db_setting(id='daily-sleep-goal', title='Daily Sleep Goal (hrs)',
                                 value=athlete_info.daily_sleep_hr_target),
             generate_db_setting(id='weekly-sleep-score-goal', title='Weekly Sleep Score Goal',
@@ -395,9 +379,7 @@ def goal_parameters():
                                 value=athlete_info.weekly_readiness_score_goal),
             generate_db_setting(id='weekly-activity-score-goal', title='Weekly Activity Score Goal',
                                 value=athlete_info.weekly_activity_score_goal)
-
         ])
-
     ])
 
 
@@ -1093,8 +1075,9 @@ def save_peloton_bookmark_settings(n_clicks, fitness_discipline, effort, options
 
             engine.dispose()
             session.close()
-
             return {'color': 'green', 'fontSize': '150%'}
+        else:
+            return {'display': 'none'}
     else:
         return {'display': 'none'}
 

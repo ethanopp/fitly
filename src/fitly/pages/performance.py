@@ -41,8 +41,7 @@ def get_layout(**kwargs):
                                         html.Div(id='annotation-save-container', className='col',
                                                  children=[
                                                      html.H6('Enter admin password to save changes',
-                                                             className='col',
-                                                             style={'display': 'inline-block'}),
+                                                             className='col d-inline-block'),
 
                                                      html.Div(className='col mb-2', children=[
                                                          dbc.Input(id='annotation-password', bs_size="sm",
@@ -430,17 +429,17 @@ def create_fitness_kpis(date, ctl, ramp, rr_min_threshold, rr_max_threshold, atl
         html.Div(className='col-lg-2', children=[
             html.Div(children=[
                 html.H6('{}'.format(datetime.strptime(date, '%Y-%m-%d').strftime("%b %d, %Y")),
-                        # html.H3('{}'.format(date),
-                        style={'display': 'inline-block', 'fontWeight': 'bold',
-                               'color': 'rgb(220, 220, 220)', 'marginTop': '0', 'marginBottom': '0'}),
+                        className='d-inline-block',
+                        style={'fontWeight': 'bold', 'color': 'rgb(220, 220, 220)', 'marginTop': '0',
+                               'marginBottom': '0'}),
             ]),
         ]),
         ### CTL KPI ###
         html.Div(id='ctl-kpi', className='col-lg-2', children=[
             html.Div(children=[
                 html.H6('Fitness {}'.format(ctl),
-                        style={'display': 'inline-block',  # 'fontWeight': 'bold',
-                               'color': ctl_color, 'marginTop': '0', 'marginBottom': '0'}),
+                        className='d-inline-block',
+                        style={'color': ctl_color, 'marginTop': '0', 'marginBottom': '0'}),
             ]),
         ]),
         dbc.Tooltip(
@@ -451,8 +450,8 @@ def create_fitness_kpis(date, ctl, ramp, rr_min_threshold, rr_max_threshold, atl
         html.Div(id='atl-kpi', className='col-lg-2', children=[
             html.Div(children=[
                 html.H6('Fatigue {:.1f}'.format(atl),
-                        style={'display': 'inline-block',  # 'fontWeight': 'bold',
-                               'color': atl_color, 'marginTop': '0', 'marginBottom': '0'}),
+                        className='d-inline-block',
+                        style={'color': atl_color, 'marginTop': '0', 'marginBottom': '0'}),
             ]),
         ]),
         dbc.Tooltip(
@@ -463,8 +462,8 @@ def create_fitness_kpis(date, ctl, ramp, rr_min_threshold, rr_max_threshold, atl
         html.Div(id='tsb-kpi', className='col-lg-2', children=[
             html.Div(children=[
                 html.H6('{} {}'.format('Form' if type(tsb) == type(str()) else training_zone(tsb), tsb),
-                        style={'display': 'inline-block',  # 'fontWeight': 'bold',
-                               'color': tsb_color, 'marginTop': '0', 'marginBottom': '0'}),
+                        className='d-inline-block',
+                        style={'color': tsb_color, 'marginTop': '0', 'marginBottom': '0'}),
             ]),
         ]),
         dbc.Tooltip(
@@ -475,8 +474,8 @@ def create_fitness_kpis(date, ctl, ramp, rr_min_threshold, rr_max_threshold, atl
         html.Div(id='hrv-kpi', className='col-lg-2', children=[
             html.Div(children=[
                 html.H6('7 Day HRV {}'.format(hrv),
-                        style={'display': 'inline-block',  # 'fontWeight': 'bold',
-                               'color': teal, 'marginTop': '0', 'marginBottom': '0'})
+                        className='d-inline-block',
+                        style={'color': teal, 'marginTop': '0', 'marginBottom': '0'})
             ]),
         ]),
         dbc.Tooltip(
@@ -487,8 +486,8 @@ def create_fitness_kpis(date, ctl, ramp, rr_min_threshold, rr_max_threshold, atl
         html.Div(id='oura-readiness', className='col-lg-2', children=[
             html.Div(children=[
                 html.H6('Oura: {}'.format(readiness_score),
-                        style={'display': 'inline-block',  # 'fontWeight': 'bold',
-                               'color': white, 'marginTop': '0', 'marginBottom': '0'})
+                        className='d-inline-block',
+                        style={'color': white, 'marginTop': '0', 'marginBottom': '0'})
             ]),
         ]),
 
@@ -588,27 +587,27 @@ def create_growth_kpis(date, cy_tss, ly_tss, target):
     cy_color = orange if goal_diff != '' and cy_tss < target else teal
 
     return (
-        html.Div(className='row', children=[
+        html.Div(className='row text-left', children=[
             ### TSS Title ###
-            html.Div(className='col-lg-4', style={'textAlign': 'left'}, children=[
+            html.Div(className='col-lg-4', children=[
                 html.Div(children=[
-                    html.H5('Stress Score', className='mt-0 mb-0',
-                            style={'display': 'inline-block', 'color': 'rgba(220, 220, 220, 1)'}),
+                    html.H5('Stress Score', className='mt-0 mb-0 d-inline-block',
+                            style={'color': 'rgba(220, 220, 220, 1)'}),
                 ]),
             ]),
             ### ▲ Target ###
             html.Div(id='target-change-kpi', className='col-lg-4', children=[
                 html.Div(children=[
-                    html.H5('△ Goal {}'.format(goal_diff), className='mt-0 mb-0',
-                            style={'display': 'inline-block', 'color': cy_color}),
+                    html.H5('△ Goal {}'.format(goal_diff), className='mt-0 mb-0 d-inline-block',
+                            style={'color': cy_color}),
                 ]),
             ]),
 
             ### YOY ▲ ###
             html.Div(id='atl-kpi', className='col-lg-4', children=[
                 html.Div(children=[
-                    html.H5('△ YOY {}'.format(ly_diff), className='mt-0 mb-0',
-                            style={'display': 'inline-block', 'color': ly_color}),
+                    html.H5('△ YOY {}'.format(ly_diff), className='mt-0 mb-0 d-inline-block',
+                            style={'color': ly_color}),
                 ]),
             ]),
         ])

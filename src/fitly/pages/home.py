@@ -3279,7 +3279,7 @@ def get_layout(**kwargs):
                                      ]),
                                      html.Div(className='col-lg-12', children=[
                                          html.Button(id='back-week', className='fa fa-arrow-left mr-2', n_clicks=0),
-                                         html.H4(id='week-ending', style={'display': 'inline-block'}),
+                                         html.H4(id='week-ending', className='d-inline-block'),
                                          html.Button(id='forward-week', className='fa fa-arrow-right ml-2'),
                                      ])
                                  ])
@@ -3334,10 +3334,8 @@ def get_layout(**kwargs):
                                          html.Div(className='row', children=[
                                              html.Div(id='oura-sleep-kpi', className='col-lg-12',
                                                       children=[
-                                                          html.P(id='sleep-date', className='mb-0',
-                                                                 style={'display': 'inline-block',
-                                                                        'fontSize': '1rem',
-                                                                        'color': teal}),
+                                                          html.P(id='sleep-date', className='mb-0 d-inline-block',
+                                                                 style={'fontSize': '1rem', 'color': teal}),
                                                           html.I(id='sleep-exclamation',
                                                                  className='fa fa-exclamation-circle',
                                                                  style={'display': 'none'}),
@@ -3384,10 +3382,8 @@ def get_layout(**kwargs):
                                              html.Div(id='oura-readiness-kpi', className='col-lg-12',
                                                       children=[
 
-                                                          html.P(id='readiness-date', className='mb-0',
-                                                                 style={'display': 'inline-block',
-                                                                        'fontSize': '1rem',
-                                                                        'color': teal}),
+                                                          html.P(id='readiness-date', className='mb-0 d-inline-block',
+                                                                 style={'fontSize': '1rem', 'color': teal}),
                                                           html.I(id='readiness-exclamation',
                                                                  className='fa fa-exclamation-circle',
                                                                  style={'display': 'none'}),
@@ -3431,10 +3427,8 @@ def get_layout(**kwargs):
                                              html.Div(id='oura-activity-kpi', className='col-lg-12',
                                                       children=[
 
-                                                          html.P(id='activity-date', className='mb-0',
-                                                                 style={'display': 'inline-block',
-                                                                        'fontSize': '1rem',
-                                                                        'color': teal}),
+                                                          html.P(id='activity-date', className='mb-0 d-inline-block',
+                                                                 style={'fontSize': '1rem', 'color': teal}),
                                                           html.I(id='activity-exclamation',
                                                                  className='fa fa-exclamation-circle',
                                                                  style={'display': 'none'}),
