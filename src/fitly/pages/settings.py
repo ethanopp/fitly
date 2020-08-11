@@ -119,7 +119,7 @@ def generate_cycle_power_zone_card():
     cycle_power_zone_threshold_6 = athlete_info.cycle_power_zone_threshold_6
 
     return dbc.Card([
-        dbc.CardHeader(html.H4('Cycling Power Zones')),
+        dbc.CardHeader(html.H4(className='text-left', children='Cycling Power Zones')),
         dbc.CardBody([
 
             html.H5('Cycling FTP: {}'.format(cftp)),
@@ -183,7 +183,7 @@ def generate_run_power_zone_card():
     run_power_zone_threshold_4 = athlete_info.run_power_zone_threshold_4
 
     return dbc.Card([
-        dbc.CardHeader(html.H4('Running Power Zones')),
+        dbc.CardHeader(html.H4(className='text-left', children='Running Power Zones')),
         dbc.CardBody([
             html.H5('Running FTP: {}'.format(rftp)),
 
@@ -262,11 +262,11 @@ def athlete_card():
                           # dbc.Button("Save", id='peloton-save-button', n_clicks=0, className='text-center col-2',
                           #            color='secondary',
                           #            size='sm'),
-                          html.Button(id='peloton-bookmark-input-submit', className='col-2 fa fa-upload',
-                                      style={'display': 'inline-block', 'border': '0px'}),
+                          html.Button(id='peloton-bookmark-input-submit', className='col-2 fa fa-upload d-inline-block',
+                                      style={'border': '0px'}),
 
                           html.I(id='peloton-bookmark-input-status', className='col-2 fa fa-check',
-                                 style={'display': 'inline-block', 'color': 'rgba(0,0,0,0)',
+                                 style={'color': 'rgba(0,0,0,0)',
                                         'fontSize': '150%'}),
                           html.Div(className='col-1'),
                       ])
@@ -275,7 +275,7 @@ def athlete_card():
         peloton_bookmark_settings = html.Div()
 
     return dbc.Card(id='athlete-card', className=color, children=[
-        dbc.CardHeader(html.H4('Athlete')),
+        dbc.CardHeader(html.H4(className='text-left', children='Athlete')),
         dbc.CardBody([
             generate_db_setting('name', 'Name', athlete_info.name),
             generate_db_setting('birthday', 'Birthday (YYYY-MM-DD)', athlete_info.birthday),
@@ -317,7 +317,7 @@ def generate_hr_zone_card():
     z4 = round((hrr * hr_zone_threshold_4) + rhr)
 
     return dbc.Card([
-        dbc.CardHeader(html.H4('Heart Rate Zones')),
+        dbc.CardHeader(html.H4(className='text-left', children='Heart Power Zones')),
         dbc.CardBody([
             html.H5('Based of Resting Heart Rate: {}'.format(rhr)),
             generate_db_setting('hr-zone1', 'Z1: <= {:.0f}'.format(z1), hr_zone_threshold_1),
@@ -337,8 +337,8 @@ def generate_db_setting(id, title, value, placeholder=None):
             html.H6(title, className='col-5 mb-0'),
             dbc.Input(id=id + '-input', className='text-center col-5', type='text', bs_size="sm", value=value,
                       placeholder=placeholder),
-            html.Button(id=id + '-input-submit', className='col-2 fa fa-upload',
-                        style={'display': 'inline-block', 'border': '0px'}),
+            html.Button(id=id + '-input-submit', className='col-2 fa fa-upload d-inline-block',
+                        style={'border': '0px'}),
 
             html.I(id=id + '-input-status', className='col-2 fa fa-check',
                    style={'display': 'none', 'color': 'rgba(0,0,0,0)',
@@ -355,7 +355,7 @@ def goal_parameters():
     use_readiness = True if athlete_info.weekly_workout_goal == 99 and athlete_info.weekly_yoga_goal == 99 else False
     use_hrv = True if athlete_info.weekly_workout_goal == 100 and athlete_info.weekly_yoga_goal == 100 else False
     return dbc.Card([
-        dbc.CardHeader(html.H4('Goals')),
+        dbc.CardHeader(html.H4(className='text-left', children='Goals')),
         dbc.CardBody(className='align-items-center text-center', children=[
 
             generate_db_setting(id='min-workout-time-goal', title='Min. Activity Minutes',
@@ -367,8 +367,7 @@ def goal_parameters():
                                 value=athlete_info.rr_min_goal),
 
             html.Div(className='row mb-2 mt-2', children=[
-                html.H6('Use weekly TSS for fitness goals', className='col-5  mb-0',
-                        style={'display': 'inline-block'}),
+                html.H6('Use weekly TSS for fitness goals', className='col-5  mb-0 d-inline-block'),
                 daq.BooleanSwitch(
                     id='use-tss-for-goal-switch',
                     on=use_hrv,
@@ -377,8 +376,7 @@ def goal_parameters():
             ]),
             html.Div(className='row mb-2 mt-2', children=[
                 # TODO: Currently results in 7 items on home page... think through consolidating workout/yoga into 1 donut
-                html.H6('Use readiness for workout / yoga goals', className='col-5 mb-0',
-                        style={'display': 'inline-block'}),
+                html.H6('Use readiness for workout / yoga goals', className='col-5 mb-0 d-inline-block'),
                 daq.BooleanSwitch(
                     id='use-readiness-for-goal-switch',
                     on=use_readiness,
@@ -429,7 +427,7 @@ def generate_settings_dashboard():
                      html.Div(id='data sources', className='col-lg-3',
                               children=[
                                   dbc.Card(className='mb-2', children=[
-                                      dbc.CardHeader(html.H4('App Connections')),
+                                      dbc.CardHeader(html.H4(className='text-left', children='App Connections')),
                                       dbc.CardBody(children=html.Div(id='api-connections'))
                                   ]),
                               ]),
@@ -441,7 +439,7 @@ def generate_settings_dashboard():
         html.Div(id='settings-shelf-2', className='row align-items-start text-center mt-2', children=[
             html.Div(id='database-container', className='col-lg-4', children=[
                 dbc.Card(className='mb-2', children=[
-                    dbc.CardHeader(html.H4('Database')),
+                    dbc.CardHeader(html.H4(className='text-left', children='Database')),
                     dbc.CardBody(children=[
                         html.Div(className='col-12 mb-2', children=[
                             dbc.Button('Refresh', color='primary', size='md',
@@ -486,7 +484,7 @@ def generate_settings_dashboard():
             html.Div(id='logs-container', className='col-lg-12',
                      children=[
                          dbc.Card(style={'height': '25vh'}, children=[
-                             dbc.CardHeader(className='d-inline-block',
+                             dbc.CardHeader(className='text-left d-inline-block',
                                             children=[html.H4('Logs', className='d-inline-block mr-2'),
                                                       dbc.Button('Info', id='info-log-button', n_clicks=0,
                                                                  className='mr-2', color='primary', size='sm'),
