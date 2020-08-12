@@ -61,7 +61,7 @@ def check_oura_connection():
         if not oura_connected():
             return html.A(className='col-lg-12', children=[
                 dbc.Button('Connect Oura', id='connect-oura-button', color='primary', className='mb-2',
-                           size='md')],
+                           size='sm')],
                           href=connect_oura_link(oura_auth_client))
         else:
             return html.H4('Oura Connected!', className='col-lg-12', )
@@ -74,7 +74,7 @@ def check_strava_connection():
     if not strava_connected():
         return html.A(className='col-lg-12', children=[
             dbc.Button('Connect Strava', id='connect-strava-button', color='primary', className='mb-2',
-                       size='md')],
+                       size='sm')],
                       href=connect_strava_link(get_strava_client()))
     else:
         return html.H4('Strava Connected!', className='col-lg-12', )
@@ -87,7 +87,7 @@ def check_withings_connection():
             return html.A(className='col-lg-12', children=[
                 dbc.Button('Connect Withings', id='connect-withings-btton', color='primary',
                            className='mb-2',
-                           size='md')],
+                           size='sm')],
                           href=connect_withings_link(
                               NokiaAuth(config.get('withings', 'client_id'), config.get('withings', 'client_secret'),
                                         callback_uri=config.get('withings', 'redirect_uri'))))
@@ -263,7 +263,7 @@ def athlete_card():
         dbc.CardHeader(html.H4(className='text-left', children='Athlete')),
         dbc.CardBody([
             generate_db_setting('name', 'Name', athlete_info.name),
-            generate_db_setting('birthday', 'Birthday', athlete_info.birthday, input_type='datepicker'),
+            generate_db_setting('birthday', 'Birthday', athlete_info.birthday, input_type='date'),
             generate_db_setting('sex', 'Sex (M/F)', athlete_info.sex),
             generate_db_setting('weight', 'Weight (lbs)', athlete_info.weight_lbs),
             generate_db_setting('rest-hr', 'Resting HR', athlete_info.resting_hr),
@@ -316,22 +316,12 @@ def generate_hr_zone_card():
 
 
 def generate_db_setting(id, title, value, placeholder=None, input_type='text'):
-    dbc_input = dbc.Input(id=id + '-input', className='text-center col-5', type='text', bs_size="sm", value=value,
-                          placeholder=placeholder)
-    if input_type == 'datepicker':
-        dbc_input = dcc.DatePickerSingle(
-            id=id + '-input',
-            className='text-center col-5',
-            initial_visible_month=value,
-            date=value,
-            month_format='MMM Do, YYYY',
-        )
-
     return (
         # html.Div(id=id, className='row mb-2 mt-2', children=[
         html.Div(id=id, className='row align-items-center mb-2 mt-2', children=[
             html.H6(title, className='col-5 mb-0'),
-            dbc_input,
+            dbc.Input(id=id + '-input', className='text-center col-5', type=input_type, bs_size="sm", value=value,
+                      placeholder=placeholder),
             html.Button(id=id + '-input-submit', className='col-2 fa fa-upload',
                         style={'display': 'inline-block', 'border': '0px'}),
 
@@ -406,7 +396,7 @@ def generate_settings_dashboard():
     # Only display reset hrv plan button if there is hrv data (from oura)
     if oura_credentials_supplied:
         reset_hrv_plan_button = html.Div(className='col-12 mb-2', children=[
-            dbc.Button('Reset HRV Plan', id='truncate-hrv-button', size='md', color='primary', n_clicks=0)
+            dbc.Button('Reset HRV Plan', id='truncate-hrv-button', size='sm', color='primary', n_clicks=0)
         ])
     else:
         reset_hrv_plan_button = html.Div(className='col-12 mb-2', children=[
@@ -434,25 +424,20 @@ def generate_settings_dashboard():
                     dbc.CardHeader(html.H4(className='text-left', children='Database')),
                     dbc.CardBody(children=[
                         html.Div(className='col-12 mb-2', children=[
-                            dbc.Button('Refresh', color='primary', size='md',
+                            dbc.Button('Refresh', color='primary', size='sm',
                                        id='refresh-db-button', n_clicks=0)]),
-                        html.Div(className='col-12', children=[
-                            dcc.DatePickerSingle(
-                                id='truncate-date',
-                                style={'textAlign': 'center'},
-                                className='mb-2',
-                                month_format='MMM Do, YYYY',
-                                placeholder='MMM Do, YYYY',
-                                date=datetime.today().date()
-                            ),
-                            html.Div(className='col-12 mb-2', children=[
-                                dbc.Button('Truncate After Date', color='primary', size='md',
-                                           id='truncate-date-db-button',
-                                           n_clicks=0)]),
+                        html.Div(className='col-6 offset-3', children=[
+                            dbc.Input(id='truncate-date', className='text-center mb-2', type='date', bs_size="sm",
+                                      value=datetime.today().date())
                         ]),
+                        html.Div(className='col-12 mb-2', children=[
+                            dbc.Button('Truncate After Date', color='primary', size='sm',
+                                       id='truncate-date-db-button',
+                                       n_clicks=0)]),
+
                         reset_hrv_plan_button,
                         html.Div(className='col-12 mb-2', children=[
-                            dbc.Button('Truncate All', id='truncate-db-button', size='md',
+                            dbc.Button('Truncate All', id='truncate-db-button', size='sm',
                                        color='primary',
                                        n_clicks=0)]),
                         html.Div(className='col-12 mb-2', children=[dbc.Spinner(color='info', children=[
@@ -622,7 +607,7 @@ def update_athlete_db_value(value, value_name):
     ],
     [
         State('name-input', 'value'),
-        State('birthday-input', 'date'),  # Since this is datepicker need to grab the data attribute
+        State('birthday-input', 'value'),
         State('sex-input', 'value'),
         State('weight-input', 'value'),
         State('rest-hr-input', 'value'),
@@ -879,9 +864,10 @@ def refresh(n_clicks):
 # Truncate hrv_workout_step_log (reset HRV Plan)
 @app.callback(Output('truncate-hrv-status', 'children'),
               [Input('truncate-hrv-button', 'n_clicks')],
-              [State('truncate-date', 'date')])
+              [State('truncate-date', 'value')])
 def reset_hrv_plan(n_clicks, hrv_date):
     if n_clicks > 0:
+        hrv_date = datetime.strptime(hrv_date, '%Y-%m-%d')
         app.server.logger.info('Resetting HRV workout plan workflow to step 0 on {}'.format(hrv_date))
         try:
             session, engine = db_connect()
@@ -910,8 +896,10 @@ def reset_hrv_plan(n_clicks, hrv_date):
 @app.callback(Output('truncate-refresh-status', 'children'),
               [Input('truncate-db-button', 'n_clicks'),
                Input('truncate-date-db-button', 'n_clicks')],
-              [State('truncate-date', 'date')])
+              [State('truncate-date', 'value')])
 def truncate_and_refresh(n_clicks, n_clicks_date, truncateDate):
+    # TODO: Use context instead of counting n_clicks
+    truncateDate = datetime.strptime(truncateDate, '%Y-%m-%d')
     if n_clicks > 0:
         app.server.logger.info('Manually truncating and refreshing database tables...')
         try:
