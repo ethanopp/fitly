@@ -898,24 +898,30 @@ def reset_hrv_plan(n_clicks, hrv_date):
                Input('truncate-date-db-button', 'n_clicks')],
               [State('truncate-date', 'value')])
 def truncate_and_refresh(n_clicks, n_clicks_date, truncateDate):
-    # TODO: Use context instead of counting n_clicks
-    truncateDate = datetime.strptime(truncateDate, '%Y-%m-%d')
-    if n_clicks > 0:
-        app.server.logger.info('Manually truncating and refreshing database tables...')
-        try:
-            refresh_database(refresh_method='manual', truncate=True)
-            return html.H6('Truncate and Load Complete')
-        except BaseException as e:
-            return html.H6('Error with Truncate and Load')
-    elif n_clicks_date > 0:
-        app.server.logger.info(
-            'Manually truncating and refreshing database tables after {}...'.format(truncateDate))
-        try:
-            refresh_database(refresh_method='manual', truncateDate=truncateDate)
-            return html.H6('Truncate and Load Complete')
-        except:
-            return html.H6('Error with Truncate and Load')
-    return ''
+    ctx = dash.callback_context
+
+    if ctx.triggered:
+        latest = ctx.triggered[0]['prop_id'].split('.')[0]
+
+        if latest == 'truncate-date-db-button':
+            truncateDate = datetime.strptime(truncateDate, '%Y-%m-%d')
+            app.server.logger.info(
+                'Manually truncating and refreshing database tables after {}...'.format(truncateDate))
+            try:
+                refresh_database(refresh_method='manual', truncateDate=truncateDate)
+                return html.H6('Truncate and Load Complete')
+            except:
+                return html.H6('Error with Truncate and Load')
+
+        elif latest == 'truncate-db-button':
+            app.server.logger.info('Manually truncating and refreshing database tables...')
+            try:
+                refresh_database(refresh_method='manual', truncate=True)
+                return html.H6('Truncate and Load Complete')
+            except:
+                return html.H6('Error with Truncate and Load')
+    else:
+        return ''
 
 
 # Refresh Logs Interval
