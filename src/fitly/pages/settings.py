@@ -263,7 +263,7 @@ def athlete_card():
         dbc.CardHeader(html.H4(className='text-left', children='Athlete')),
         dbc.CardBody([
             generate_db_setting('name', 'Name', athlete_info.name),
-            generate_db_setting('birthday', 'Birthday (YYYY-MM-DD)', athlete_info.birthday),
+            generate_db_setting('birthday', 'Birthday', athlete_info.birthday, input_type='datepicker'),
             generate_db_setting('sex', 'Sex (M/F)', athlete_info.sex),
             generate_db_setting('weight', 'Weight (lbs)', athlete_info.weight_lbs),
             generate_db_setting('rest-hr', 'Resting HR', athlete_info.resting_hr),
@@ -315,13 +315,23 @@ def generate_hr_zone_card():
     ])
 
 
-def generate_db_setting(id, title, value, placeholder=None):
+def generate_db_setting(id, title, value, placeholder=None, input_type='text'):
+    dbc_input = dbc.Input(id=id + '-input', className='text-center col-5', type='text', bs_size="sm", value=value,
+                          placeholder=placeholder)
+    if input_type == 'datepicker':
+        dbc_input = dcc.DatePickerSingle(
+            id=id + '-input',
+            className='text-center col-5',
+            initial_visible_month=value,
+            date=value,
+            month_format='MMM Do, YYYY',
+        )
+
     return (
         # html.Div(id=id, className='row mb-2 mt-2', children=[
         html.Div(id=id, className='row align-items-center mb-2 mt-2', children=[
             html.H6(title, className='col-5 mb-0'),
-            dbc.Input(id=id + '-input', className='text-center col-5', type='text', bs_size="sm", value=value,
-                      placeholder=placeholder),
+            dbc_input,
             html.Button(id=id + '-input-submit', className='col-2 fa fa-upload',
                         style={'display': 'inline-block', 'border': '0px'}),
 
@@ -429,8 +439,6 @@ def generate_settings_dashboard():
                         html.Div(className='col-12', children=[
                             dcc.DatePickerSingle(
                                 id='truncate-date',
-                                with_portal=True,
-                                day_size=75,
                                 style={'textAlign': 'center'},
                                 className='mb-2',
                                 month_format='MMM Do, YYYY',
@@ -493,6 +501,9 @@ def generate_settings_dashboard():
 
 
 def update_athlete_db_value(value, value_name):
+    date_fields = ['birthday']
+    if value_name in date_fields:
+        value = datetime.strptime(value, '%Y-%m-%d')
     session, engine = db_connect()
     # TODO: Update athlete_filter if expanding to more users
     athlete_info = session.query(athlete).filter(athlete.athlete_id == 1)
@@ -611,7 +622,7 @@ def update_athlete_db_value(value, value_name):
     ],
     [
         State('name-input', 'value'),
-        State('birthday-input', 'value'),
+        State('birthday-input', 'date'),  # Since this is datepicker need to grab the data attribute
         State('sex-input', 'value'),
         State('weight-input', 'value'),
         State('rest-hr-input', 'value'),
@@ -667,8 +678,8 @@ def save_athlete_settings(
         latest_dict = {'name-input-submit': 'name',
                        'birthday-input-submit': 'birthday',
                        'sex-input-submit': 'sex',
-                       'weight-input-submit': 'weight',
-                       'rest-hr-input-submit': 'rest_hr',
+                       'weight-input-submit': 'weight_lbs',
+                       'rest-hr-input-submit': 'resting_hr',
                        'ride-ftp-input-submit': 'ride_ftp',
                        'run-ftp-input-submit': 'run_ftp',
                        'weekly-activity-score-goal-input-submit': 'weekly_activity_score_goal',
@@ -701,8 +712,8 @@ def save_athlete_settings(
             'name',
             'birthday',
             'sex',
-            'weight',
-            'rest_hr',
+            'weight_lbs',
+            'resting_hr',
             'ride_ftp',
             'run_ftp',
             'weekly_activity_score_goal',
@@ -735,8 +746,8 @@ def save_athlete_settings(
             'name': name_value,
             'birthday': birthday_value,
             'sex': sex_value,
-            'weight': weight_value,
-            'rest_hr': rest_hr_value,
+            'weight_lbs': weight_value,
+            'resting_hr': rest_hr_value,
             'ride_ftp': ride_ftp_value,
             'run_ftp': run_ftp_value,
             'weekly_activity_score_goal': wk_act_value,

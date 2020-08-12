@@ -138,6 +138,16 @@ a:hover {
     fill-opacity: .25 !important;
 }
 
+.DateInput_input {
+    height: calc(1.5em + 0.5rem + 2px);
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8203125rem;
+    line-height: 1.5;
+    border-radius: 0.2rem;
+    text-align: center;
+    font-weight: 400;
+ }
+
 /* Dash Table */
 
 .dash-cell column-0 cell--selected focused{
