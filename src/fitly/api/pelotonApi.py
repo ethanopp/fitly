@@ -9,7 +9,6 @@ from ..utils import config
 import pandas as pd
 from .sqlalchemy_declarative import db_connect, hrvWorkoutStepLog, athlete
 import json
-import time
 
 # Pulled from
 # https://github.com/geudrik/peloton-api
@@ -242,7 +241,7 @@ class PelotonAPI:
 
         if cls.peloton_username is None or cls.peloton_password is None:
             raise PelotonClientError("The Peloton Client Library requires a `username` and `password` be set in "
-                                     "`/.config/peloton, under section `peloton`")
+                                     "`/.config/config.ini, under section `peloton`")
 
         payload = {
             'username_or_email': cls.peloton_username,

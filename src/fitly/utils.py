@@ -166,17 +166,19 @@ config.read('./config/config.ini')
 
 local_tz = pytz.timezone(config.get('timezone', 'timezone'))
 
-oura_credentials_supplied = True if config.get('oura', 'client_id') and config.get('oura', 'client_secret') else False
-peloton_credentials_supplied = True if config.get('peloton', 'username') and config.get('peloton',
-                                                                                        'password') else False
-withings_credentials_supplied = True if config.get('withings', 'client_id') and config.get('withings',
-                                                                                           'client_secret') else False
+oura_credentials_supplied = True if config.get('oura', 'client_id').strip() and config.get('oura',
+                                                                                           'client_secret').strip() else False
+peloton_credentials_supplied = True if config.get('peloton', 'username').strip() and config.get('peloton',
+                                                                                                'password').strip() else False
+withings_credentials_supplied = True if config.get('withings', 'client_id').strip() and config.get('withings',
+                                                                                                   'client_secret').strip() else False
 
-stryd_credentials_supplied = True if config.get('stryd', 'username') and config.get('stryd', 'password') else False
+stryd_credentials_supplied = True if config.get('stryd', 'username').strip() and config.get('stryd',
+                                                                                            'password').strip() else False
 
-nextcloud_credentials_supplied = True if config.get('nextcloud', 'username') and config.get('nextcloud',
-                                                                                            'password') and config.get(
-    'nextcloud', 'fitbod_path') else False
+nextcloud_credentials_supplied = True if config.get('nextcloud', 'username').strip() and config.get('nextcloud',
+                                                                                                    'password') and config.get(
+    'nextcloud', 'fitbod_path').strip() else False
 
 A_OK_HTTP_CODES = [
     200,
