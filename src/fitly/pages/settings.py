@@ -397,11 +397,12 @@ def generate_settings_dashboard():
     # Only display reset hrv plan button if there is hrv data (from oura)
     if oura_credentials_supplied:
         reset_hrv_plan_button = html.Div(className='col-12 mb-2', children=[
-            dbc.Button('Reset HRV Plan', id='truncate-hrv-button', size='sm', color='primary', n_clicks=0)
+            dbc.Button('Reset HRV Plan', id='truncate-hrv-button', size='sm', color='primary', n_clicks=0,
+                       disabled=True)
         ])
     else:
         reset_hrv_plan_button = html.Div(className='col-12 mb-2', children=[
-            dbc.Button('Reset HRV Plan', id='truncate-hrv-button', style={'display': 'none'}, n_clicks=0)
+            dbc.Button('Reset HRV Plan', id='truncate-hrv-button', style={'display': 'none'}, n_clicks=0, disabled=True)
         ])
 
     return html.Div([
@@ -426,7 +427,7 @@ def generate_settings_dashboard():
                     dbc.CardBody(children=[
                         html.Div(className='col-12 mb-2', children=[
                             dbc.Button('Refresh', color='primary', size='sm',
-                                       id='refresh-db-button', n_clicks=0)]),
+                                       id='refresh-db-button', n_clicks=0, disabled=True)]),
                         html.Div(className='col-6 offset-3', children=[
                             dbc.Input(id='truncate-date', className='text-center mb-2', type='date', bs_size="sm",
                                       value=datetime.today().date())
@@ -434,13 +435,13 @@ def generate_settings_dashboard():
                         html.Div(className='col-12 mb-2', children=[
                             dbc.Button('Truncate After Date', color='primary', size='sm',
                                        id='truncate-date-db-button',
-                                       n_clicks=0)]),
+                                       n_clicks=0, disabled=True)]),
 
                         reset_hrv_plan_button,
                         html.Div(className='col-12 mb-2', children=[
                             dbc.Button('Truncate All', id='truncate-db-button', size='sm',
                                        color='primary',
-                                       n_clicks=0)]),
+                                       n_clicks=0, disabled=True)]),
                         html.Div(className='col-12 mb-2', children=[dbc.Spinner(color='info', children=[
                             html.Div(id='truncate-refresh-status'),
                             html.Div(id='refresh-status'),
@@ -474,7 +475,7 @@ def generate_settings_dashboard():
                              dbc.CardBody(style={'overflowY': 'scroll'}, children=[
                                  html.Div(id='logs', className='col'),
                                  dcc.Interval(id='interval-component', interval=1 * 1000, n_intervals=0),
-                                 dcc.Interval(id='db-interval', interval=5 * 1000, n_intervals=0),
+                                 dcc.Interval(id='db-interval', interval=15 * 1000, n_intervals=0),
                              ])
                          ])
                      ])
@@ -969,14 +970,15 @@ def set_log_level(info_n_clicks, error_n_clicks, debug_n_clicks):
     if ctx.triggered:
         latest = latest_dict[ctx.triggered[0]['prop_id'].split('.')[0]]
         config.set('logger', 'level', latest)
+        # Save new logger level to config file
         with open('./config/config.ini', 'w') as configfile:
             config.write(configfile)
-            # Set to info to show message in log, then switch to selected level
-            app.server.logger.setLevel('INFO')
-            app.server.logger.info('Log level set to {}'.format(latest))
-            app.server.logger.setLevel(latest)
 
+    # Set logger level in the app server
     current_log_level = config.get('logger', 'level')
+    app.server.logger.setLevel(current_log_level)
+    app.server.logger.info('Log level set to {}'.format(current_log_level))
+
     styles[current_log_level] = {'marginRight': '1%', 'color': '#64D9EC', 'borderColor': '#64D9EC'}
     return styles['INFO'], styles['ERROR'], styles['DEBUG']
 
