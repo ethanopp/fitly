@@ -205,6 +205,7 @@ def athlete_card():
     peloton_class_types = get_class_types()
 
     if peloton_credentials_supplied:
+        #TODO: Update formatting of these dropdowns to match sizing of all other inputs on settings page
         peloton_bookmark_settings = html.Div(
             children=[html.H5('Peloton HRV Recommendation Auto Bookmarking', className='col-12 mb-2 mt-2'),
                       html.Div(className='row mb-2 mt-2', children=[
