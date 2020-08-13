@@ -10,7 +10,8 @@ from ..api.stravaApi import strava_connected, get_strava_client, connect_strava_
 from ..api.withingsAPI import withings_connected, connect_withings_link, save_withings_token
 from ..api.pelotonApi import get_class_types
 from nokia import NokiaAuth, NokiaApi
-from ..api.sqlalchemy_declarative import db_connect, stravaSummary, ouraSleepSummary, athlete, hrvWorkoutStepLog
+from ..api.sqlalchemy_declarative import db_connect, stravaSummary, ouraSleepSummary, athlete, hrvWorkoutStepLog, \
+    dbRefreshStatus
 from ..api.datapull import refresh_database
 from sqlalchemy import delete
 import pandas as pd
@@ -205,7 +206,7 @@ def athlete_card():
 
     if peloton_credentials_supplied:
         peloton_class_types = get_class_types()
-        #TODO: Update formatting of these dropdowns to match sizing of all other inputs on settings page
+        # TODO: Update formatting of these dropdowns to match sizing of all other inputs on settings page
         peloton_bookmark_settings = html.Div(
             children=[html.H5('Peloton HRV Recommendation Auto Bookmarking', className='col-12 mb-2 mt-2'),
                       html.Div(className='row mb-2 mt-2', children=[
@@ -359,15 +360,16 @@ def goal_parameters():
                     className='col-2 offset-5'
                 )
             ]),
-            html.Div(className='row mb-2 mt-2', style={} if oura_credentials_supplied else {'display':'none'}, children=[
-                html.H6('Use oura readiness score (>=80) for workout goals', className='col-5 mb-0',
-                        style={'display': 'inline-block'}),
-                daq.BooleanSwitch(
-                    id='use-readiness-for-goal-switch',
-                    on=use_readiness,
-                    className='col-2 offset-5'
-                )
-            ]),
+            html.Div(className='row mb-2 mt-2', style={} if oura_credentials_supplied else {'display': 'none'},
+                     children=[
+                         html.H6('Use oura readiness score (>=80) for workout goals', className='col-5 mb-0',
+                                 style={'display': 'inline-block'}),
+                         daq.BooleanSwitch(
+                             id='use-readiness-for-goal-switch',
+                             on=use_readiness,
+                             className='col-2 offset-5'
+                         )
+                     ]),
             generate_db_setting(id='weekly-workout-goal', title='Weekly Workout Goal',
                                 value=athlete_info.weekly_workout_goal),
             generate_db_setting(id='daily-sleep-goal', title='Daily Sleep Goal (hrs)',
@@ -471,13 +473,9 @@ def generate_settings_dashboard():
                                                       ]),
                              dbc.CardBody(style={'overflowY': 'scroll'}, children=[
                                  html.Div(id='logs', className='col'),
-
-                                 dcc.Interval(
-                                     id='interval-component',
-                                     interval=1 * 1000,
-                                     # in milliseconds
-                                     n_intervals=0
-                                 )])
+                                 dcc.Interval(id='interval-component', interval=1 * 1000, n_intervals=0),
+                                 dcc.Interval(id='db-interval', interval=5 * 1000, n_intervals=0),
+                             ])
                          ])
                      ])
         ])
@@ -910,6 +908,32 @@ def truncate_and_refresh(n_clicks, n_clicks_date, truncateDate):
                 return html.H6('Error with Truncate and Load')
     else:
         return ''
+
+
+# Disable database buttons when processing
+# Truncate database
+@app.callback([
+    Output('refresh-db-button', 'disabled'),
+    Output('truncate-date-db-button', 'disabled'),
+    Output('truncate-hrv-button', 'disabled'),
+    Output('truncate-db-button', 'disabled')],
+    [Input('refresh-db-button', 'n_clicks'),
+     Input('truncate-date-db-button', 'n_clicks'),
+     Input('truncate-hrv-button', 'n_clicks'),
+     Input('truncate-db-button', 'n_clicks'),
+     Input('db-interval', 'n_intervals')])
+def truncate_and_refresh(refresh_dummy, truncate_dummy, hrv_dummy, all_dummy, interval):
+    session, engine = db_connect()
+    processing = session.query(dbRefreshStatus).filter(dbRefreshStatus.refresh_method == 'processing').first()
+    engine.dispose()
+    session.close()
+    latest = dash.callback_context.triggered[0]['prop_id'].split('.')[0] if dash.callback_context.triggered else ''
+
+    if latest in ['refresh-db-button', 'truncate-date-db-button', 'truncate-hrv-button',
+                  'truncate-db-button'] or processing:
+        return True, True, True, True
+    else:
+        return False, False, False, False
 
 
 # Refresh Logs Interval

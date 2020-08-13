@@ -12,6 +12,7 @@ app = create_dash(server)
 import logging
 from logging.handlers import RotatingFileHandler
 from .utils import config
+from .api.sqlalchemy_declarative import db_connect, dbRefreshStatus
 
 # Can also use %(pathname)s for full pathname for file instead of %(module)s
 handler = RotatingFileHandler('./config/log.log', maxBytes=10000000, backupCount=5)
@@ -22,7 +23,6 @@ app.server.logger.addHandler(handler)
 # Suppress WSGI info logs
 logging.getLogger('werkzeug').setLevel(logging.ERROR)
 
-
 # Push an application context so we can use Flask's 'current_app'
 with server.app_context():
     # load the rest of our Dash app
@@ -32,12 +32,20 @@ with server.app_context():
     if config.get('cron', 'hourly_pull').lower() == 'true':
         try:
             from .api.datapull import refresh_database
+
             scheduler = BackgroundScheduler()
             scheduler.add_job(func=refresh_database, trigger="cron", hour='*')
             app.server.logger.info('Starting cron jobs')
             scheduler.start()
         except BaseException as e:
             app.server.logger.error(f'Error starting cron jobs: {e}')
+
+    # Delete any audit logs for running processes, since restarting server would stop any processes
+    session, engine = db_connect()
+    session.query(dbRefreshStatus).filter(dbRefreshStatus.refresh_method == 'processing').delete()
+    session.commit()
+    engine.dispose()
+    session.close()
     # configure the Dash instance's layout
     app.layout = main_layout_header()
-        # app.layout = main_layout_sidebar()
+    # app.layout = main_layout_sidebar()
