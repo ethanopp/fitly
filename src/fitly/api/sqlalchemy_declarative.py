@@ -58,7 +58,6 @@ class athlete(Base):
     rr_max_goal = Column('rr_max_goal', Integer())  # Max ramp rate threshold used for calculating injury risk
     rr_min_goal = Column('rr_min_goal', Integer())  # Min ramp rate threshold used for calculating injury risk
     weekly_workout_goal = Column('weekly_workout_goal', Integer())  # weekly workout minute goal
-    weekly_yoga_goal = Column('weekly_yoga_goal', Integer())  # weekly yoga minute goal
     weekly_sleep_score_goal = Column('weekly_sleep_score_goal', Integer())  # Oura sleep scores >= 85 to achieve weekly
     weekly_readiness_score_goal = Column('weekly_readiness_score_goal',
                                          Integer())  # Oura readiness scores >= 85 to achieve weekly
@@ -366,8 +365,7 @@ if not athlete_exists:
         weekly_tss_goal=150,
         rr_max_goal=8,
         rr_min_goal=5,
-        weekly_workout_goal=100,
-        weekly_yoga_goal=100,
+        weekly_workout_goal=3,
         weekly_sleep_score_goal=3,
         weekly_readiness_score_goal=3,
         weekly_activity_score_goal=3,

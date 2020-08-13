@@ -338,8 +338,8 @@ def goal_parameters():
     athlete_info = session.query(athlete).filter(athlete.athlete_id == 1).first()
     engine.dispose()
     session.close()
-    use_readiness = True if athlete_info.weekly_workout_goal == 99 and athlete_info.weekly_yoga_goal == 99 else False
-    use_hrv = True if athlete_info.weekly_workout_goal == 100 and athlete_info.weekly_yoga_goal == 100 else False
+    use_readiness = True if athlete_info.weekly_workout_goal == 99 else False
+    use_hrv = True if athlete_info.weekly_workout_goal == 100 else False
     return dbc.Card([
         dbc.CardHeader(html.H4(className='text-left', children='Goals')),
         dbc.CardBody(className='align-items-center text-center', children=[
@@ -359,9 +359,8 @@ def goal_parameters():
                     className='col-2 offset-5'
                 )
             ]),
-            html.Div(className='row mb-2 mt-2', children=[
-                # TODO: Currently results in 7 items on home page... think through consolidating workout/yoga into 1 donut
-                html.H6('Use readiness for workout / yoga goals', className='col-5 mb-0',
+            html.Div(className='row mb-2 mt-2', style={} if oura_credentials_supplied else {'display':'none'}, children=[
+                html.H6('Use oura readiness score (>=80) for workout goals', className='col-5 mb-0',
                         style={'display': 'inline-block'}),
                 daq.BooleanSwitch(
                     id='use-readiness-for-goal-switch',
@@ -371,7 +370,6 @@ def goal_parameters():
             ]),
             generate_db_setting(id='weekly-workout-goal', title='Weekly Workout Goal',
                                 value=athlete_info.weekly_workout_goal),
-            generate_db_setting(id='weekly-yoga-goal', title='Weekly Yoga Goal', value=athlete_info.weekly_yoga_goal),
             generate_db_setting(id='daily-sleep-goal', title='Daily Sleep Goal (hrs)',
                                 value=athlete_info.daily_sleep_hr_target),
             generate_db_setting(id='weekly-sleep-score-goal', title='Weekly Sleep Score Goal',
@@ -537,8 +535,6 @@ def update_athlete_db_value(value, value_name):
     Output('min-workout-time-goal-input-status', 'style'),
     Output('weekly-workout-goal-input-submit', 'style'),
     Output('weekly-workout-goal-input-status', 'style'),
-    Output('weekly-yoga-goal-input-submit', 'style'),
-    Output('weekly-yoga-goal-input-status', 'style'),
     Output('weekly-sleep-score-goal-input-submit', 'style'),
     Output('weekly-sleep-score-goal-input-status', 'style'),
     Output('weekly-readiness-score-goal-input-submit', 'style'),
@@ -587,7 +583,6 @@ def update_athlete_db_value(value, value_name):
         Input('rr-min-goal-input-submit', 'n_clicks'),
         Input('min-workout-time-goal-input-submit', 'n_clicks'),
         Input('weekly-workout-goal-input-submit', 'n_clicks'),
-        Input('weekly-yoga-goal-input-submit', 'n_clicks'),
         Input('weekly-sleep-score-goal-input-submit', 'n_clicks'),
         Input('weekly-readiness-score-goal-input-submit', 'n_clicks'),
         Input('cycle-zone1-input-submit', 'n_clicks'),
@@ -621,7 +616,6 @@ def update_athlete_db_value(value, value_name):
         State('rr-min-goal-input', 'value'),
         State('min-workout-time-goal-input', 'value'),
         State('weekly-workout-goal-input', 'value'),
-        State('weekly-yoga-goal-input', 'value'),
         State('weekly-sleep-score-goal-input', 'value'),
         State('weekly-readiness-score-goal-input', 'value'),
         State('cycle-zone1-input', 'value'),
@@ -641,18 +635,18 @@ def update_athlete_db_value(value, value_name):
     ])
 def save_athlete_settings(
         name_click, birthday_click, sex_click, weight_click, rest_hr_click, ride_ftp_click, run_ftp_click, wk_act_click,
-        slp_goal_click, tss_goal_click, rrmax_click, rrmin_click, min_workout_click, workout_click, yoga_click,
+        slp_goal_click, tss_goal_click, rrmax_click, rrmin_click, min_workout_click, workout_click,
         slp_click, rd_click, cycle_zone1_click, cycle_zone2_click, cycle_zone3_click, cycle_zone4_click,
         cycle_zone5_click, cycle_zone6_click, run_zone1_click, run_zone2_click, run_zone3_click, run_zone4_click,
         hr_zone1_click, hr_zone2_click, hr_zone3_click, hr_zone4_click, name_value, birthday_value, sex_value,
         weight_value, rest_hr_value, ride_ftp_value, run_ftp_value, wk_act_value, slp_goal_value, tss_goal_value,
-        rrmax_value, rrmin_value, min_workout_value, workout_value, yoga_value, slp_value, rd_value,
+        rrmax_value, rrmin_value, min_workout_value, workout_value, slp_value, rd_value,
         cycle_zone1_value, cycle_zone2_value, cycle_zone3_value, cycle_zone4_value, cycle_zone5_value,
         cycle_zone6_value, run_zone1_value, run_zone2_value, run_zone3_value, run_zone4_value, hr_zone1_value,
         hr_zone2_value, hr_zone3_value, hr_zone4_value,
 
 ):
-    num_metrics = 31
+    num_metrics = 30
     output_styles = []
     for _ in range(num_metrics):
         output_styles.extend([{'display': 'inline-block', 'border': '0px'}, {
@@ -675,7 +669,6 @@ def save_athlete_settings(
                        'rr-min-goal-input-submit': 'rr_min_goal',
                        'min-workout-time-goal-input-submit': 'min_non_warmup_workout_time',
                        'weekly-workout-goal-input-submit': 'weekly_workout_goal',
-                       'weekly-yoga-goal-input-submit': 'weekly_yoga_goal',
                        'weekly-sleep-score-goal-input-submit': 'weekly_sleep_score_goal',
                        'weekly-readiness-score-goal-input-submit': 'weekly_readiness_score_goal',
                        'cycle-zone1-input-submit': 'cycle_power_zone_threshold_1',
@@ -709,7 +702,6 @@ def save_athlete_settings(
             'rr_min_goal',
             'min_non_warmup_workout_time',
             'weekly_workout_goal',
-            'weekly_yoga_goal',
             'weekly_sleep_score_goal',
             'weekly_readiness_score_goal',
             'cycle_power_zone_threshold_1',
@@ -743,7 +735,6 @@ def save_athlete_settings(
             'rr_min_goal': rrmin_value,
             'min_non_warmup_workout_time': min_workout_value,
             'weekly_workout_goal': workout_value,
-            'weekly_yoga_goal': yoga_value,
             'weekly_sleep_score_goal': slp_value,
             'weekly_readiness_score_goal': rd_value,
             'cycle_power_zone_threshold_1': cycle_zone1_value,
@@ -803,9 +794,8 @@ def disable_readiness(hrv, readiness):
 
 
 # Callback for showing/hiding workout/yoga goal settings
-@app.callback([
+@app.callback(
     Output('weekly-workout-goal', 'style'),
-    Output('weekly-yoga-goal', 'style')],
     [Input('use-readiness-for-goal-switch', 'on'), Input('use-tss-for-goal-switch', 'on')],
     [State('use-readiness-for-goal-switch', 'on'), State('use-tss-for-goal-switch', 'on')]
 )
@@ -815,21 +805,18 @@ def set_fitness_goals(readiness_dummy, hrv_dummy, readiness_switch, hrv_switch):
 
     if readiness_switch:
         style = {'display': 'none'}
-        weekly_workout_goal, weekly_yoga_goal = 99, 99
+        weekly_workout_goal = 99
     elif hrv_switch:
         style = {'display': 'none'}
-        weekly_workout_goal, weekly_yoga_goal = 100, 100
+        weekly_workout_goal = 100
     else:
         style = {}
-        weekly_workout_goal, weekly_yoga_goal = 3, 3
+        weekly_workout_goal = 3
 
     try:
-        if athlete_info.weekly_yoga_goal != weekly_yoga_goal and athlete_info.weekly_workout_goal != weekly_workout_goal:
-            app.server.logger.info('Updating weekly yoga goal to {}'.format(
-                weekly_yoga_goal if weekly_yoga_goal != 99 or weekly_yoga_goal != 100 else 'readiness score based'))
+        if athlete_info.weekly_workout_goal != weekly_workout_goal:
             app.server.logger.info('Updating weekly workout goal to {}'.format(
                 weekly_workout_goal if weekly_workout_goal != 99 or weekly_workout_goal != 100 else 'readiness score based'))
-            athlete_info.weekly_yoga_goal = weekly_yoga_goal
             athlete_info.weekly_workout_goal = weekly_workout_goal
             session.commit()
     except BaseException as e:
@@ -837,7 +824,7 @@ def set_fitness_goals(readiness_dummy, hrv_dummy, readiness_switch, hrv_switch):
     engine.dispose()
     session.close()
 
-    return style, style
+    return style
 
 
 @app.callback(Output('api-connections', 'children'),

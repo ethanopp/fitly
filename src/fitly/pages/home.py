@@ -469,19 +469,13 @@ def generate_kpi_donut(kpi_name, metric, goal, current_streak, best_streak, colo
             ]
 
 
-def calculate_streak_off_oura_readiness(date, readiness_lookup, df):
-    ## Yoga on days when readiness between 70-84, workout on days when readiness >= 85
+def calculate_streak_off_oura_readiness(date, df):
+    ## Workout on days when readiness >= 80
     session, engine = db_connect()
-    if readiness_lookup == 'yoga':
-        df_readiness = pd.read_sql(
-            sql=session.query(ouraReadinessSummary.report_date, ouraReadinessSummary.score).filter(
-                ouraReadinessSummary.report_date <= date,
-                ouraReadinessSummary.score >= 70, ouraReadinessSummary.score < 85).statement, con=engine)
-    elif readiness_lookup == 'workout':
-        df_readiness = pd.read_sql(
-            sql=session.query(ouraReadinessSummary.report_date, ouraReadinessSummary.score).filter(
-                ouraReadinessSummary.report_date <= date,
-                ouraReadinessSummary.score >= 85).statement, con=engine)
+    df_readiness = pd.read_sql(
+        sql=session.query(ouraReadinessSummary.report_date, ouraReadinessSummary.score).filter(
+            ouraReadinessSummary.report_date <= date,
+            ouraReadinessSummary.score >= 80).statement, con=engine)
 
     df_readiness = df_readiness.set_index(pd.to_datetime(df_readiness['report_date']))
     engine.dispose()
@@ -811,7 +805,7 @@ def update_kpis(date, days=7):
     current_activity_streak, best_activity_streak = calculate_streak(date, df_activity,
                                                                      athlete_info.weekly_activity_score_goal)
 
-    tss_goal = True if athlete_info.weekly_yoga_goal == 100 and athlete_info.weekly_workout_goal == 100 else False
+    tss_goal = True if athlete_info.weekly_workout_goal == 100 else False
 
     if tss_goal:
         tss_df = pd.read_sql(
@@ -846,8 +840,6 @@ def update_kpis(date, days=7):
 
     else:
         # Count workouts that are greater than min activity minutes
-        df_yoga = df_summary[(df_summary['type'].str.lower().str.contains("yoga")) & (
-                df_summary['elapsed_time'] >= athlete_info.min_non_warmup_workout_time)]
         df_workout = df_summary[
             ((df_summary['type'].str.lower().str.contains("ride")) | (
                 df_summary['type'].str.lower().str.contains("run")) |
@@ -855,28 +847,20 @@ def update_kpis(date, days=7):
             (df_summary['elapsed_time'] >= athlete_info.min_non_warmup_workout_time)]
 
         # Calculate Streaks
-        athlete_weekly_yoga_goal = athlete_info.weekly_yoga_goal
         athlete_weekly_workout_goal = athlete_info.weekly_workout_goal
-        if athlete_info.weekly_yoga_goal == 99 and athlete_info.weekly_workout_goal == 99:
-            current_yoga_streak, best_yoga_streak, athlete_weekly_yoga_goal = calculate_streak_off_oura_readiness(date,
-                                                                                                                  'yoga',
-                                                                                                                  df_yoga)
+        if athlete_info.weekly_workout_goal == 99:
             current_workout_streak, best_workout_streak, athlete_weekly_workout_goal = calculate_streak_off_oura_readiness(
-                date, 'workout', df_workout)
+                date, df_workout)
         else:
-            current_yoga_streak, best_yoga_streak = calculate_streak(date, df_yoga, athlete_weekly_yoga_goal)
             current_workout_streak, best_workout_streak = calculate_streak(date, df_workout,
                                                                            athlete_weekly_workout_goal)
 
         # Filter df date's for donuts
-        df_yoga = df_yoga[(df_yoga.index.date <= pd.to_datetime(date).date()) &
-                          (df_yoga.index.date > pd.to_datetime(date - timedelta(days=days)).date())]
         df_workout = df_workout[(df_workout.index.date <= pd.to_datetime(date).date()) &
                                 (df_workout.index.date > pd.to_datetime(date - timedelta(days=days)).date())]
 
         workout_color = orange if df_workout.shape[
                                       0] < athlete_weekly_workout_goal and athlete_weekly_workout_goal != 99 else None
-        yoga_color = orange if df_yoga.shape[0] < athlete_weekly_yoga_goal and athlete_weekly_yoga_goal != 99 else None
 
         class_name = 'col-lg-2 '
         specific_donuts = [html.Div(id='workout-donut', className=class_name,
@@ -884,13 +868,7 @@ def update_kpis(date, days=7):
                                                                 goal=athlete_weekly_workout_goal,
                                                                 current_streak=current_workout_streak,
                                                                 best_streak=best_workout_streak,
-                                                                color=workout_color)),
-                           html.Div(id='yoga-donut', className=class_name,
-                                    children=generate_kpi_donut(kpi_name='Yoga', metric=df_yoga.shape[0],
-                                                                goal=athlete_weekly_yoga_goal,
-                                                                current_streak=current_yoga_streak,
-                                                                best_streak=best_yoga_streak,
-                                                                color=yoga_color))]
+                                                                color=workout_color))]
 
     main_donuts = [html.Div(id='sleep-donut', className=class_name,
                             children=generate_kpi_donut(kpi_name='Sleep', metric=df_sleep.shape[0],
