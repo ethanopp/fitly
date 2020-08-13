@@ -197,6 +197,9 @@ class FitlyActivity(stravalib.model.Activity):
                 # If no FTP test prior to current activity
                 self.ftp = self.Athlete.ride_ftp
 
+            engine.dispose()
+            session.close()
+
         else:
             self.ftp = None
 

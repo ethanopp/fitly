@@ -69,11 +69,13 @@ ftp_color = 'rgb(100, 217, 236)'
 def generate_exercise_charts(timeframe, muscle_options):
     session, engine = db_connect()
     df = pd.read_sql(sql=session.query(fitbod).statement, con=engine)
-    engine.dispose()
-    session.close()
+
     # Merge 'muscle' into exercise table for mapping
     df_muscle = pd.read_sql(sql=session.query(fitbod_muscles).statement, con=engine)
     df = df.merge(df_muscle, how='left', left_on='Exercise', right_on='Exercise')
+
+    engine.dispose()
+    session.close()
 
     # Filter on selected msucles
     df = df[df['Muscle'].isin(muscle_options)]

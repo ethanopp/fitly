@@ -869,8 +869,8 @@ def reset_hrv_plan(n_clicks, hrv_date):
     if n_clicks > 0:
         hrv_date = datetime.strptime(hrv_date, '%Y-%m-%d')
         app.server.logger.info('Resetting HRV workout plan workflow to step 0 on {}'.format(hrv_date))
+        session, engine = db_connect()
         try:
-            session, engine = db_connect()
             session.execute(delete(hrvWorkoutStepLog).where(hrvWorkoutStepLog.date > hrv_date))
             query = session.query(hrvWorkoutStepLog).filter(hrvWorkoutStepLog.date == hrv_date).first()
             query.hrv_workout_step = 0

@@ -2001,20 +2001,22 @@ def add_row(n_clicks, rows, columns):
 )
 def annotation_table_save(n_clicks, password, data):
     if n_clicks > 0 and password == config.get('settings', 'password'):
+        session, engine = db_connect()
+
         try:
             df = pd.DataFrame(data).set_index('date')
             df['athlete_id'] = 1
             # Truncate annotations for current athlete
-            session, engine = db_connect()
             session.execute(delete(annotations).where(annotations.athlete_id == 1))
             session.commit()
-            engine.dispose()
-            session.close()
             # Add annotations
             db_insert(df, 'annotations')
         except BaseException as e:
             app.server.logger.error('Error with annotations DB transactions'.format(e))
             session.rollback()
+
+        engine.dispose()
+        session.close()
 
         return html.I(className='fa fa-check',
                       style={'display': 'inline-block', 'color': 'green', 'paddingLeft': '1vw',

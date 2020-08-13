@@ -782,8 +782,6 @@ def update_kpis(date, days=7):
         sql=session.query(stravaSummary).filter(stravaSummary.start_date_utc <= date).statement, con=engine,
         index_col='start_date_local')
     athlete_info = session.query(athlete).filter(athlete.athlete_id == 1).first()
-    engine.dispose()
-    session.close()
 
     ### Oura Donuts ###
 
@@ -919,6 +917,9 @@ def update_kpis(date, days=7):
                      children=generate_content_kpi_trend('withings', 'fat_ratio'))
 
         ])
+
+    engine.dispose()
+    session.close()
 
     return html.Div(className='col-lg-12', children=[
         dbc.Card([
