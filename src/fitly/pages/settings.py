@@ -202,9 +202,9 @@ def athlete_card():
     engine.dispose()
     session.close()
     color = '' if athlete_info.name and athlete_info.birthday and athlete_info.sex and athlete_info.weight_lbs and athlete_info.resting_hr and athlete_info.run_ftp and athlete_info.ride_ftp else 'border-danger'
-    peloton_class_types = get_class_types()
 
     if peloton_credentials_supplied:
+        peloton_class_types = get_class_types()
         #TODO: Update formatting of these dropdowns to match sizing of all other inputs on settings page
         peloton_bookmark_settings = html.Div(
             children=[html.H5('Peloton HRV Recommendation Auto Bookmarking', className='col-12 mb-2 mt-2'),
