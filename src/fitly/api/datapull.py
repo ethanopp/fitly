@@ -181,8 +181,7 @@ def refresh_database(refresh_method='system', truncate=False, truncateDate=None)
                             new_activities = []
                             for act in activities:
                                 # If not already in db, parse and insert
-                                # if act.id not in db_activities['activity_id'].unique():
-                                if act.id == 3902141400: #TODO REMOVE
+                                if act.id not in db_activities['activity_id'].unique():
                                     new_activities.append(FitlyActivity(act))
                                     app.server.logger.info('New Workout found: "{}"'.format(act.name))
                             # If new workouts found, analyze and insert

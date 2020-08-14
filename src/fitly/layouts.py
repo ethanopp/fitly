@@ -19,8 +19,10 @@ def main_layout_header():
                 dbc.Row(dbc.Col(id=server.config["CONTENT_CONTAINER_ID"])), fluid=True
             ),
             dcc.Location(id=server.config["LOCATION_COMPONENT_ID"], refresh=False),
+            # TODO: Add spinner toast to all pages when db operations are occuring (refreshing)
         ]
     )
+
 
 
 def main_layout_sidebar():
