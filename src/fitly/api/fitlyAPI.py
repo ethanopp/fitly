@@ -347,6 +347,11 @@ class FitlyActivity(stravalib.model.Activity):
             self.efficiency_factor = self.wap / self.df_samples['heartrate'].mean()
 
     def build_df_summary(self):
+        # Strava doesn't always pull through power data into summary (especially for run workouts), so lets force it in...
+        self.max_watts = self.df_samples['watts'].max() if 'watts' in self.df_samples.columns else self.max_watts
+        self.average_watts = self.df_samples[
+            'watts'].mean() if 'watts' in self.df_samples.columns else self.average_watts
+
         self.df_summary = pd.DataFrame()
         self.df_summary['activity_id'] = [self.id]
 
