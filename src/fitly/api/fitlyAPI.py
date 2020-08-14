@@ -16,6 +16,8 @@ from dateutil.relativedelta import relativedelta
 from ..app import app
 from .database import engine
 from ..utils import peloton_credentials_supplied, stryd_credentials_supplied, config
+import os
+import pandas as pd
 
 types = ['time', 'latlng', 'distance', 'altitude', 'velocity_smooth', 'heartrate', 'cadence', 'watts', 'temp',
          'moving', 'grade_smooth']
@@ -27,6 +29,38 @@ def calctime(time_sec, startdate):
     except BaseException as e:
         timestamp = startdate
     return timestamp
+
+
+def get_peloton_cache(act_start_date_utc):
+    # Check if there is already a file
+    cache_exists = os.path.isfile('peloton-cache.csv')
+    # Parse through max date
+    if cache_exists:
+        peloton_cache = pd.read_csv('peloton-cache.csv')
+        # If latest workout is more than 15 minutes newer than max workout in cache, refresh the cache
+        if (pd.to_datetime(act_start_date_utc).tz_localize(None) - pd.to_datetime(
+                peloton_cache['start']).max()).total_seconds() > (60 * 15):
+            peloton_cache = peloton_mapping_df().to_csv('peloton-cache.csv', sep=',')
+    else:
+        peloton_cache = peloton_mapping_df().to_csv('peloton-cache.csv', sep=',')
+
+    return peloton_cache
+
+
+def get_stryd_cache(act_start_date_local):
+    # Check if there is already a file
+    cache_exists = os.path.isfile('stryd-cache.csv')
+    # Parse through max date
+    if cache_exists:
+        stryd_cache = pd.read_csv('stryd-cache.csv')
+        # If latest workout is more than 15 minutes newer than max workout in cache, refresh the cache
+        if (pd.to_datetime(act_start_date_local).tz_localize(None) - pd.to_datetime(
+                stryd_cache['timestamp']).max()).total_seconds() > (60 * 15):
+            stryd_cache = get_stryd_df_summary().to_csv('stryd-cache.csv', sep=',')
+    else:
+        stryd_cache = get_stryd_df_summary().to_csv('stryd-cache.csv', sep=',')
+
+    return stryd_cache
 
 
 class FitlyActivity(stravalib.model.Activity):
@@ -109,7 +143,8 @@ class FitlyActivity(stravalib.model.Activity):
     def get_peloton_workout_title(self, write_to_strava=True):
         ## Assumes recorded ride is started within 5 minutes of peloton video
         client = get_strava_client()
-        peloton_df = peloton_mapping_df()
+        peloton_df = get_peloton_cache(self.start_date)
+        peloton_df['start'] = pd.to_datetime(peloton_df['start'])
         start = roundTime(self.start_date)
         activity = peloton_df[
             (peloton_df['start'] >= (start - timedelta(minutes=10))) & (
@@ -169,12 +204,13 @@ class FitlyActivity(stravalib.model.Activity):
         if 'run' in self.type.lower() or 'walk' in self.type.lower():
             # If stryd credentials in config, grab ftp
             if stryd_credentials_supplied:
-                stryd_df = get_stryd_df_summary()
+                stryd_df = get_stryd_cache(self.start_date_local)
+                stryd_df['timestamp'] = pd.to_datetime(stryd_df['timestamp'])
                 start = roundTime(self.start_date_local)
                 # Save stryd df for current workout to instance to use metrics later and avoid having to hit API again
                 self.stryd_metrics = stryd_df[
-                    (stryd_df.index >= (start - timedelta(minutes=5))) & (
-                            stryd_df.index <= (start + timedelta(minutes=5)))]
+                    (stryd_df['timestamp'] >= (start - timedelta(minutes=5))) & (
+                            stryd_df['timestamp'] <= (start + timedelta(minutes=5)))]
                 try:
                     self.ftp = self.stryd_metrics.iloc[0].stryd_ftp
                     if self.ftp == 0:

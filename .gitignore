@@ -101,3 +101,6 @@ ENV/
 .mypy_cache/
 /config/fitness.db
 /config/config.ini
+
+/peloton-cache.csv
+/stryd-cache.csv

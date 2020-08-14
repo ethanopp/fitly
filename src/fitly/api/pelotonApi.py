@@ -21,6 +21,7 @@ _BASE_URL = 'https://api.onepeloton.com'
 PELOTON_USERNAME = config.get('peloton', 'username')
 PELOTON_PASSWORD = config.get('peloton', 'password')
 
+_USER_AGENT = "Mozilla/5.0"
 
 # Whether or not to verify SSL connections (defaults to True)
 # try:
@@ -192,6 +193,7 @@ class PelotonAPI:
     # Headers we'll be using for each request
     headers = {
         "Content-Type": "application/json",
+        "User-Agent": _USER_AGENT
     }
 
     @classmethod
@@ -205,13 +207,13 @@ class PelotonAPI:
         if cls.peloton_session is None:
             cls._create_api_session()
 
-        # get_logger().debug("Request {} [{}]".format(_BASE_URL + uri, params))
+        # app.server.logger.debug("Request {} [{}]".format(_BASE_URL + uri, params))
         if call == 'get':
             resp = cls.peloton_session.get(_BASE_URL + uri, headers=cls.headers, params=params)
         elif call == 'post':
             resp = cls.peloton_session.post(_BASE_URL + uri, headers=cls.headers, json=params)
 
-        # get_logger().debug("Response {}: [{}]".format(resp.status_code, resp._content))
+        # app.server.logger.debug("Response {}: [{}]".format(resp.status_code, resp._content))
 
         # If we don't have a 200 code
         if not (200 >= resp.status_code < 300):
@@ -451,7 +453,7 @@ class PelotonWorkoutMetrics(PelotonObject):
         metric_summaries = ['total_output', 'distance', 'calories']
         for metric in kwargs.get('summaries'):
             if metric['slug'] not in metric_summaries:
-                # get_logger().warning("Unknown metric summary {} found".format(metric['slug']))
+                # app.server.logger.warning("Unknown metric summary {} found".format(metric['slug']))
                 continue
 
             attr_name = metric['slug'] + '_summary'
@@ -465,7 +467,7 @@ class PelotonWorkoutMetrics(PelotonObject):
         for metric in kwargs.get('metrics'):
 
             if metric['slug'] not in metric_categories:
-                # get_logger().warning("Unknown metric category {} found".format(metric['slug']))
+                # app.server.logger.warning("Unknown metric category {} found".format(metric['slug']))
                 continue
 
             setattr(self, metric['slug'], PelotonMetric(**metric))

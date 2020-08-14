@@ -30,7 +30,7 @@ keepalive = 120
 errorlog = "-"
 
 # Preload the app so scheduler does not duplicate
-preload_app=True
+preload_app = True
 # Set timeout for callbacks
 timeout = os.getenv("TIMEOUT", 30)
 
