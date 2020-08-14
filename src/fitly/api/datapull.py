@@ -14,7 +14,7 @@ from ..utils import config, withings_credentials_supplied, oura_credentials_supp
 def latest_refresh():
     latest_date = app.session.query(func.max(dbRefreshStatus.timestamp_utc))[0][0]
 
-    app.session.close()
+    app.session.remove()
     return latest_date
 
 
@@ -22,7 +22,7 @@ def refresh_database(refresh_method='system', truncate=False, truncateDate=None)
     athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1).first()
     processing = app.session.query(dbRefreshStatus).filter(dbRefreshStatus.refresh_method == 'processing').first()
 
-    app.session.close()
+    app.session.remove()
 
     if not processing:
         try:
@@ -41,7 +41,7 @@ def refresh_database(refresh_method='system', truncate=False, truncateDate=None)
                     app.session.rollback()
                     app.server.logger.error('Failed to insert processing record into db_refresh :', str(e))
 
-                app.session.close()
+                app.session.remove()
 
                 # If either truncate parameter is passed
                 if truncate or truncateDate:
@@ -110,7 +110,7 @@ def refresh_database(refresh_method='system', truncate=False, truncateDate=None)
                             app.session.rollback()
                             app.server.logger.error(e)
 
-                    app.session.close()
+                    app.session.remove()
 
                 ### Pull Weight Data ###
 
@@ -177,7 +177,7 @@ def refresh_database(refresh_method='system', truncate=False, truncateDate=None)
                                     stravaSummary.activity_id).statement,
                                 con=engine)
 
-                            app.session.close()
+                            app.session.remove()
                             new_activities = []
                             for act in activities:
                                 # If not already in db, parse and insert
@@ -208,7 +208,7 @@ def refresh_database(refresh_method='system', truncate=False, truncateDate=None)
 
                 app.server.logger.info('Refresh Complete')
 
-                app.session.close()
+                app.session.remove()
 
                 return run_time
 
@@ -220,7 +220,7 @@ def refresh_database(refresh_method='system', truncate=False, truncateDate=None)
             app.session.query(dbRefreshStatus).filter(dbRefreshStatus.refresh_method == 'processing').delete()
             app.session.commit()
 
-            app.session.close()
+            app.session.remove()
     else:
         if refresh_method == 'manual':
             app.server.logger.info('Database is already running a refresh job')

@@ -81,7 +81,7 @@ class FitlyActivity(stravalib.model.Activity):
 
         self.Athlete = app.session.query(athlete).filter(athlete.athlete_id == athlete_id).first()
 
-        app.session.close()
+        app.session.remove()
 
         self.hearrate_zones = {
             1: float(self.Athlete.hr_zone_threshold_1),
@@ -133,7 +133,7 @@ class FitlyActivity(stravalib.model.Activity):
             hr_lowest = \
                 app.session.query(ouraSleepSummary.hr_lowest).order_by(ouraSleepSummary.report_date.asc()).first()
 
-        app.session.close()
+        app.session.remove()
 
         if hr_lowest:
             self.hr_lowest = hr_lowest[0]
@@ -151,7 +151,7 @@ class FitlyActivity(stravalib.model.Activity):
         if not weight:
             weight = app.session.query(withings.weight).order_by(withings.date_utc.asc()).first()
 
-        app.session.close()
+        app.session.remove()
 
         if weight:
             weight = float(weight[0])
@@ -198,7 +198,7 @@ class FitlyActivity(stravalib.model.Activity):
                 # If no FTP test prior to current activity
                 self.ftp = self.Athlete.ride_ftp
 
-            app.session.close()
+            app.session.remove()
 
         else:
             self.ftp = None
@@ -234,7 +234,7 @@ class FitlyActivity(stravalib.model.Activity):
                 fitbod.date_utc <= date + timedelta(days=1)
             ).statement, con=engine)
 
-        app.session.close()
+        app.session.remove()
 
         # If no workout data found, return None as a WSS score can not be generated
         if len(df) == 0:
@@ -841,4 +841,4 @@ def hrv_training_workflow(min_non_warmup_workout_time, athlete_id=1):
             if peloton_credentials_supplied:
                 set_peloton_workout_recommendations()
 
-    app.session.close()
+    app.session.remove()
