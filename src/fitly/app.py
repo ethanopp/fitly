@@ -1,4 +1,4 @@
-from . import create_flask, create_dash
+from . import create_flask, create_dash, db_startup
 from .layouts import main_layout_header, main_layout_sidebar
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -7,6 +7,9 @@ server = create_flask()
 
 # The Dash instance
 app = create_dash(server)
+
+# New DB startup tasks
+db_startup(app)
 
 # Logging
 import logging
