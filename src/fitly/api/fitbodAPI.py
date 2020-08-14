@@ -1,11 +1,11 @@
 #! /usr/bin/env python
 import owncloud
 import os
-from ..api.sqlalchemy_declarative import db_connect, fitbod
+from ..api.sqlalchemy_declarative import fitbod
+from ..api.database import engine
 from sqlalchemy import func
 import pandas as pd
 from ..app import app
-import numpy as np
 from ..utils import config
 
 
@@ -75,17 +75,17 @@ def pull_fitbod_data():
         # df = df.set_index('Date_UTC')
 
         # DB Operations
-        session, engine = db_connect()
-        max_date = session.query(func.max(fitbod.date_utc)).first()[0]
+
+        max_date = app.session.query(func.max(fitbod.date_utc)).first()[0]
         if max_date:
             max_date = pd.to_datetime(max_date)
             # Filter df to new workouts only for appending table
             df = df[df['Date_UTC'] > max_date]
         # Insert fitbod table into DB
         df.to_sql('fitbod', engine, if_exists='append', index=False)
-        session.commit()
-        engine.dispose()
-        session.close()
+        app.session.commit()
+
+        app.session.remove()
         # Delete file in local folder
         os.remove(filename)
         # Empty the dir on nextcloud

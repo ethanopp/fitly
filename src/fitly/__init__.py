@@ -3,7 +3,9 @@ from dash import Dash
 
 from .__version__ import __version__
 from .utils import get_dash_args_from_flask_config
-
+from sqlalchemy.orm import scoped_session
+from .api.database import SessionLocal, engine
+from .api.sqlalchemy_declarative import *
 
 def create_flask(config_object=f"{__package__}.settings"):
     """Create the Flask instance for this application"""
@@ -38,6 +40,8 @@ def create_dash(server):
     server.config.update({key.upper(): val for key, val in app.config.items()})
 
     app.title = server.config["TITLE"]
+
+    app.session = scoped_session(SessionLocal)
 
     if "SERVE_LOCALLY" in server.config:
         app.scripts.config.serve_locally = server.config["SERVE_LOCALLY"]

@@ -5,7 +5,8 @@ import dash_html_components as html
 import plotly.graph_objs as go
 from ..app import app
 from dash.dependencies import Input, Output, State
-from ..api.sqlalchemy_declarative import db_connect, fitbod, fitbod_muscles
+from ..api.sqlalchemy_declarative import fitbod, fitbod_muscles
+from ..api.database import engine
 import math
 from datetime import datetime, timedelta, date
 import dash_bootstrap_components as dbc
@@ -67,15 +68,13 @@ ftp_color = 'rgb(100, 217, 236)'
 
 
 def generate_exercise_charts(timeframe, muscle_options):
-    session, engine = db_connect()
-    df = pd.read_sql(sql=session.query(fitbod).statement, con=engine)
+    df = pd.read_sql(sql=app.session.query(fitbod).statement, con=engine)
 
     # Merge 'muscle' into exercise table for mapping
-    df_muscle = pd.read_sql(sql=session.query(fitbod_muscles).statement, con=engine)
+    df_muscle = pd.read_sql(sql=app.session.query(fitbod_muscles).statement, con=engine)
     df = df.merge(df_muscle, how='left', left_on='Exercise', right_on='Exercise')
 
-    engine.dispose()
-    session.close()
+    app.session.remove()
 
     # Filter on selected msucles
     df = df[df['Muscle'].isin(muscle_options)]

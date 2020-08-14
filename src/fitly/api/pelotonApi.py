@@ -7,7 +7,8 @@ import decimal
 from datetime import datetime, timezone, date, timedelta
 from ..utils import config
 import pandas as pd
-from .sqlalchemy_declarative import db_connect, hrvWorkoutStepLog, athlete
+from .sqlalchemy_declarative import hrvWorkoutStepLog, athlete
+from ..app import app
 import json
 
 # Pulled from
@@ -749,13 +750,13 @@ def get_bookmarks():
 
 def set_peloton_workout_recommendations():
     # Get HRV Recommendation for the day
-    session, engine = db_connect()
-    hrv_recommendation = session.query(hrvWorkoutStepLog.hrv_workout_step_desc).order_by(
+
+    hrv_recommendation = app.session.query(hrvWorkoutStepLog.hrv_workout_step_desc).order_by(
         hrvWorkoutStepLog.date.desc()).first().hrv_workout_step_desc
-    athlete_bookmarks = json.loads(session.query(athlete.peloton_auto_bookmark_ids).filter(
+    athlete_bookmarks = json.loads(app.session.query(athlete.peloton_auto_bookmark_ids).filter(
         athlete.athlete_id == 1).first().peloton_auto_bookmark_ids)
-    engine.dispose()
-    session.close()
+
+    app.session.remove()
 
     fitness_disciplines = athlete_bookmarks.keys()
     taken_class_ids = [x.ride.id for x in PelotonWorkout.list()]

@@ -2,26 +2,23 @@ from stravalib.client import Client
 import datetime
 from datetime import datetime
 from sqlalchemy import delete
-from ..api.sqlalchemy_declarative import db_connect, apiTokens
+from ..api.sqlalchemy_declarative import apiTokens
 from ..utils import config
 from ..app import app
 import ast
 import time
 
-
-
 client_id = config.get('strava', 'client_id')
 client_secret = config.get('strava', 'client_secret')
 redirect_uri = config.get('strava', 'redirect_uri')
 
+
 # Retrieve current tokens from db
 def current_token_dict():
     try:
-        session, engine = db_connect()
-        token_dict = session.query(apiTokens.tokens).filter(apiTokens.service == 'Strava').first()
+        token_dict = app.session.query(apiTokens.tokens).filter(apiTokens.service == 'Strava').first()
         token_dict = ast.literal_eval(token_dict[0]) if token_dict else {}
-        engine.dispose()
-        session.close()
+        app.session.remove()
     except BaseException as e:
         app.server.logger.error(e)
         token_dict = {}
@@ -30,16 +27,14 @@ def current_token_dict():
 
 # Function for auto saving strava token_dict to db
 def save_strava_token(token_dict):
-    session, engine = db_connect()
     # Delete current key
     app.server.logger.debug('Deleting current strava tokens')
-    session.execute(delete(apiTokens).where(apiTokens.service == 'Strava'))
+    app.session.execute(delete(apiTokens).where(apiTokens.service == 'Strava'))
     # Insert new key
     app.server.logger.debug('Inserting new strava tokens')
-    session.add(apiTokens(date_utc=datetime.utcnow(), service='Strava', tokens=str(token_dict)))
-    session.commit()
-    engine.dispose()
-    session.close()
+    app.session.add(apiTokens(date_utc=datetime.utcnow(), service='Strava', tokens=str(token_dict)))
+    app.session.commit()
+    app.session.remove()
 
 
 def get_strava_client():
@@ -83,7 +78,6 @@ def connect_strava_link(auth_client):
                                         scope=['read', 'read_all', 'profile:read_all', 'profile:write', 'activity:read',
                                                'activity:read_all', 'activity:write'])
     return url
-
 
 # def check_data_insert():
 # If data found in db later than data that is being insert, delete all data after earliest date being insert

@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 import numpy as np
-from ..api.sqlalchemy_declarative import db_connect, ouraSleepSummary, withings, athlete, db_insert, stravaSummary, \
+from ..api.sqlalchemy_declarative import ouraSleepSummary, withings, athlete, stravaSummary, \
     fitbod, hrvWorkoutStepLog
 from sqlalchemy import func, cast, Date
 from sweat.io.models.dataframes import WorkoutDataFrame, Athlete
@@ -14,6 +14,7 @@ from ..api.pelotonApi import peloton_mapping_df, roundTime, set_peloton_workout_
 from ..api.strydAPI import get_stryd_df_summary
 from dateutil.relativedelta import relativedelta
 from ..app import app
+from .database import engine
 from ..utils import peloton_credentials_supplied, stryd_credentials_supplied, config
 
 types = ['time', 'latlng', 'distance', 'altitude', 'velocity_smooth', 'heartrate', 'cadence', 'watts', 'temp',
@@ -77,10 +78,10 @@ class FitlyActivity(stravalib.model.Activity):
         self.write_dfs_to_db()
 
     def assign_athlete(self, athlete_id):
-        session, engine = db_connect()
-        self.Athlete = session.query(athlete).filter(athlete.athlete_id == athlete_id).first()
-        engine.dispose()
-        session.close()
+
+        self.Athlete = app.session.query(athlete).filter(athlete.athlete_id == athlete_id).first()
+
+        app.session.close()
 
         self.hearrate_zones = {
             1: float(self.Athlete.hr_zone_threshold_1),
@@ -122,17 +123,17 @@ class FitlyActivity(stravalib.model.Activity):
     def get_rest_hr(self):
         # TODO: Build this out so hearrate data can be pulled from other data sources
         # Assign rhr to activities by their start date
-        session, engine = db_connect()
+
         # Try grabbing last resting heartrate from oura
-        hr_lowest = session.query(ouraSleepSummary.hr_lowest).filter(
+        hr_lowest = app.session.query(ouraSleepSummary.hr_lowest).filter(
             ouraSleepSummary.report_date <= self.start_date.date()).order_by(
             ouraSleepSummary.report_date.desc()).first()
         # If activity is prior to first oura data record, use first oura data record
         if not hr_lowest:
             hr_lowest = \
-                session.query(ouraSleepSummary.hr_lowest).order_by(ouraSleepSummary.report_date.asc()).first()
-        engine.dispose()
-        session.close()
+                app.session.query(ouraSleepSummary.hr_lowest).order_by(ouraSleepSummary.report_date.asc()).first()
+
+        app.session.close()
 
         if hr_lowest:
             self.hr_lowest = hr_lowest[0]
@@ -142,16 +143,15 @@ class FitlyActivity(stravalib.model.Activity):
 
     def get_weight(self):
         # TODO: Build this out so weight data can be pulled from other data sources
-        session, engine = db_connect()
+
         # Try grabbing last weight in withings before current workout
-        weight = session.query(withings.weight).filter(withings.date_utc <= self.start_date).order_by(
+        weight = app.session.query(withings.weight).filter(withings.date_utc <= self.start_date).order_by(
             withings.date_utc.desc()).first()
         # Else try getting most recent weight from withings
         if not weight:
-            weight = session.query(withings.weight).order_by(withings.date_utc.asc()).first()
+            weight = app.session.query(withings.weight).order_by(withings.date_utc.asc()).first()
 
-        engine.dispose()
-        session.close()
+        app.session.close()
 
         if weight:
             weight = float(weight[0])
@@ -186,10 +186,11 @@ class FitlyActivity(stravalib.model.Activity):
                 self.ftp = self.Athlete.run_ftp
         elif 'ride' in self.type.lower():
             # TODO: Switch over to using Critical Power for everything once we get the critical power model working
-            session, engine = db_connect()
+
             try:
                 self.ftp = float(
-                    session.query(stravaSummary.average_watts).order_by(stravaSummary.start_date_local.desc()).filter(
+                    app.session.query(stravaSummary.average_watts).order_by(
+                        stravaSummary.start_date_local.desc()).filter(
                         stravaSummary.start_date_local < self.start_date_local,
                         stravaSummary.type.ilike('%ride%'),
                         stravaSummary.name.ilike('%ftp test%')).first()[0]) * .95
@@ -197,8 +198,7 @@ class FitlyActivity(stravalib.model.Activity):
                 # If no FTP test prior to current activity
                 self.ftp = self.Athlete.ride_ftp
 
-            engine.dispose()
-            session.close()
+            app.session.close()
 
         else:
             self.ftp = None
@@ -226,15 +226,15 @@ class FitlyActivity(stravalib.model.Activity):
         date = self.start_date.date()
 
         # Query exercises within trailing 6 weeks of exercise date
-        session, engine = db_connect()
+
         df = pd.read_sql(
-            sql=session.query(fitbod).filter(
+            sql=app.session.query(fitbod).filter(
                 # Only use past 6 months of workouts to calculate 1rm
                 (date - timedelta(days=180)) <= fitbod.date_utc,
                 fitbod.date_utc <= date + timedelta(days=1)
             ).statement, con=engine)
-        engine.dispose()
-        session.close()
+
+        app.session.close()
 
         # If no workout data found, return None as a WSS score can not be generated
         if len(df) == 0:
@@ -585,7 +585,7 @@ class FitlyActivity(stravalib.model.Activity):
                 df['athlete_id'] = self.Athlete.athlete_id
                 df['ftp'] = self.ftp
                 df.set_index(['activity_id', 'interval'], inplace=True)
-                db_insert(df, 'strava_best_samples')
+                df.to_sql('strava_best_samples', engine, if_exists='append', index=True)
 
     def sweatpy_cp_model(self, model='3_parameter_non_linear'):
         # Models that can be passed = '2_parameter_non_linear', '3_parameter_non_linear', 'extended_5_3','extended_7_3'
@@ -608,8 +608,8 @@ class FitlyActivity(stravalib.model.Activity):
         self.df_samples['type'] = self.type
         self.df_samples['athlete_id'] = self.Athlete.athlete_id
 
-        db_insert(self.df_summary.fillna(np.nan), 'strava_summary')
-        db_insert(self.df_samples.fillna(np.nan), 'strava_samples')
+        self.df_summary.fillna(np.nan).to_sql('strava_summary', engine, if_exists='append', index=True)
+        self.df_samples.fillna(np.nan).to_sql('strava_samples', engine, if_exists='append', index=True)
 
 
 def hrv_training_workflow(min_non_warmup_workout_time, athlete_id=1):
@@ -620,26 +620,24 @@ def hrv_training_workflow(min_non_warmup_workout_time, athlete_id=1):
 
     # https://www.trainingpeaks.com/coach-blog/new-study-widens-hrv-evidence-for-more-athletes/
 
-    session, engine = db_connect()
-
     # Check if entire table is empty, if so the earliest hrv plan can start is after 30 days of hrv readings
     db_test = pd.read_sql(
-        sql=session.query(hrvWorkoutStepLog).filter(hrvWorkoutStepLog.athlete_id == athlete_id).statement,
+        sql=app.session.query(hrvWorkoutStepLog).filter(hrvWorkoutStepLog.athlete_id == athlete_id).statement,
         con=engine, index_col='date')
 
     if len(db_test) == 0:
         min_oura_date = pd.to_datetime(
-            session.query(func.min(ouraSleepSummary.report_date))[0][0] + timedelta(29)).date()
+            app.session.query(func.min(ouraSleepSummary.report_date))[0][0] + timedelta(29)).date()
         db_test.at[min_oura_date, 'athlete_id'] = athlete_id
         db_test.at[min_oura_date, 'hrv_workout_step'] = 0
         db_test.at[min_oura_date, 'hrv_workout_step_desc'] = 'Low'
         db_test.at[min_oura_date, 'completed'] = 0
         db_test.at[min_oura_date, 'rationale'] = 'This is the first date 30 day hrv thresholds could be calculated'
-        db_insert(db_test, 'hrv_workout_step_log')
+        db_test.to_sql('hrv_workout_step_log', engine, if_exists='append', index=True)
 
     # Check if a step has already been inserted for today and if so check if workout has been completed yet
-    todays_plan = session.query(hrvWorkoutStepLog).filter(hrvWorkoutStepLog.athlete_id == athlete_id,
-                                                          hrvWorkoutStepLog.date == datetime.today().date()).first()
+    todays_plan = app.session.query(hrvWorkoutStepLog).filter(hrvWorkoutStepLog.athlete_id == athlete_id,
+                                                              hrvWorkoutStepLog.date == datetime.today().date()).first()
 
     if todays_plan:
         # If not yet "completed" keep checking throughout day
@@ -647,25 +645,26 @@ def hrv_training_workflow(min_non_warmup_workout_time, athlete_id=1):
             # If rest day, mark as completed
             if todays_plan.hrv_workout_step == 4 or todays_plan.hrv_workout_step == 5:
                 todays_plan.completed = 1
-                session.commit()
+                app.session.commit()
             else:
-                workout = session.query(stravaSummary).filter(stravaSummary.start_day_local == datetime.today().date(),
-                                                              stravaSummary.elapsed_time > min_non_warmup_workout_time).first()
+                workout = app.session.query(stravaSummary).filter(
+                    stravaSummary.start_day_local == datetime.today().date(),
+                    stravaSummary.elapsed_time > min_non_warmup_workout_time).first()
                 if workout:
                     todays_plan.completed = 1
-                    session.commit()
+                    app.session.commit()
 
     # If plan not yet created for today, create it
     else:
-        hrv_df = pd.read_sql(sql=session.query(ouraSleepSummary.report_date, ouraSleepSummary.rmssd).statement,
+        hrv_df = pd.read_sql(sql=app.session.query(ouraSleepSummary.report_date, ouraSleepSummary.rmssd).statement,
                              con=engine, index_col='report_date').sort_index(ascending=True)
 
         # Wait for today's hrv to be loaded into cloud
         if hrv_df.index.max() == datetime.today().date():  # or (datetime.now() - timedelta(hours=12)) > pd.to_datetime(datetime.today().date()):
 
             step_log_df = pd.read_sql(
-                sql=session.query(hrvWorkoutStepLog.date, hrvWorkoutStepLog.hrv_workout_step,
-                                  hrvWorkoutStepLog.completed).filter(
+                sql=app.session.query(hrvWorkoutStepLog.date, hrvWorkoutStepLog.hrv_workout_step,
+                                      hrvWorkoutStepLog.completed).filter(
                     hrvWorkoutStepLog.athlete_id == 1).statement,
                 con=engine, index_col='date').sort_index(ascending=False)
 
@@ -696,7 +695,7 @@ def hrv_training_workflow(min_non_warmup_workout_time, athlete_id=1):
             # Check if gap between today and max date in step log, if so merge in all workouts for 'completed' flag
             if step_log_df['completed'].isnull().values.any():
                 workouts = pd.read_sql(
-                    sql=session.query(stravaSummary.start_day_local, stravaSummary.activity_id).filter(
+                    sql=app.session.query(stravaSummary.start_day_local, stravaSummary.activity_id).filter(
                         stravaSummary.elapsed_time > min_non_warmup_workout_time)
                         .statement, con=engine,
                     index_col='start_day_local')
@@ -837,5 +836,4 @@ def hrv_training_workflow(min_non_warmup_workout_time, athlete_id=1):
             if peloton_credentials_supplied:
                 set_peloton_workout_recommendations()
 
-    engine.dispose()
-    session.close()
+    app.session.close()

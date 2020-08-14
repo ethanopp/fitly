@@ -6,7 +6,8 @@ import plotly.graph_objs as go
 import dash_daq as daq
 import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output, State
-from ..api.sqlalchemy_declarative import db_connect, stravaSummary, stravaSamples, stravaBestSamples, athlete, withings
+from ..api.sqlalchemy_declarative import stravaSummary, stravaSamples, stravaBestSamples, athlete, withings
+from ..api.database import engine
 from ..app import app
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
@@ -82,18 +83,17 @@ def create_power_curve_kpis(interval, all, L90D, l6w, last, pr):
 
 
 def get_workout_title(activity_id=None):
-    session, engine = db_connect()
-    min_non_warmup_workout_time = session.query(athlete).filter(
+    min_non_warmup_workout_time = app.session.query(athlete).filter(
         athlete.athlete_id == 1).first().min_non_warmup_workout_time
-    activity_id = session.query(stravaSummary.activity_id).filter(stravaSummary.type.ilike('%ride%'),
-                                                                  stravaSummary.elapsed_time > min_non_warmup_workout_time).order_by(
+    activity_id = app.session.query(stravaSummary.activity_id).filter(stravaSummary.type.ilike('%ride%'),
+                                                                      stravaSummary.elapsed_time > min_non_warmup_workout_time).order_by(
         stravaSummary.start_date_utc.desc()).first()[0] if not activity_id else activity_id
     df_samples = pd.read_sql(
-        sql=session.query(stravaSamples).filter(stravaSamples.activity_id == activity_id).statement,
+        sql=app.session.query(stravaSamples).filter(stravaSamples.activity_id == activity_id).statement,
         con=engine,
         index_col=['timestamp_local'])
-    engine.dispose()
-    session.close()
+
+    app.session.remove()
 
     return [html.H6(datetime.strftime(df_samples['date'][0], "%A %b %d, %Y"), style={'height': '50%'}),
             html.H6(df_samples['act_name'][0], style={'height': '50%'})]
@@ -101,14 +101,14 @@ def get_workout_title(activity_id=None):
 
 def power_profiles(interval, activity_type='ride', power_unit='mmp', group='M'):
     activity_type = '%' + activity_type + '%'
-    session, engine = db_connect()
+
     # Filter on interval passed
     df_best_samples = pd.read_sql(
-        sql=session.query(stravaBestSamples).filter(stravaBestSamples.type.ilike(activity_type),
-                                                    stravaBestSamples.interval == interval).statement, con=engine,
+        sql=app.session.query(stravaBestSamples).filter(stravaBestSamples.type.ilike(activity_type),
+                                                        stravaBestSamples.interval == interval).statement, con=engine,
         index_col=['timestamp_local'])
-    engine.dispose()
-    session.close()
+
+    app.session.remove()
     if len(df_best_samples) < 1:
         return {}
 
@@ -163,19 +163,18 @@ def power_profiles(interval, activity_type='ride', power_unit='mmp', group='M'):
 def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend=False, strydmetrics=True):
     activity_type = '%' + activity_type + '%'
 
-    session, engine = db_connect()
-
-    max_interval = session.query(
+    max_interval = app.session.query(
         func.max(stravaBestSamples.interval).label('interval')).filter(
         stravaBestSamples.type.ilike(activity_type)).first()[0]
 
     act_dict = pd.read_sql(
-        sql=session.query(stravaBestSamples.activity_id, stravaBestSamples.act_name).distinct().statement, con=engine,
+        sql=app.session.query(stravaBestSamples.activity_id, stravaBestSamples.act_name).distinct().statement,
+        con=engine,
         index_col='activity_id').to_dict()
 
     # Data points for Power Curve Training Disribution
     TD_df_L90D = pd.read_sql(
-        sql=session.query(
+        sql=app.session.query(
             func.max(stravaBestSamples.mmp).label('mmp'), stravaBestSamples.activity_id, stravaBestSamples.ftp,
             stravaBestSamples.interval, stravaBestSamples.time_interval,
             stravaBestSamples.date, stravaBestSamples.timestamp_local, stravaBestSamples.watts_per_kg,
@@ -191,7 +190,7 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
 
         # Join in weight at the time of workout for calculating FTP_W/kg at point in time (of workout)
         TD_df_L90D = TD_df_L90D.merge(pd.read_sql(
-            sql=session.query(stravaSummary.activity_id, stravaSummary.weight).filter(
+            sql=app.session.query(stravaSummary.activity_id, stravaSummary.weight).filter(
                 stravaSummary.activity_id.in_(TD_df_L90D['activity_id'].unique().tolist())).statement,
             con=engine),
             how='left', right_on='activity_id', left_on='activity_id')
@@ -202,7 +201,7 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
         # Stryd uses "Current FTP" and "Current Weight" across all workouts for last 90 days
         # To align with their percentiles, we need to use "current" metrics to compare against any workout within last 90 days
         # Stryd also only computes based off of W, so need to hardcode percentils to W even when toggling W/kg in fitly
-        current_weight_kg = session.query(withings).order_by(withings.date_utc.desc()).first().weight * 0.453592
+        current_weight_kg = app.session.query(withings).order_by(withings.date_utc.desc()).first().weight * 0.453592
         last_workout = TD_df_L90D[TD_df_L90D['date'] == TD_df_L90D['date'].max()]
         current_ftp_w = last_workout.ftp.values[0]
         endurance_df_mmp = TD_df_L90D.loc[TD_df_L90D[TD_df_L90D['mmp'] > (current_ftp_w / 2)].index.max()]
@@ -217,7 +216,7 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
         muscle_power = TD_df_L90D.loc[10][power_unit]
 
         TD_df_at = pd.read_sql(
-            sql=session.query(
+            sql=app.session.query(
                 func.max(stravaBestSamples.mmp).label('mmp'), stravaBestSamples.activity_id, stravaBestSamples.ftp,
                 stravaBestSamples.interval, stravaBestSamples.time_interval,
                 stravaBestSamples.date, stravaBestSamples.timestamp_local, stravaBestSamples.watts_per_kg,
@@ -239,7 +238,7 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
     interval_lengths += [i for i in range(1230, (int(math.floor(max_interval / 10.0)) * 10) + 1, 30)]
 
     all_best_interval_df = pd.read_sql(
-        sql=session.query(
+        sql=app.session.query(
             func.max(stravaBestSamples.mmp).label('mmp'),
             stravaBestSamples.activity_id, stravaBestSamples.interval, stravaBestSamples.time_interval,
             stravaBestSamples.date, stravaBestSamples.timestamp_local, stravaBestSamples.watts_per_kg,
@@ -249,7 +248,7 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
     all_best_interval_df['act_name'] = all_best_interval_df['activity_id'].map(act_dict['act_name'])
 
     L90D_best_interval_df = pd.read_sql(
-        sql=session.query(
+        sql=app.session.query(
             func.max(stravaBestSamples.mmp).label('mmp'), stravaBestSamples.activity_id, stravaBestSamples.ftp,
             stravaBestSamples.interval, stravaBestSamples.time_interval,
             stravaBestSamples.date, stravaBestSamples.timestamp_local, stravaBestSamples.watts_per_kg,
@@ -262,7 +261,7 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
     L90D_best_interval_df['act_name'] = L90D_best_interval_df['activity_id'].map(act_dict['act_name'])
 
     L6W_best_interval_df = pd.read_sql(
-        sql=session.query(
+        sql=app.session.query(
             func.max(stravaBestSamples.mmp).label('mmp'), stravaBestSamples.activity_id,
             stravaBestSamples.interval, stravaBestSamples.time_interval,
             stravaBestSamples.date, stravaBestSamples.timestamp_local, stravaBestSamples.watts_per_kg,
@@ -276,11 +275,11 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
     # Pull max power from all intervals from latest workout
 
     if last_id is None:
-        last_id = session.query(stravaSummary.activity_id).filter(stravaSummary.type.ilike(activity_type)).order_by(
+        last_id = app.session.query(stravaSummary.activity_id).filter(stravaSummary.type.ilike(activity_type)).order_by(
             stravaSummary.start_date_utc.desc()).first()[0]
 
     recent_best_interval_df = pd.read_sql(
-        sql=session.query(
+        sql=app.session.query(
             func.max(stravaBestSamples.mmp).label('mmp'), stravaBestSamples.activity_id,
             stravaBestSamples.interval, stravaBestSamples.time_interval,
             stravaBestSamples.date, stravaBestSamples.timestamp_local, stravaBestSamples.watts_per_kg,
@@ -289,10 +288,9 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
                                                       ).statement, con=engine, index_col='interval')
     recent_best_interval_df['act_name'] = recent_best_interval_df['activity_id'].map(act_dict['act_name'])
 
-    first_workout_date = session.query(func.min(stravaSummary.start_date_utc)).first()[0]
+    first_workout_date = app.session.query(func.min(stravaSummary.start_date_utc)).first()[0]
 
-    engine.dispose()
-    session.close()
+    app.session.remove()
 
     if len(all_best_interval_df) < 1:
         return {}
@@ -716,15 +714,15 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
 
 def create_ftp_chart(activity_type='ride', power_unit='watts'):
     activity_type = '%' + activity_type + '%'
-    session, engine = db_connect()
+
     df_ftp = pd.read_sql(
-        sql=session.query(stravaSummary).filter(stravaSummary.type.ilike(activity_type),
-                                                stravaSummary.start_date_utc >= (
-                                                        datetime.utcnow() - relativedelta(months=12))
-                                                ).statement, con=engine,
+        sql=app.session.query(stravaSummary).filter(stravaSummary.type.ilike(activity_type),
+                                                    stravaSummary.start_date_utc >= (
+                                                            datetime.utcnow() - relativedelta(months=12))
+                                                    ).statement, con=engine,
         index_col='start_day_local')[['activity_id', 'ftp', 'weight']]
-    engine.dispose()
-    session.close()
+
+    app.session.remove()
 
     if len(df_ftp) < 1:
         return None, {}
@@ -803,21 +801,20 @@ def create_ftp_chart(activity_type='ride', power_unit='watts'):
 
 def zone_chart(activity_id=None, metric='power_zone', chart_id='power-zone-chart'):
     # If activity_id passed, filter only that workout, otherwise show distribution across last 6 weeks
-    session, engine = db_connect()
+
     if activity_id:
         df_samples = pd.read_sql(
-            sql=session.query(stravaSamples).filter(stravaSamples.activity_id == activity_id).statement,
+            sql=app.session.query(stravaSamples).filter(stravaSamples.activity_id == activity_id).statement,
             con=engine,
             index_col=['timestamp_local'])
     else:
         df_samples = pd.read_sql(
-            sql=session.query(stravaSamples).filter(
+            sql=app.session.query(stravaSamples).filter(
                 stravaSamples.timestamp_local >= (datetime.now() - timedelta(days=42))).statement,
             con=engine,
             index_col=['timestamp_local'])
 
-    engine.dispose()
-    session.close()
+    app.session.remove()
 
     pz_df = df_samples.groupby(metric).size().reset_index(name='counts')
     pz_df['seconds'] = pz_df['counts']

@@ -10,8 +10,9 @@ from ..api.stravaApi import strava_connected, get_strava_client, connect_strava_
 from ..api.withingsAPI import withings_connected, connect_withings_link, save_withings_token
 from ..api.pelotonApi import get_class_types
 from nokia import NokiaAuth, NokiaApi
-from ..api.sqlalchemy_declarative import db_connect, stravaSummary, ouraSleepSummary, athlete, hrvWorkoutStepLog, \
+from ..api.sqlalchemy_declarative import stravaSummary, ouraSleepSummary, athlete, hrvWorkoutStepLog, \
     dbRefreshStatus
+from ..api.database import engine
 from ..api.datapull import refresh_database
 from sqlalchemy import delete
 import pandas as pd
@@ -100,17 +101,16 @@ def check_withings_connection():
 
 def generate_cycle_power_zone_card():
     # TODO: Switch over to using Critical Power for everything once we get the critical power model working
-    session, engine = db_connect()
+
     # Use last ftp test ride so power zones shows immideately here after workout is done (and you don't have to wait for 1 more since ftp doesnt take 'effect' until ride after ftp test)
     cftp = pd.read_sql(
-        sql=session.query(stravaSummary.average_watts).filter(stravaSummary.type.like('ride'),
-                                                              stravaSummary.name.like('%ftp test%')).statement,
+        sql=app.session.query(stravaSummary.average_watts).filter(stravaSummary.type.like('ride'),
+                                                                  stravaSummary.name.like('%ftp test%')).statement,
         con=engine)
     cftp = round(int(cftp.loc[cftp.index.max()].fillna(0)['average_watts']) * .95) if len(cftp) > 0 else 0
-    athlete_info = session.query(athlete).filter(athlete.athlete_id == 1).first()
+    athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1).first()
 
-    engine.dispose()
-    session.close()
+    app.session.remove()
 
     cycle_power_zone_threshold_1 = athlete_info.cycle_power_zone_threshold_1
     cycle_power_zone_threshold_2 = athlete_info.cycle_power_zone_threshold_2
@@ -158,14 +158,13 @@ def generate_cycle_power_zone_card():
 
 def generate_run_power_zone_card():
     # TODO: Switch over to using Critical Power for everything once we get the critical power model working
-    session, engine = db_connect()
-    rftp = pd.read_sql(
-        sql=session.query(stravaSummary.ftp).filter(stravaSummary.type.like('run')).statement, con=engine)
-    rftp = int(rftp.loc[rftp.index.max()].fillna(0)['ftp']) if len(rftp) > 0 else 0
-    athlete_info = session.query(athlete).filter(athlete.athlete_id == 1).first()
 
-    engine.dispose()
-    session.close()
+    rftp = pd.read_sql(
+        sql=app.session.query(stravaSummary.ftp).filter(stravaSummary.type.like('run')).statement, con=engine)
+    rftp = int(rftp.loc[rftp.index.max()].fillna(0)['ftp']) if len(rftp) > 0 else 0
+    athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1).first()
+
+    app.session.remove()
 
     run_power_zone_threshold_1 = athlete_info.run_power_zone_threshold_1
     run_power_zone_threshold_2 = athlete_info.run_power_zone_threshold_2
@@ -198,10 +197,9 @@ def generate_run_power_zone_card():
 
 
 def athlete_card():
-    session, engine = db_connect()
-    athlete_info = session.query(athlete).filter(athlete.athlete_id == 1).first()
-    engine.dispose()
-    session.close()
+    athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1).first()
+
+    app.session.remove()
     color = '' if athlete_info.name and athlete_info.birthday and athlete_info.sex and athlete_info.weight_lbs and athlete_info.resting_hr and athlete_info.run_ftp and athlete_info.ride_ftp else 'border-danger'
 
     if peloton_credentials_supplied:
@@ -278,16 +276,14 @@ def athlete_card():
 
 
 def generate_hr_zone_card():
-    session, engine = db_connect()
     rhr = pd.read_sql(
-        sql=session.query(ouraSleepSummary.hr_lowest).statement,
+        sql=app.session.query(ouraSleepSummary.hr_lowest).statement,
         con=engine)
     rhr = int(rhr.loc[rhr.index.max()]['hr_lowest']) if len(rhr) > 0 else 0
-    athlete_info = session.query(athlete).filter(athlete.athlete_id == 1).first()
+    athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1).first()
     birthday = athlete_info.birthday
 
-    engine.dispose()
-    session.close()
+    app.session.remove()
 
     age = relativedelta(datetime.today(), birthday).years
     max_hr = 220 - age
@@ -335,10 +331,9 @@ def generate_db_setting(id, title, value, placeholder=None, input_type='text'):
 
 
 def goal_parameters():
-    session, engine = db_connect()
-    athlete_info = session.query(athlete).filter(athlete.athlete_id == 1).first()
-    engine.dispose()
-    session.close()
+    athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1).first()
+
+    app.session.remove()
     use_readiness = True if athlete_info.weekly_workout_goal == 99 else False
     use_hrv = True if athlete_info.weekly_workout_goal == 100 else False
     return dbc.Card([
@@ -487,20 +482,20 @@ def update_athlete_db_value(value, value_name):
     date_fields = ['birthday']
     if value_name in date_fields:
         value = datetime.strptime(value, '%Y-%m-%d')
-    session, engine = db_connect()
+
     # TODO: Update athlete_filter if expanding to more users
-    athlete_info = session.query(athlete).filter(athlete.athlete_id == 1)
+    athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1)
     athlete_info.update({value_name: value})
     # Execute the insert
     try:
-        session.commit()
+        app.session.commit()
         success = True
         app.server.logger.debug(f'Updated {value_name} to {value}')
     except BaseException as e:
         success = False
         app.server.logger.error(str(e))
-    engine.dispose()
-    session.close()
+
+    app.session.remove()
     return success
 
 
@@ -799,8 +794,7 @@ def disable_readiness(hrv, readiness):
     [State('use-readiness-for-goal-switch', 'on'), State('use-tss-for-goal-switch', 'on')]
 )
 def set_fitness_goals(readiness_dummy, hrv_dummy, readiness_switch, hrv_switch):
-    session, engine = db_connect()
-    athlete_info = session.query(athlete).filter(athlete.athlete_id == 1).first()
+    athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1).first()
 
     if readiness_switch:
         style = {'display': 'none'}
@@ -817,11 +811,11 @@ def set_fitness_goals(readiness_dummy, hrv_dummy, readiness_switch, hrv_switch):
             app.server.logger.info('Updating weekly workout goal to {}'.format(
                 weekly_workout_goal if weekly_workout_goal != 99 or weekly_workout_goal != 100 else 'readiness score based'))
             athlete_info.weekly_workout_goal = weekly_workout_goal
-            session.commit()
+            app.session.commit()
     except BaseException as e:
         app.server.logger.error(e)
-    engine.dispose()
-    session.close()
+
+    app.session.remove()
 
     return style
 
@@ -856,26 +850,26 @@ def reset_hrv_plan(n_clicks, hrv_date):
     if n_clicks > 0:
         hrv_date = datetime.strptime(hrv_date, '%Y-%m-%d')
         app.server.logger.info('Resetting HRV workout plan workflow to step 0 on {}'.format(hrv_date))
-        session, engine = db_connect()
+
         try:
-            session.execute(delete(hrvWorkoutStepLog).where(hrvWorkoutStepLog.date > hrv_date))
-            query = session.query(hrvWorkoutStepLog).filter(hrvWorkoutStepLog.date == hrv_date).first()
+            app.session.execute(delete(hrvWorkoutStepLog).where(hrvWorkoutStepLog.date > hrv_date))
+            query = app.session.query(hrvWorkoutStepLog).filter(hrvWorkoutStepLog.date == hrv_date).first()
             query.hrv_workout_step = 0
             query.hrv_workout_step_desc = 'Low'
             query.rationale = 'You manually restarted the hrv workout plan workflow today'
             query.athlete_id = 1
             query.completed = 0
-            session.commit()
-            min_non_warmup_workout_time = session.query(athlete).filter(
+            app.session.commit()
+            min_non_warmup_workout_time = app.session.query(athlete).filter(
                 athlete.athlete_id == 1).first().min_non_warmup_workout_time
             hrv_training_workflow(min_non_warmup_workout_time)
             return html.H6('HRV Plan Reset!')
         except BaseException as e:
-            session.rollback()
+            app.session.rollback()
             app.server.logger.error('Error resetting hrv workout plan: {}'.format(e))
             return html.H6('Error Resetting HRV Plan')
-        engine.dispose()
-        session.close()
+
+        app.session.remove()
     return ''
 
 
@@ -924,10 +918,9 @@ def truncate_and_refresh(n_clicks, n_clicks_date, truncateDate):
      Input('truncate-db-button', 'n_clicks'),
      Input('db-interval', 'n_intervals')])
 def truncate_and_refresh(refresh_dummy, truncate_dummy, hrv_dummy, all_dummy, interval):
-    session, engine = db_connect()
-    processing = session.query(dbRefreshStatus).filter(dbRefreshStatus.refresh_method == 'processing').first()
-    engine.dispose()
-    session.close()
+    processing = app.session.query(dbRefreshStatus).filter(dbRefreshStatus.refresh_method == 'processing').first()
+
+    app.session.remove()
     latest = dash.callback_context.triggered[0]['prop_id'].split('.')[0] if dash.callback_context.triggered else ''
 
     if latest in ['refresh-db-button', 'truncate-date-db-button', 'truncate-hrv-button',
@@ -1027,11 +1020,11 @@ def update_tokens(n_clicks, search):
 def query_peloton_bookmark_settings(fitness_discipline, effort):
     if fitness_discipline and effort:
         # Query athlete table for current peloton settings to show in value of dropdown
-        session, engine = db_connect()
-        athlete_bookmarks = json.loads(session.query(athlete.peloton_auto_bookmark_ids).filter(
+
+        athlete_bookmarks = json.loads(app.session.query(athlete.peloton_auto_bookmark_ids).filter(
             athlete.athlete_id == 1).first().peloton_auto_bookmark_ids)
-        engine.dispose()
-        session.close()
+
+        app.session.remove()
         if athlete_bookmarks:
             try:
                 athlete_bookmarks = ast.literal_eval(athlete_bookmarks.get(fitness_discipline).get(effort))
@@ -1069,8 +1062,8 @@ def save_peloton_bookmark_settings(n_clicks, fitness_discipline, effort, options
 
         elif fitness_discipline and effort and latest == 'peloton-bookmark-input-submit':
             # Query athlete table to get current bookmark settings
-            session, engine = db_connect()
-            athlete_bookmarks = session.query(athlete.peloton_auto_bookmark_ids).filter(
+
+            athlete_bookmarks = app.session.query(athlete.peloton_auto_bookmark_ids).filter(
                 athlete.athlete_id == 1).first()
 
             # update peloton bookmark settings per the inputs
@@ -1086,14 +1079,13 @@ def save_peloton_bookmark_settings(n_clicks, fitness_discipline, effort, options
             athlete_bookmarks_json[fitness_discipline][effort] = json.dumps(
                 [x for x in options if x['value'] in values])
 
-            session.query(athlete.peloton_auto_bookmark_ids).filter(
+            app.session.query(athlete.peloton_auto_bookmark_ids).filter(
                 athlete.athlete_id == 1).update({athlete.peloton_auto_bookmark_ids: json.dumps(athlete_bookmarks_json)})
 
             # write back to database
-            session.commit()
+            app.session.commit()
 
-            engine.dispose()
-            session.close()
+            app.session.remove()
             return {'color': 'green', 'fontSize': '150%'}
         else:
             return {'display': 'none'}

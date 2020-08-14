@@ -1,5 +1,6 @@
 from nokia import NokiaApi, NokiaCredentials
-from ..api.sqlalchemy_declarative import db_connect, apiTokens, withings
+from ..api.sqlalchemy_declarative import apiTokens, withings
+from ..api.database import engine
 from sqlalchemy import func, delete
 from datetime import datetime
 import ast
@@ -15,11 +16,11 @@ redirect_uri = config.get('withings', 'redirect_uri')
 
 def current_token_dict():
     try:
-        session, engine = db_connect()
-        token_dict = session.query(apiTokens.tokens).filter(apiTokens.service == 'Withings').first()
+
+        token_dict = app.session.query(apiTokens.tokens).filter(apiTokens.service == 'Withings').first()
         token_dict = ast.literal_eval(token_dict[0]) if token_dict else {}
-        engine.dispose()
-        session.close()
+
+        app.session.remove()
     except BaseException as e:
         app.server.logger.error(e)
         token_dict = {}
@@ -52,15 +53,13 @@ def save_withings_token(tokens):
             'refresh_token': tokens.refresh_token
         }
 
-    session, engine = db_connect()
     # Delete current key
-    session.execute(delete(apiTokens).where(apiTokens.service == 'Withings'))
+    app.session.execute(delete(apiTokens).where(apiTokens.service == 'Withings'))
     # Insert new key
-    session.add(apiTokens(date_utc=datetime.utcnow(), service='Withings', tokens=str(token_dict)))
-    session.commit()
+    app.session.add(apiTokens(date_utc=datetime.utcnow(), service='Withings', tokens=str(token_dict)))
+    app.session.commit()
 
-    engine.dispose()
-    session.close()
+    app.session.remove()
     app.server.logger.debug('***** SAVED TOKENS *****')
 
 
@@ -113,12 +112,12 @@ def pull_withings_data():
         df['weight'] *= 2.20462
 
         # Filter to days later than what is already in db
-        session, engine = db_connect()
-        withings_max_date = session.query(func.max(withings.date_utc)).first()[0]
+
+        withings_max_date = app.session.query(func.max(withings.date_utc)).first()[0]
         withings_max_date = datetime.strptime('1991-08-30 00:00:00',
                                               '%Y-%m-%d %H:%M:%S') if not withings_max_date else withings_max_date
-        engine.dispose()
-        session.close()
+
+        app.session.remove()
 
         df = df[(df.index > withings_max_date) & (~np.isnan(df['weight'])) & (~np.isnan(df['fat_ratio']))]
         if len(df) > 0:

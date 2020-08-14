@@ -12,106 +12,105 @@ from ..utils import config, withings_credentials_supplied, oura_credentials_supp
 
 
 def latest_refresh():
-    session, engine = db_connect()
-    latest_date = session.query(func.max(dbRefreshStatus.timestamp_utc))[0][0]
-    engine.dispose()
-    session.close()
+    latest_date = app.session.query(func.max(dbRefreshStatus.timestamp_utc))[0][0]
+
+    app.session.close()
     return latest_date
 
 
 def refresh_database(refresh_method='system', truncate=False, truncateDate=None):
-    session, engine = db_connect()
-    athlete_info = session.query(athlete).filter(athlete.athlete_id == 1).first()
-    processing = session.query(dbRefreshStatus).filter(dbRefreshStatus.refresh_method == 'processing').first()
-    engine.dispose()
-    session.close()
+    athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1).first()
+    processing = app.session.query(dbRefreshStatus).filter(dbRefreshStatus.refresh_method == 'processing').first()
+
+    app.session.close()
 
     if not processing:
         try:
             # If athlete settings are defined
             if athlete_info.name and athlete_info.birthday and athlete_info.sex and athlete_info.weight_lbs and athlete_info.resting_hr and athlete_info.run_ftp and athlete_info.ride_ftp:
                 # Insert record into table for 'processing'
-                session, engine = db_connect()
+
                 run_time = datetime.utcnow()
                 record = dbRefreshStatus(timestamp_utc=run_time, truncate=truncate, refresh_method='processing')
                 # Insert and commit
                 try:
-                    session.add(record)
-                    session.commit()
+                    app.session.add(record)
+                    app.session.commit()
                     app.server.logger.debug('Inserting processing records into db_refresh...')
                 except BaseException as e:
-                    session.rollback()
+                    app.session.rollback()
                     app.server.logger.error('Failed to insert processing record into db_refresh :', str(e))
-                engine.dispose()
-                session.close()
+
+                app.session.close()
 
                 # If either truncate parameter is passed
                 if truncate or truncateDate:
-                    session, engine = db_connect()
+
                     # If only truncating past a certain date
                     if truncateDate:
                         try:
                             app.server.logger.debug('Truncating strava_summary')
-                            session.execute(delete(stravaSummary).where(stravaSummary.start_date_utc >= truncateDate))
+                            app.session.execute(
+                                delete(stravaSummary).where(stravaSummary.start_date_utc >= truncateDate))
                             app.server.logger.debug('Truncating strava_samples')
-                            session.execute(delete(stravaSamples).where(stravaSamples.timestamp_local >= truncateDate))
+                            app.session.execute(
+                                delete(stravaSamples).where(stravaSamples.timestamp_local >= truncateDate))
                             app.server.logger.debug('Truncating strava_best_samples')
-                            session.execute(
+                            app.session.execute(
                                 delete(stravaBestSamples).where(stravaBestSamples.timestamp_local >= truncateDate))
                             app.server.logger.debug('Truncating oura_readiness_summary')
-                            session.execute(
+                            app.session.execute(
                                 delete(ouraReadinessSummary).where(ouraReadinessSummary.report_date >= truncateDate))
                             app.server.logger.debug('Truncating oura_sleep_summary')
-                            session.execute(
+                            app.session.execute(
                                 delete(ouraSleepSummary).where(ouraSleepSummary.report_date >= truncateDate))
                             app.server.logger.debug('Truncating oura_sleep_samples')
-                            session.execute(
+                            app.session.execute(
                                 delete(ouraSleepSamples).where(ouraSleepSamples.report_date >= truncateDate))
                             app.server.logger.debug('Truncating oura_activity_summary')
-                            session.execute(
+                            app.session.execute(
                                 delete(ouraActivitySummary).where(ouraActivitySummary.summary_date >= truncateDate))
                             app.server.logger.debug('Truncating oura_activity_samples')
-                            session.execute(
+                            app.session.execute(
                                 delete(ouraActivitySamples).where(ouraActivitySamples.timestamp_local >= truncateDate))
                             app.server.logger.debug('Truncating hrv_workout_step_log')
-                            session.execute(delete(hrvWorkoutStepLog).where(hrvWorkoutStepLog.date >= truncateDate))
+                            app.session.execute(delete(hrvWorkoutStepLog).where(hrvWorkoutStepLog.date >= truncateDate))
                             app.server.logger.debug('Truncating withings')
-                            session.execute(delete(withings).where(withings.date_utc >= truncateDate))
-                            session.commit()
+                            app.session.execute(delete(withings).where(withings.date_utc >= truncateDate))
+                            app.session.commit()
                         except BaseException as e:
-                            session.rollback()
+                            app.session.rollback()
                             app.server.logger.error(e)
                     else:
                         try:
                             app.server.logger.debug('Truncating strava_summary')
-                            session.execute(delete(stravaSummary))
+                            app.session.execute(delete(stravaSummary))
                             app.server.logger.debug('Truncating strava_samples')
-                            session.execute(delete(stravaSamples))
+                            app.session.execute(delete(stravaSamples))
                             app.server.logger.debug('Truncating strava_best_samples')
-                            session.execute(delete(stravaBestSamples))
+                            app.session.execute(delete(stravaBestSamples))
                             app.server.logger.debug('Truncating oura_readiness_summary')
-                            session.execute(delete(ouraReadinessSummary))
+                            app.session.execute(delete(ouraReadinessSummary))
                             app.server.logger.debug('Truncating oura_sleep_summary')
-                            session.execute(delete(ouraSleepSummary))
+                            app.session.execute(delete(ouraSleepSummary))
                             app.server.logger.debug('Truncating oura_sleep_samples')
-                            session.execute(delete(ouraSleepSamples))
+                            app.session.execute(delete(ouraSleepSamples))
                             app.server.logger.debug('Truncating oura_activity_summary')
-                            session.execute(delete(ouraActivitySummary))
+                            app.session.execute(delete(ouraActivitySummary))
                             app.server.logger.debug('Truncating oura_activity_samples')
-                            session.execute(delete(ouraActivitySamples))
+                            app.session.execute(delete(ouraActivitySamples))
                             app.server.logger.debug('Truncating hrv_workout_step_log')
-                            session.execute(delete(hrvWorkoutStepLog))
+                            app.session.execute(delete(hrvWorkoutStepLog))
                             app.server.logger.debug('Truncating withings')
-                            session.execute(delete(withings))
+                            app.session.execute(delete(withings))
                             app.server.logger.debug('Truncating fitbod')
-                            session.execute(delete(fitbod))
-                            session.commit()
+                            app.session.execute(delete(fitbod))
+                            app.session.commit()
                         except BaseException as e:
-                            session.rollback()
+                            app.session.rollback()
                             app.server.logger.error(e)
 
-                    engine.dispose()
-                    session.close()
+                    app.session.close()
 
                 ### Pull Weight Data ###
 
@@ -168,21 +167,22 @@ def refresh_database(refresh_method='system', truncate=False, truncateDate=None)
                             after = config.get('strava', 'activities_after_date')
                             activities = client.get_activities(after=after,
                                                                limit=0)  # Use after to sort from oldest to newest
-                            session, engine = db_connect()
-                            athlete_info = session.query(athlete).filter(athlete.athlete_id == athlete_id).first()
+
+                            athlete_info = app.session.query(athlete).filter(athlete.athlete_id == athlete_id).first()
                             min_non_warmup_workout_time = athlete_info.min_non_warmup_workout_time
                             # Loop through the activities, and create a dict of the dataframe stream data of each activity
                             db_activities = pd.read_sql(
-                                sql=session.query(stravaSummary.activity_id).filter(
+                                sql=app.session.query(stravaSummary.activity_id).filter(
                                     stravaSummary.athlete_id == athlete_id).distinct(
                                     stravaSummary.activity_id).statement,
                                 con=engine)
-                            engine.dispose()
-                            session.close()
+
+                            app.session.close()
                             new_activities = []
                             for act in activities:
                                 # If not already in db, parse and insert
-                                if act.id not in db_activities['activity_id'].unique():
+                                # if act.id not in db_activities['activity_id'].unique():
+                                if act.id == 3902141400: #TODO REMOVE
                                     new_activities.append(FitlyActivity(act))
                                     app.server.logger.info('New Workout found: "{}"'.format(act.name))
                             # If new workouts found, analyze and insert
@@ -202,16 +202,14 @@ def refresh_database(refresh_method='system', truncate=False, truncateDate=None)
                     app.server.logger.info('Oura cloud not yet updated. Waiting to pull Strava data')
                     strava_status = 'Awaiting oura cloud update'
 
-                session, engine = db_connect()
-                session.query(dbRefreshStatus).filter(dbRefreshStatus.timestamp_utc == run_time).first().update([
+                app.session.query(dbRefreshStatus).filter(dbRefreshStatus.timestamp_utc == run_time).first().update([
                     {dbRefreshStatus.oura_status: oura_status}, {dbRefreshStatus.fitbod_status: fitbod_status},
                     {dbRefreshStatus.strava_status: strava_status}, {dbRefreshStatus.withings_status: withings_status},
                     {dbRefreshStatus.refresh_method: refresh_method}])
 
                 app.server.logger.info('Refresh Complete')
 
-                engine.dispose()
-                session.close()
+                app.session.close()
 
                 return run_time
 
@@ -219,11 +217,11 @@ def refresh_database(refresh_method='system', truncate=False, truncateDate=None)
                 app.server.logger.info('Please define all athlete settings prior to refreshing data')
         except:
             # Just in case the job fails, remove any processing records that may have been added to audit log as to not lock the next job
-            session, engine = db_connect()
-            session.query(dbRefreshStatus).filter(dbRefreshStatus.refresh_method == 'processing').delete()
-            session.commit()
-            engine.dispose()
-            session.close()
+
+            app.session.query(dbRefreshStatus).filter(dbRefreshStatus.refresh_method == 'processing').delete()
+            app.session.commit()
+
+            app.session.close()
     else:
         if refresh_method == 'manual':
             app.server.logger.info('Database is already running a refresh job')

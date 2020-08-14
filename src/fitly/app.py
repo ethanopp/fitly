@@ -12,7 +12,7 @@ app = create_dash(server)
 import logging
 from logging.handlers import RotatingFileHandler
 from .utils import config
-from .api.sqlalchemy_declarative import db_connect, dbRefreshStatus
+from .api.sqlalchemy_declarative import dbRefreshStatus
 
 # Can also use %(pathname)s for full pathname for file instead of %(module)s
 handler = RotatingFileHandler('./config/log.log', maxBytes=10000000, backupCount=5)
@@ -41,11 +41,9 @@ with server.app_context():
             app.server.logger.error(f'Error starting cron jobs: {e}')
 
     # Delete any audit logs for running processes, since restarting server would stop any processes
-    session, engine = db_connect()
-    session.query(dbRefreshStatus).filter(dbRefreshStatus.refresh_method == 'processing').delete()
-    session.commit()
-    engine.dispose()
-    session.close()
+    app.session.query(dbRefreshStatus).filter(dbRefreshStatus.refresh_method == 'processing').delete()
+    app.session.commit()
+    app.session.remove()
     # configure the Dash instance's layout
     app.layout = main_layout_header()
     # app.layout = main_layout_sidebar()

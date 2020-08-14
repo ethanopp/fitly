@@ -1,4 +1,3 @@
-import re
 from datetime import datetime, timedelta
 import dash_bootstrap_components as dbc
 import dash_core_components as dcc
@@ -11,9 +10,10 @@ import plotly.graph_objs as go
 from dash.dependencies import Input, Output, State
 from sqlalchemy import or_, delete, extract
 from ..app import app
-from ..api.sqlalchemy_declarative import db_insert, db_connect, athlete, stravaSummary, stravaSamples, \
+from ..api.sqlalchemy_declarative import athlete, stravaSummary, stravaSamples, \
     hrvWorkoutStepLog, \
     ouraSleepSummary, ouraReadinessSummary, annotations
+from ..api.database import engine
 from ..utils import utc_to_local, config, oura_credentials_supplied
 from ..pages.power import power_curve, zone_chart
 
@@ -522,31 +522,32 @@ def create_activity_table(date=None):
                                 'relative_intensity', 'efficiency_factor', 'variability_index', 'ftp', 'activity_id']
 
     # Covert date to datetime object if read from clickData
-    session, engine = db_connect()
 
     if date is not None:
-        df_table = pd.read_sql(sql=session.query(stravaSummary.start_day_local, stravaSummary.name, stravaSummary.type,
-                                                 stravaSummary.elapsed_time,
-                                                 stravaSummary.distance, stravaSummary.tss, stravaSummary.hrss,
-                                                 stravaSummary.trimp, stravaSummary.weighted_average_power,
-                                                 stravaSummary.relative_intensity, stravaSummary.efficiency_factor,
-                                                 stravaSummary.variability_index, stravaSummary.ftp,
-                                                 stravaSummary.activity_id)
-                               .filter(stravaSummary.start_day_local == date)
-                               .statement,
-                               con=engine)
+        df_table = pd.read_sql(
+            sql=app.session.query(stravaSummary.start_day_local, stravaSummary.name, stravaSummary.type,
+                                  stravaSummary.elapsed_time,
+                                  stravaSummary.distance, stravaSummary.tss, stravaSummary.hrss,
+                                  stravaSummary.trimp, stravaSummary.weighted_average_power,
+                                  stravaSummary.relative_intensity, stravaSummary.efficiency_factor,
+                                  stravaSummary.variability_index, stravaSummary.ftp,
+                                  stravaSummary.activity_id)
+            .filter(stravaSummary.start_day_local == date)
+            .statement,
+            con=engine)
 
     else:
-        df_table = pd.read_sql(sql=session.query(stravaSummary.start_day_local, stravaSummary.name, stravaSummary.type,
-                                                 stravaSummary.elapsed_time,
-                                                 stravaSummary.distance, stravaSummary.tss, stravaSummary.hrss,
-                                                 stravaSummary.trimp, stravaSummary.weighted_average_power,
-                                                 stravaSummary.relative_intensity, stravaSummary.efficiency_factor,
-                                                 stravaSummary.variability_index, stravaSummary.ftp,
-                                                 stravaSummary.activity_id)
-                               .statement, con=engine)
-    engine.dispose()
-    session.close()
+        df_table = pd.read_sql(
+            sql=app.session.query(stravaSummary.start_day_local, stravaSummary.name, stravaSummary.type,
+                                  stravaSummary.elapsed_time,
+                                  stravaSummary.distance, stravaSummary.tss, stravaSummary.hrss,
+                                  stravaSummary.trimp, stravaSummary.weighted_average_power,
+                                  stravaSummary.relative_intensity, stravaSummary.efficiency_factor,
+                                  stravaSummary.variability_index, stravaSummary.ftp,
+                                  stravaSummary.activity_id)
+            .statement, con=engine)
+
+    app.session.remove()
 
     df_table['distance'] = df_table['distance'].replace({0: np.nan})
     # Filter df to columns we want for the table
@@ -615,17 +616,15 @@ def create_growth_kpis(date, cy_tss, ly_tss, target):
 
 
 def create_growth_chart(metric='tss'):
-    session, engine = db_connect()
-    weekly_tss_goal = session.query(athlete).filter(athlete.athlete_id == 1).first().weekly_tss_goal
+    weekly_tss_goal = app.session.query(athlete).filter(athlete.athlete_id == 1).first().weekly_tss_goal
 
     df = pd.read_sql(
-        sql=session.query(stravaSummary.start_date_utc, stravaSummary.tss, stravaSummary.activity_id).filter(or_(
+        sql=app.session.query(stravaSummary.start_date_utc, stravaSummary.tss, stravaSummary.activity_id).filter(or_(
             extract('year', stravaSummary.start_date_utc) == datetime.utcnow().year,
             extract('year', stravaSummary.start_date_utc) == (datetime.utcnow().year - 1))
         ).statement, con=engine, index_col='start_date_utc').sort_index(ascending=True)
 
-    engine.dispose()
-    session.close()
+    app.session.remove()
 
     df['year'] = df.index.year
     df['day'] = df.index.dayofyear
@@ -750,37 +749,35 @@ def get_workout_types(df_summary, run_status, ride_status, all_status):
 
 
 def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_status):
-    session, engine = db_connect()
-    df_summary = pd.read_sql(sql=session.query(stravaSummary).statement, con=engine,
+    df_summary = pd.read_sql(sql=app.session.query(stravaSummary).statement, con=engine,
                              index_col='start_date_local').sort_index(ascending=True)
 
-    hrv_df = pd.read_sql(sql=session.query(ouraSleepSummary.report_date, ouraSleepSummary.rmssd).statement,
+    hrv_df = pd.read_sql(sql=app.session.query(ouraSleepSummary.report_date, ouraSleepSummary.rmssd).statement,
                          con=engine,
                          index_col='report_date').sort_index(ascending=True)
 
-    athlete_info = session.query(athlete).filter(athlete.athlete_id == 1).first()
+    athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1).first()
     rr_max_threshold = athlete_info.rr_max_goal
     rr_min_threshold = athlete_info.rr_min_goal
 
     df_readiness = pd.read_sql(
-        sql=session.query(ouraReadinessSummary.report_date, ouraReadinessSummary.score).statement,
+        sql=app.session.query(ouraReadinessSummary.report_date, ouraReadinessSummary.score).statement,
         con=engine,
         index_col='report_date').sort_index(ascending=True)
 
     df_plan = pd.read_sql(
-        sql=session.query(hrvWorkoutStepLog.date, hrvWorkoutStepLog.hrv_workout_step_desc,
-                          hrvWorkoutStepLog.rationale).statement,
+        sql=app.session.query(hrvWorkoutStepLog.date, hrvWorkoutStepLog.hrv_workout_step_desc,
+                              hrvWorkoutStepLog.rationale).statement,
         con=engine,
         index_col='date').sort_index(ascending=True)
 
     df_annotations = pd.read_sql(
-        sql=session.query(annotations.athlete_id, annotations.date, annotations.annotation).filter(
+        sql=app.session.query(annotations.athlete_id, annotations.date, annotations.annotation).filter(
             athlete.athlete_id == 1).statement,
         con=engine,
         index_col='date').sort_index(ascending=False)
 
-    engine.dispose()
-    session.close()
+    app.session.remove()
 
     chart_annotations = [go.layout.Annotation(
         x=pd.to_datetime(x),
@@ -1299,20 +1296,19 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
 
 
 def workout_distribution(run_status, ride_status, all_status):
-    session, engine = db_connect()
-    min_non_warmup_workout_time = session.query(athlete).filter(
+    min_non_warmup_workout_time = app.session.query(athlete).filter(
         athlete.athlete_id == 1).first().min_non_warmup_workout_time
 
     df_summary = pd.read_sql(
-        sql=session.query(stravaSummary).filter(
+        sql=app.session.query(stravaSummary).filter(
             stravaSummary.start_date_utc >= datetime.utcnow() - timedelta(days=42),
             stravaSummary.elapsed_time > min_non_warmup_workout_time,
             or_(stravaSummary.low_intensity_seconds > 0, stravaSummary.med_intensity_seconds > 0,
                 stravaSummary.high_intensity_seconds > 0)
         ).statement,
         con=engine, index_col='start_date_utc')
-    engine.dispose()
-    session.close()
+
+    app.session.remove()
 
     # Generate list of all workout types for when the 'all' boolean is selected
     workout_types = get_workout_types(df_summary, run_status, ride_status, all_status)
@@ -1709,13 +1705,12 @@ def calculate_splits(df_samples):
 
 
 def create_annotation_table():
-    session, engine = db_connect()
     df_annotations = pd.read_sql(
-        sql=session.query(annotations.athlete_id, annotations.date, annotations.annotation).filter(
+        sql=app.session.query(annotations.athlete_id, annotations.date, annotations.annotation).filter(
             athlete.athlete_id == 1).statement,
         con=engine).sort_index(ascending=False)
-    engine.dispose()
-    session.close()
+
+    app.session.remove()
 
     return dash_table.DataTable(id='annotation-table',
                                 columns=[{"name": x, "id": y} for (x, y) in
@@ -1879,10 +1874,10 @@ def toggle_activity_modal(active_cell, n2, data, is_open):
         if activity_id:
             # if open, populate charts
             if not is_open:
-                session, engine = db_connect()
-                activity = session.query(stravaSummary).filter(stravaSummary.activity_id == activity_id).first()
-                engine.dispose()
-                session.close()
+
+                activity = app.session.query(stravaSummary).filter(stravaSummary.activity_id == activity_id).first()
+
+                app.session.remove()
                 # return activity_id
                 return not is_open, html.H5(
                     '{} - {}'.format(datetime.strftime(activity.start_day_local, '%A %b %d, %Y'),
@@ -1946,13 +1941,13 @@ def modal_power_zone(activity, is_open):
 def modal_workout_trends(activity, is_open):
     if activity and is_open:
         activity_id = activity.split('|')[0]
-        session, engine = db_connect()
+
         df_samples = pd.read_sql(
-            sql=session.query(stravaSamples).filter(stravaSamples.activity_id == activity_id).statement,
+            sql=app.session.query(stravaSamples).filter(stravaSamples.activity_id == activity_id).statement,
             con=engine,
             index_col=['timestamp_local'])
-        engine.dispose()
-        session.close()
+
+        app.session.remove()
         return workout_summary_kpi(df_samples), workout_details(df_samples), calculate_splits(df_samples)
     else:
         return None, None, None
@@ -2001,22 +1996,20 @@ def add_row(n_clicks, rows, columns):
 )
 def annotation_table_save(n_clicks, password, data):
     if n_clicks > 0 and password == config.get('settings', 'password'):
-        session, engine = db_connect()
 
         try:
             df = pd.DataFrame(data).set_index('date')
             df['athlete_id'] = 1
             # Truncate annotations for current athlete
-            session.execute(delete(annotations).where(annotations.athlete_id == 1))
-            session.commit()
+            app.session.execute(delete(annotations).where(annotations.athlete_id == 1))
+            app.session.commit()
             # Add annotations
-            db_insert(df, 'annotations')
+            df.to_sql('annotations', engine, if_exists='append', index=True)
         except BaseException as e:
             app.server.logger.error('Error with annotations DB transactions'.format(e))
-            session.rollback()
+            app.session.rollback()
 
-        engine.dispose()
-        session.close()
+        app.session.remove()
 
         return html.I(className='fa fa-check',
                       style={'display': 'inline-block', 'color': 'green', 'paddingLeft': '1vw',

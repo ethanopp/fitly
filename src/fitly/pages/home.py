@@ -10,8 +10,9 @@ from dash.dependencies import Input, Output, State
 import dash_bootstrap_components as dbc
 from sqlalchemy import func
 from datetime import datetime, timedelta
-from ..api.sqlalchemy_declarative import db_connect, ouraReadinessSummary, ouraActivitySummary, \
+from ..api.sqlalchemy_declarative import ouraReadinessSummary, ouraActivitySummary, \
     ouraActivitySamples, ouraSleepSamples, ouraSleepSummary, stravaSummary, athlete, withings
+from ..api.database import engine
 from ..utils import calc_next_saturday, calc_prev_sunday, utc_to_local, config, oura_credentials_supplied, \
     withings_credentials_supplied
 
@@ -91,23 +92,21 @@ def modal_range_buttons(df, resample='D'):
 
 
 def get_max_week_ending():
-    session, engine = db_connect()
-    date = session.query(func.max(ouraSleepSummary.report_date))[0][0]
-    engine.dispose()
-    session.close()
+    date = app.session.query(func.max(ouraSleepSummary.report_date))[0][0]
+
+    app.session.remove()
     return pd.to_datetime(date)
 
 
 # TODO: Fix y axis sort
 def generate_sleep_stages_chart(date):
-    session, engine = db_connect()
     df = pd.read_sql(
-        sql=session.query(ouraSleepSamples).filter(
+        sql=app.session.query(ouraSleepSamples).filter(
             ouraSleepSamples.report_date == date, ouraSleepSamples.hypnogram_5min_desc != None).statement, con=engine,
         index_col='timestamp_local').sort_index(
         ascending=False)
-    engine.dispose()
-    session.close()
+
+    app.session.remove()
 
     df['Task'] = df['hypnogram_5min_desc']
     df['Start'] = df.index
@@ -194,14 +193,13 @@ def daily_movement_color(x, name=False):
 
 
 def generate_daily_movement_chart(date):
-    session, engine = db_connect()
     df = pd.read_sql(
-        sql=session.query(ouraActivitySamples.timestamp_local, ouraActivitySamples.met_1min,
-                          ouraActivitySamples.class_5min).filter(
+        sql=app.session.query(ouraActivitySamples.timestamp_local, ouraActivitySamples.met_1min,
+                              ouraActivitySamples.class_5min).filter(
             ouraActivitySamples.summary_date == date, ouraActivitySamples.class_5min != None).statement, con=engine,
         index_col='timestamp_local')
-    engine.dispose()
-    session.close()
+
+    app.session.remove()
 
     df['color'] = df['met_1min'].apply(daily_movement_color)
     df['action'] = df['met_1min'].apply(lambda x: daily_movement_color(x, name=True))
@@ -280,19 +278,17 @@ def generate_daily_movement_chart(date):
 
 
 def generate_rhr_day_chart(date):
-    session, engine = db_connect()
     df = pd.read_sql(
-        sql=session.query(ouraSleepSamples.timestamp_local, ouraSleepSamples.hr_5min).filter(
+        sql=app.session.query(ouraSleepSamples.timestamp_local, ouraSleepSamples.hr_5min).filter(
             ouraSleepSamples.report_date == date).statement, con=engine, index_col='timestamp_local')
 
     if len(df) == 0:
-        date = session.query(func.max(ouraSleepSamples.report_date)).first()[0]
+        date = app.session.query(func.max(ouraSleepSamples.report_date)).first()[0]
         df = pd.read_sql(
-            sql=session.query(ouraSleepSamples.timestamp_local, ouraSleepSamples.hr_5min).filter(
+            sql=app.session.query(ouraSleepSamples.timestamp_local, ouraSleepSamples.hr_5min).filter(
                 ouraSleepSamples.report_date == date).statement, con=engine, index_col='timestamp_local')
 
-    engine.dispose()
-    session.close()
+    app.session.remove()
 
     # Remove 0s from plotted line
     # df['hr_5min'] = df['hr_5min'].replace({0: np.nan})
@@ -471,15 +467,15 @@ def generate_kpi_donut(kpi_name, metric, goal, current_streak, best_streak, colo
 
 def calculate_streak_off_oura_readiness(date, df):
     ## Workout on days when readiness >= 80
-    session, engine = db_connect()
+
     df_readiness = pd.read_sql(
-        sql=session.query(ouraReadinessSummary.report_date, ouraReadinessSummary.score).filter(
+        sql=app.session.query(ouraReadinessSummary.report_date, ouraReadinessSummary.score).filter(
             ouraReadinessSummary.report_date <= date,
             ouraReadinessSummary.score >= 80).statement, con=engine)
 
     df_readiness = df_readiness.set_index(pd.to_datetime(df_readiness['report_date']))
-    engine.dispose()
-    session.close()
+
+    app.session.remove()
 
     current_streak, best_streak, temp_best_streak = 0, 0, 0
     df_readiness = df_readiness.resample('W-SAT').size()
@@ -563,21 +559,20 @@ def calculate_streak(date, series, weekly_goal, sum_metric=None):
 
 def generate_content_kpi_trend(df_name, metric):
     rolling_days = 42
-    session, engine = db_connect()
+
     if df_name == 'sleep':
-        df = pd.read_sql(sql=session.query(ouraSleepSummary).statement, con=engine).set_index('report_date')
+        df = pd.read_sql(sql=app.session.query(ouraSleepSummary).statement, con=engine).set_index('report_date')
     elif df_name == 'readiness':
-        df = pd.read_sql(sql=session.query(ouraReadinessSummary).statement, con=engine).set_index('report_date')
+        df = pd.read_sql(sql=app.session.query(ouraReadinessSummary).statement, con=engine).set_index('report_date')
     elif df_name == 'activity':
-        df = pd.read_sql(sql=session.query(ouraActivitySummary).statement, con=engine).set_index('summary_date')
+        df = pd.read_sql(sql=app.session.query(ouraActivitySummary).statement, con=engine).set_index('summary_date')
     elif df_name == 'withings':
-        df = pd.read_sql(sql=session.query(withings).statement, con=engine)
+        df = pd.read_sql(sql=app.session.query(withings).statement, con=engine)
         df = df.set_index(pd.to_datetime(df['date_utc'].apply(lambda x: utc_to_local(x).date())))
         # If multiple measurements in a single day, average together to only show 1 point per day on trend
         df = df.resample('D').mean().ffill()
 
-    engine.dispose()
-    session.close()
+    app.session.remove()
 
     df.index = pd.DatetimeIndex(df.index)
     metricAvg = df[metric].rolling(window=rolling_days).mean()
@@ -771,23 +766,23 @@ def generate_content_kpi_trend(df_name, metric):
 
 
 def update_kpis(date, days=7):
-    session, engine = db_connect()
     df_summary = pd.read_sql(
-        sql=session.query(stravaSummary).filter(stravaSummary.start_date_utc <= date).statement, con=engine,
+        sql=app.session.query(stravaSummary).filter(stravaSummary.start_date_utc <= date).statement, con=engine,
         index_col='start_date_local')
-    athlete_info = session.query(athlete).filter(athlete.athlete_id == 1).first()
+    athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1).first()
 
     ### Oura Donuts ###
 
     # Count days where 85 or greater oura score achieved
-    df_sleep = pd.read_sql(sql=session.query(ouraSleepSummary.report_date, ouraSleepSummary.score).filter(
+    df_sleep = pd.read_sql(sql=app.session.query(ouraSleepSummary.report_date, ouraSleepSummary.score).filter(
         ouraSleepSummary.report_date <= date, ouraSleepSummary.score >= 85).statement, con=engine)
     df_sleep = df_sleep.set_index(pd.to_datetime(df_sleep['report_date']))
-    df_activity = pd.read_sql(sql=session.query(ouraActivitySummary.summary_date, ouraActivitySummary.score).filter(
+    df_activity = pd.read_sql(sql=app.session.query(ouraActivitySummary.summary_date, ouraActivitySummary.score).filter(
         ouraActivitySummary.summary_date <= date, ouraActivitySummary.score >= 85).statement, con=engine)
     df_activity = df_activity.set_index(pd.to_datetime(df_activity['summary_date']))
-    df_readiness = pd.read_sql(sql=session.query(ouraReadinessSummary.report_date, ouraReadinessSummary.score).filter(
-        ouraReadinessSummary.report_date <= date, ouraReadinessSummary.score >= 85).statement, con=engine)
+    df_readiness = pd.read_sql(
+        sql=app.session.query(ouraReadinessSummary.report_date, ouraReadinessSummary.score).filter(
+            ouraReadinessSummary.report_date <= date, ouraReadinessSummary.score >= 85).statement, con=engine)
     df_readiness = df_readiness.set_index(pd.to_datetime(df_readiness['report_date']))
 
     # Filter df date's for donuts
@@ -809,7 +804,7 @@ def update_kpis(date, days=7):
 
     if tss_goal:
         tss_df = pd.read_sql(
-            sql=session.query(stravaSummary.start_day_local, stravaSummary.tss, stravaSummary.hrss).statement,
+            sql=app.session.query(stravaSummary.start_day_local, stravaSummary.tss, stravaSummary.hrss).statement,
             con=engine,
             index_col='start_day_local')
 
@@ -896,8 +891,7 @@ def update_kpis(date, days=7):
 
         ])
 
-    engine.dispose()
-    session.close()
+    app.session.remove()
 
     return html.Div(className='col-lg-12', children=[
         dbc.Card([
@@ -994,19 +988,17 @@ def generate_contributor_bar(df, id, column_name, top_left_title, top_right_titl
 
 
 def generate_oura_sleep_header_kpi(date):
-    session, engine = db_connect()
     df = pd.read_sql(
-        sql=session.query(ouraSleepSummary.score).filter(ouraSleepSummary.report_date == date).statement,
+        sql=app.session.query(ouraSleepSummary.score).filter(ouraSleepSummary.report_date == date).statement,
         con=engine)
     # Default to max date if date passed is not yet in db (not on oura cloud)
     if len(df) == 0:
-        date = session.query(func.max(ouraSleepSummary.report_date)).first()[0]
+        date = app.session.query(func.max(ouraSleepSummary.report_date)).first()[0]
         df = pd.read_sql(
-            sql=session.query(ouraSleepSummary.score).filter(ouraSleepSummary.report_date == date).statement,
+            sql=app.session.query(ouraSleepSummary.score).filter(ouraSleepSummary.report_date == date).statement,
             con=engine)
 
-    engine.dispose()
-    session.close()
+    app.session.remove()
 
     score = df.loc[df.index.max()]['score']
     star = (score >= 85)
@@ -1016,17 +1008,17 @@ def generate_oura_sleep_header_kpi(date):
 
 def generate_oura_sleep_header_chart(date, days=7, summary=False, resample='D'):
     height = chartHeight if not summary else 300
-    session, engine = db_connect()
+
     if summary:
-        df = pd.read_sql(sql=session.query(ouraSleepSummary).statement,
+        df = pd.read_sql(sql=app.session.query(ouraSleepSummary).statement,
                          con=engine, index_col='report_date')
     else:
-        df = pd.read_sql(sql=session.query(ouraSleepSummary).filter(ouraSleepSummary.report_date > date).statement,
+        df = pd.read_sql(sql=app.session.query(ouraSleepSummary).filter(ouraSleepSummary.report_date > date).statement,
                          con=engine, index_col='report_date')[:days]
 
-    daily_sleep_hr_target = session.query(athlete).filter(athlete.athlete_id == 1).first().daily_sleep_hr_target
-    engine.dispose()
-    session.close()
+    daily_sleep_hr_target = app.session.query(athlete).filter(athlete.athlete_id == 1).first().daily_sleep_hr_target
+
+    app.session.remove()
 
     # Resampling for modal buttons
     df = df.set_index(pd.to_datetime(df.index))
@@ -1372,15 +1364,14 @@ def generate_oura_sleep_header_chart(date, days=7, summary=False, resample='D'):
 
 
 def generate_oura_sleep_content(date):
-    session, engine = db_connect()
     # If the date passed is today's date (usually the default on load), grab the max date from db just in case oura cloud does not have current date yet
     if not date or date == datetime.today().date():
-        date = session.query(func.max(ouraSleepSummary.report_date))[0][0]
+        date = app.session.query(func.max(ouraSleepSummary.report_date))[0][0]
 
-    df = pd.read_sql(sql=session.query(ouraSleepSummary).filter(ouraSleepSummary.report_date == date).statement,
+    df = pd.read_sql(sql=app.session.query(ouraSleepSummary).filter(ouraSleepSummary.report_date == date).statement,
                      con=engine, index_col='report_date')
-    engine.dispose()
-    session.close()
+
+    app.session.remove()
 
     return [html.Div(className='row', children=[
         html.Div(id='oura-sleep-content-kpi-trend', className='col', style={'display': 'none'})
@@ -1450,14 +1441,14 @@ def generate_oura_sleep_content(date):
 
 def generate_sleep_modal_summary(days=7):
     date = datetime.now().date() - timedelta(days=days)
-    session, engine = db_connect()
+
     df = pd.read_sql(
-        sql=session.query(ouraSleepSummary.report_date, ouraSleepSummary.score, ouraSleepSummary.total,
-                          ouraSleepSummary.bedtime_end_local).filter(
+        sql=app.session.query(ouraSleepSummary.report_date, ouraSleepSummary.score, ouraSleepSummary.total,
+                              ouraSleepSummary.bedtime_end_local).filter(
             ouraSleepSummary.report_date > date).statement, con=engine,
         index_col='report_date')
-    engine.dispose()
-    session.close()
+
+    app.session.remove()
 
     df['wakeup'] = df['bedtime_end_local'].apply(
         lambda x: datetime.strptime('1970-01-01', '%Y-%m-%d') + timedelta(hours=x.hour) + timedelta(minutes=x.minute))
@@ -1646,19 +1637,18 @@ def generate_sleep_modal_summary(days=7):
 
 
 def generate_oura_readiness_header_kpi(date):
-    session, engine = db_connect()
     df = pd.read_sql(
-        sql=session.query(ouraReadinessSummary.score).filter(ouraReadinessSummary.report_date == date).statement,
+        sql=app.session.query(ouraReadinessSummary.score).filter(ouraReadinessSummary.report_date == date).statement,
         con=engine)
     # Default to max date if date passed is not yet in db (not on oura cloud)
     if len(df) == 0:
-        date = session.query(func.max(ouraReadinessSummary.report_date)).first()[0]
+        date = app.session.query(func.max(ouraReadinessSummary.report_date)).first()[0]
         df = pd.read_sql(
-            sql=session.query(ouraReadinessSummary.score).filter(
+            sql=app.session.query(ouraReadinessSummary.score).filter(
                 ouraReadinessSummary.report_date == date).statement,
             con=engine)
-    engine.dispose()
-    session.close()
+
+    app.session.remove()
     score = df.loc[df.index.max()]['score']
     star = (score >= 85)
 
@@ -1667,33 +1657,33 @@ def generate_oura_readiness_header_kpi(date):
 
 def generate_oura_readiness_header_chart(date, days=7, summary=False, resample='D'):
     height = chartHeight if not summary else 300
-    session, engine = db_connect()
+
     if summary:
         df = pd.read_sql(
-            sql=session.query(ouraReadinessSummary).statement, con=engine,
+            sql=app.session.query(ouraReadinessSummary).statement, con=engine,
             index_col='report_date')
 
         hrv_df = pd.read_sql(
-            sql=session.query(ouraSleepSummary.report_date, ouraSleepSummary.rmssd,
-                              ouraSleepSummary.hr_lowest).statement, con=engine,
+            sql=app.session.query(ouraSleepSummary.report_date, ouraSleepSummary.rmssd,
+                                  ouraSleepSummary.hr_lowest).statement, con=engine,
             index_col='report_date')
 
     else:
         df = pd.read_sql(
-            sql=session.query(ouraReadinessSummary).filter(ouraReadinessSummary.report_date > date).statement,
+            sql=app.session.query(ouraReadinessSummary).filter(ouraReadinessSummary.report_date > date).statement,
             con=engine,
             index_col='report_date')[:days]
 
         hrv_df = pd.read_sql(
-            sql=session.query(ouraSleepSummary.report_date, ouraSleepSummary.rmssd, ouraSleepSummary.hr_lowest).filter(
+            sql=app.session.query(ouraSleepSummary.report_date, ouraSleepSummary.rmssd,
+                                  ouraSleepSummary.hr_lowest).filter(
                 ouraSleepSummary.report_date > date).statement, con=engine,
             index_col='report_date')[:days]
 
     # Merge with rediness summary
     df = df.merge(hrv_df, how='left', left_index=True, right_index=True)
 
-    engine.dispose()
-    session.close()
+    app.session.remove()
 
     # Resampling for modal buttons
     df = df.set_index(pd.to_datetime(df.index))
@@ -1923,21 +1913,22 @@ def generate_oura_readiness_header_chart(date, days=7, summary=False, resample='
 
 def generate_oura_readiness_content(date):
     # Most readiness data comes from sleep tables
-    session, engine = db_connect()
+
     # If the date passed is today's date (usually the default on load), grab the max date from db just in case oura cloud does not have current date yet
     if not date or date == datetime.today().date():
-        sleep_date = session.query(func.max(ouraSleepSummary.report_date))[0][0]
-        ready_date = session.query(func.max(ouraReadinessSummary.report_date))[0][0]
+        sleep_date = app.session.query(func.max(ouraSleepSummary.report_date))[0][0]
+        ready_date = app.session.query(func.max(ouraReadinessSummary.report_date))[0][0]
     else:
         sleep_date, ready_date = date, date
 
-    df = pd.read_sql(sql=session.query(ouraSleepSummary).filter(ouraSleepSummary.report_date == sleep_date).statement,
-                     con=engine, index_col='report_date')
-    df_contributors = pd.read_sql(
-        sql=session.query(ouraReadinessSummary).filter(ouraReadinessSummary.report_date == ready_date).statement,
+    df = pd.read_sql(
+        sql=app.session.query(ouraSleepSummary).filter(ouraSleepSummary.report_date == sleep_date).statement,
         con=engine, index_col='report_date')
-    engine.dispose()
-    session.close()
+    df_contributors = pd.read_sql(
+        sql=app.session.query(ouraReadinessSummary).filter(ouraReadinessSummary.report_date == ready_date).statement,
+        con=engine, index_col='report_date')
+
+    app.session.remove()
 
     return [html.Div(className='row', children=[
         html.Div(id='oura-readiness-content-kpi-trend', className='col',
@@ -2016,17 +2007,17 @@ def generate_oura_readiness_content(date):
 
 def generate_readiness_modal_summary(days=7):
     date = datetime.now().date() - timedelta(days=days)
-    session, engine = db_connect()
+
     df = pd.read_sql(
-        sql=session.query(ouraReadinessSummary).filter(ouraReadinessSummary.report_date > date).statement,
+        sql=app.session.query(ouraReadinessSummary).filter(ouraReadinessSummary.report_date > date).statement,
         con=engine,
         index_col='report_date')
     hrv_df = pd.read_sql(
-        sql=session.query(ouraSleepSummary.report_date, ouraSleepSummary.rmssd, ouraSleepSummary.hr_lowest).filter(
+        sql=app.session.query(ouraSleepSummary.report_date, ouraSleepSummary.rmssd, ouraSleepSummary.hr_lowest).filter(
             ouraSleepSummary.report_date > date).statement, con=engine,
         index_col='report_date')
-    engine.dispose()
-    session.close()
+
+    app.session.remove()
     df = df.merge(hrv_df, how='left', left_index=True, right_index=True)
 
     if len(df) > 1:
@@ -2295,19 +2286,17 @@ def generate_readiness_modal_summary(days=7):
 
 
 def generate_oura_activity_header_kpi(date):
-    session, engine = db_connect()
     df = pd.read_sql(
-        sql=session.query(ouraActivitySummary.score).filter(ouraActivitySummary.summary_date == date).statement,
+        sql=app.session.query(ouraActivitySummary.score).filter(ouraActivitySummary.summary_date == date).statement,
         con=engine)
     # Default to max date if date passed is not yet in db (not on oura cloud)
     if len(df) == 0:
-        date = session.query(func.max(ouraActivitySummary.summary_date)).first()[0]
+        date = app.session.query(func.max(ouraActivitySummary.summary_date)).first()[0]
         df = pd.read_sql(
-            sql=session.query(ouraActivitySummary.score).filter(ouraActivitySummary.summary_date == date).statement,
+            sql=app.session.query(ouraActivitySummary.score).filter(ouraActivitySummary.summary_date == date).statement,
             con=engine)
 
-    engine.dispose()
-    session.close()
+    app.session.remove()
     score = df.loc[df.index.max()]['score']
     star = (score >= 85)
     return datetime.strftime(date, "%A %b %d, %Y"), star, '{:.0f}'.format(score)
@@ -2315,15 +2304,15 @@ def generate_oura_activity_header_kpi(date):
 
 def generate_oura_activity_header_chart(date, days=7, summary=False, resample='D'):
     height = chartHeight if not summary else 300
-    session, engine = db_connect()
+
     if summary:
-        df = pd.read_sql(sql=session.query(ouraActivitySummary).statement, con=engine, index_col='summary_date')
+        df = pd.read_sql(sql=app.session.query(ouraActivitySummary).statement, con=engine, index_col='summary_date')
     else:
         df = pd.read_sql(
-            sql=session.query(ouraActivitySummary).filter(ouraActivitySummary.summary_date > date).statement,
+            sql=app.session.query(ouraActivitySummary).filter(ouraActivitySummary.summary_date > date).statement,
             con=engine, index_col='summary_date')[:days]
-    engine.dispose()
-    session.close()
+
+    app.session.remove()
 
     # Resampling for modal buttons
     df = df.set_index(pd.to_datetime(df.index))
@@ -2506,15 +2495,15 @@ def generate_oura_activity_header_chart(date, days=7, summary=False, resample='D
 
 
 def generate_oura_activity_content(date):
-    session, engine = db_connect()
     # If the date passed is today's date (usually the default on load), grab the max date from db just in case oura cloud does not have current date yet
     if not date or date == datetime.today().date():
-        date = session.query(func.max(ouraActivitySummary.summary_date))[0][0]
+        date = app.session.query(func.max(ouraActivitySummary.summary_date))[0][0]
 
-    df = pd.read_sql(sql=session.query(ouraActivitySummary).filter(ouraActivitySummary.summary_date == date).statement,
-                     con=engine, index_col='summary_date')
-    engine.dispose()
-    session.close()
+    df = pd.read_sql(
+        sql=app.session.query(ouraActivitySummary).filter(ouraActivitySummary.summary_date == date).statement,
+        con=engine, index_col='summary_date')
+
+    app.session.remove()
 
     return [html.Div(className='row', children=[
         html.Div(id='oura-activity-content-kpi-trend', className='col',
@@ -2584,15 +2573,15 @@ def generate_oura_activity_content(date):
 
 def generate_activity_modal_summary(days=7):
     date = datetime.now().date() - timedelta(days=days)
-    session, engine = db_connect()
+
     df = pd.read_sql(
-        sql=session.query(ouraActivitySummary.summary_date, ouraActivitySummary.score, ouraActivitySummary.cal_active,
-                          ouraActivitySummary.target_calories, ouraActivitySummary.inactive).filter(
+        sql=app.session.query(ouraActivitySummary.summary_date, ouraActivitySummary.score,
+                              ouraActivitySummary.cal_active,
+                              ouraActivitySummary.target_calories, ouraActivitySummary.inactive).filter(
             ouraActivitySummary.summary_date > date).statement, con=engine,
         index_col='summary_date')
 
-    engine.dispose()
-    session.close()
+    app.session.remove()
 
     df['completion'] = df['cal_active'] / df['target_calories']
 
@@ -2792,10 +2781,9 @@ def toggle_forward_arrow_display(week_ending):
     [Input('week-ending', 'children')]
 )
 def toggle_back_arrow_display(week_ending):
-    session, engine = db_connect()
-    min_saturday = calc_next_saturday(pd.to_datetime(session.query(func.min(ouraSleepSummary.report_date))[0][0]))
-    engine.dispose()
-    session.close()
+    min_saturday = calc_next_saturday(pd.to_datetime(app.session.query(func.min(ouraSleepSummary.report_date))[0][0]))
+
+    app.session.remove()
     if calc_next_saturday(datetime.strptime(week_ending, '%A %b %d, %Y')) == min_saturday:
         return {'color': 'rgba(0,0,0,0)', 'backgroundColor': 'rgba(0,0,0,0)',
                 'border': '0'}
@@ -2817,10 +2805,9 @@ def cycle_week(back_week_n_clicks, forward_week_n_clicks, current_week_selection
     else:
         button_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
-    session, engine = db_connect()
-    min_saturday = calc_next_saturday(pd.to_datetime(session.query(func.min(ouraSleepSummary.report_date))[0][0]))
-    engine.dispose()
-    session.close()
+    min_saturday = calc_next_saturday(pd.to_datetime(app.session.query(func.min(ouraSleepSummary.report_date))[0][0]))
+
+    app.session.remove()
 
     if button_id == 'back-week':
         # If going earlier than min week, stay on current week
@@ -2967,12 +2954,12 @@ def update_last_clicked(sleepClick, readinessClick, activityClick):
 def show_sleep_exclamation(dummy):
     show = {'display': 'inline-block', 'fontSize': '1rem', 'color': orange, 'paddingLeft': '1%'}
     hide = {'display': 'none'}
-    session, engine = db_connect()
-    max_sleep_date = session.query(func.max(ouraSleepSummary.report_date)).first()[0]
-    max_readiness_date = session.query(func.max(ouraReadinessSummary.report_date)).first()[0]
-    max_activity_date = session.query(func.max(ouraActivitySummary.summary_date)).first()[0]
-    engine.dispose()
-    session.close()
+
+    max_sleep_date = app.session.query(func.max(ouraSleepSummary.report_date)).first()[0]
+    max_readiness_date = app.session.query(func.max(ouraReadinessSummary.report_date)).first()[0]
+    max_activity_date = app.session.query(func.max(ouraActivitySummary.summary_date)).first()[0]
+
+    app.session.remove()
     max_date = max([max_sleep_date, max_readiness_date, max_activity_date])
     sleep_style = show if max_sleep_date != max_date else hide
 
@@ -2987,12 +2974,12 @@ def show_sleep_exclamation(dummy):
 def show_readiness_exclamation(dummy):
     show = {'display': 'inline-block', 'fontSize': '1rem', 'color': orange, 'paddingLeft': '1%'}
     hide = {'display': 'none'}
-    session, engine = db_connect()
-    max_sleep_date = session.query(func.max(ouraSleepSummary.report_date)).first()[0]
-    max_readiness_date = session.query(func.max(ouraReadinessSummary.report_date)).first()[0]
-    max_activity_date = session.query(func.max(ouraActivitySummary.summary_date)).first()[0]
-    engine.dispose()
-    session.close()
+
+    max_sleep_date = app.session.query(func.max(ouraSleepSummary.report_date)).first()[0]
+    max_readiness_date = app.session.query(func.max(ouraReadinessSummary.report_date)).first()[0]
+    max_activity_date = app.session.query(func.max(ouraActivitySummary.summary_date)).first()[0]
+
+    app.session.remove()
     max_date = max([max_sleep_date, max_readiness_date, max_activity_date])
     readiness_style = show if max_readiness_date != max_date else hide
 
@@ -3007,12 +2994,12 @@ def show_readiness_exclamation(dummy):
 def show_activity_exclamation(dummy):
     show = {'display': 'inline-block', 'fontSize': '1rem', 'color': orange, 'paddingLeft': '1%'}
     hide = {'display': 'none'}
-    session, engine = db_connect()
-    max_sleep_date = session.query(func.max(ouraSleepSummary.report_date)).first()[0]
-    max_readiness_date = session.query(func.max(ouraReadinessSummary.report_date)).first()[0]
-    max_activity_date = session.query(func.max(ouraActivitySummary.summary_date)).first()[0]
-    engine.dispose()
-    session.close()
+
+    max_sleep_date = app.session.query(func.max(ouraSleepSummary.report_date)).first()[0]
+    max_readiness_date = app.session.query(func.max(ouraReadinessSummary.report_date)).first()[0]
+    max_activity_date = app.session.query(func.max(ouraActivitySummary.summary_date)).first()[0]
+
+    app.session.remove()
     max_date = max([max_sleep_date, max_readiness_date, max_activity_date])
     activity_style = show if max_activity_date != max_date else hide
 
