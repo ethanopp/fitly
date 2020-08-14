@@ -19,10 +19,27 @@ def main_layout_header():
                 dbc.Row(dbc.Col(id=server.config["CONTENT_CONTAINER_ID"])), fluid=True
             ),
             dcc.Location(id=server.config["LOCATION_COMPONENT_ID"], refresh=False),
-            # TODO: Add spinner toast to all pages when db operations are occuring (refreshing)
+
+            dbc.Toast(
+                id="db-refresh-toast",
+                header="Database Alert",
+                is_open=True,
+                dismissable=False,
+                icon="danger",
+                # top: 66 positions the toast below the navbar
+                style={"position": "fixed", "top": 66, "right": 10, "width": 350},
+                children=[
+                    dbc.Row(className='align-items-center text-center', children=[
+                        dbc.Col(className='col-2', children=[dbc.Spinner(size='md', color="danger")]),
+                        dbc.Col(className='col-8 text-center', children=['Database Refresh in Progress'])
+                    ])
+
+                ],
+            ),
+
+            dcc.Interval(id='db-refresh-toast-interval', interval=3 * 1000, n_intervals=0),
         ]
     )
-
 
 
 def main_layout_sidebar():

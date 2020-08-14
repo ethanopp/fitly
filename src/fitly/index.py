@@ -5,6 +5,7 @@ from .utils import DashRouter, DashNavBar
 from .pages import home, lifting, performance, power, settings
 from .components import fa
 from dash.dependencies import Input, Output, State
+from .api.sqlalchemy_declarative import dbRefreshStatus
 
 # Ordered iterable of routes: tuples of (route, layout), where 'route' is a
 # string corresponding to path of the route (will be prefixed with Dash's
@@ -45,3 +46,16 @@ def toggle_navbar_collapse(n, is_open):
     if n:
         return not is_open
     return is_open
+
+
+@app.callback(
+    Output('db-refresh-toast', 'is_open'),
+    [Input('db-refresh-toast-interval', 'n_intervals')]
+)
+def truncate_and_refresh(interval):
+    processing = app.session.query(dbRefreshStatus).filter(dbRefreshStatus.refresh_method == 'processing').first()
+    app.session.remove()
+    if processing:
+        return True
+    else:
+        return False

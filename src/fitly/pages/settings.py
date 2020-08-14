@@ -437,12 +437,6 @@ def generate_settings_dashboard():
                             dbc.Button('Truncate All', id='truncate-db-button', size='sm',
                                        color='primary',
                                        n_clicks=0, disabled=True)]),
-                        html.Div(className='col-12 mb-2', children=[dbc.Spinner(color='info', children=[
-                            html.Div(id='truncate-refresh-status'),
-                            html.Div(id='refresh-status'),
-                            html.Div(id='truncate-hrv-status'),
-                        ])
-                                                                    ]),
                     ])
                 ])
             ]),
@@ -470,7 +464,10 @@ def generate_settings_dashboard():
                              dbc.CardBody(style={'overflowY': 'scroll'}, children=[
                                  html.Div(id='logs', className='col'),
                                  dcc.Interval(id='interval-component', interval=1 * 1000, n_intervals=0),
-                                 dcc.Interval(id='db-interval', interval=15 * 1000, n_intervals=0),
+                                 dcc.Interval(id='db-interval', interval=3 * 1000, n_intervals=0),
+                                 html.Div(id='truncate-refresh-status', style={'display': 'none'}),
+                                 html.Div(id='refresh-status', style={'display': 'none'}),
+                                 html.Div(id='truncate-hrv-status', style={'display': 'none'}),
                              ])
                          ])
                      ])
