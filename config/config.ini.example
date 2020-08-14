@@ -1,13 +1,6 @@
 [logger]
 level = DEBUG
 
-[database] # currently not being used
-host = 192.168.1.11
-port = 3306
-db_name = Fitness
-user =
-password =
-
 [cron]
 hourly_pull = False
 
