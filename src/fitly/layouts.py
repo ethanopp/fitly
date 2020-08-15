@@ -22,10 +22,10 @@ def main_layout_header():
 
             dbc.Toast(
                 id="db-refresh-toast",
-                header="Database Alert",
-                is_open=True,
+                # header="Database Alert",
+                is_open=False,
                 dismissable=False,
-                icon="danger",
+                # icon="danger",
                 # top: 66 positions the toast below the navbar
                 style={"position": "fixed", "top": 66, "right": 10, "width": 350},
                 children=[
@@ -33,10 +33,8 @@ def main_layout_header():
                         dbc.Col(className='col-2', children=[dbc.Spinner(size='md', color="danger")]),
                         dbc.Col(className='col-8 text-center', children=['Database Refresh in Progress'])
                     ])
-
                 ],
             ),
-
             dcc.Interval(id='db-refresh-toast-interval', interval=3 * 1000, n_intervals=0),
         ]
     )
