@@ -22,10 +22,10 @@ def main_layout_header():
 
             dbc.Toast(
                 id="db-refresh-toast",
-                # header="Database Alert",
+                header="Fit.ly",
                 is_open=False,
                 dismissable=False,
-                # icon="danger",
+                icon="danger",
                 # top: 66 positions the toast below the navbar
                 style={"position": "fixed", "top": 66, "right": 10, "width": 350},
                 children=[

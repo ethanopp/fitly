@@ -40,8 +40,10 @@ def get_peloton_cache(act_start_date_utc):
         # If latest workout is more than 15 minutes newer than max workout in cache, refresh the cache
         if (pd.to_datetime(act_start_date_utc).tz_localize(None) - pd.to_datetime(
                 peloton_cache['start']).max()).total_seconds() > (60 * 15):
+            app.server.logger.debug('Fetching new peloton cache')
             peloton_cache = peloton_mapping_df().to_csv('peloton-cache.csv', sep=',')
     else:
+        app.server.logger.debug('Fetching new peloton cache')
         peloton_cache = peloton_mapping_df().to_csv('peloton-cache.csv', sep=',')
 
     return peloton_cache
@@ -56,8 +58,10 @@ def get_stryd_cache(act_start_date_local):
         # If latest workout is more than 15 minutes newer than max workout in cache, refresh the cache
         if (pd.to_datetime(act_start_date_local).tz_localize(None) - pd.to_datetime(
                 stryd_cache['timestamp']).max()).total_seconds() > (60 * 15):
+            app.server.logger.debug('Fetching new stryd cache')
             stryd_cache = get_stryd_df_summary().to_csv('stryd-cache.csv', sep=',')
     else:
+        app.server.logger.debug('Fetching new stryd cache')
         stryd_cache = get_stryd_df_summary().to_csv('stryd-cache.csv', sep=',')
 
     return stryd_cache
