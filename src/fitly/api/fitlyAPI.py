@@ -80,36 +80,41 @@ class FitlyActivity(stravalib.model.Activity):
         # Build activity samples df
         app.server.logger.debug('Activity id "{}": Building df_samples'.format(self.id))
         self.build_df_samples()
-        # Build activity summary df
-        app.server.logger.debug('Activity id "{}": Building df_summary'.format(self.id))
-        self.build_df_summary()
-        # Get FTP
-        app.server.logger.debug('Activity id "{}": Pulling ftp'.format(self.id))
-        self.get_ftp()
-        # Get most recent resting heart rate
-        app.server.logger.debug('Activity id "{}": Pulling resting hr'.format(self.id))
-        self.get_rest_hr()
-        # Get most recent weight
-        app.server.logger.debug('Activity id "{}": Pulling weight'.format(self.id))
-        self.get_weight()
-        # Calculate power zones
-        app.server.logger.debug('Activity id "{}": Calculating power zones'.format(self.id))
-        self.calculate_power_zones()
-        # Calculate heartrate zones
-        app.server.logger.debug('Activity id "{}": Calculating heartrate zones'.format(self.id))
-        self.calculate_heartate_zones()
-        # Calculate zone intensities
-        app.server.logger.debug('Activity id "{}": Calculating zones intensities'.format(self.id))
-        self.calculate_zone_intensities()
-        # Get summary analytics
-        app.server.logger.debug('Activity id "{}": Calculating summary analytics'.format(self.id))
-        self.get_summary_analytics()
-        # Write strava_best_samples
-        app.server.logger.debug('Activity id "{}": Writing mean max power to DB'.format(self.id))
-        self.compute_mean_max_power(dbinsert=True)
-        # Write df_summary and df_samples to db
-        app.server.logger.debug('Activity id "{}": Writing df_summary and df_samples to DB'.format(self.id))
-        self.write_dfs_to_db()
+
+        # Only import strava workout if there is stream data
+        if hasattr(self, 'df_samples'):
+            # Build activity summary df
+            app.server.logger.debug('Activity id "{}": Building df_summary'.format(self.id))
+            self.build_df_summary()
+            # Get FTP
+            app.server.logger.debug('Activity id "{}": Pulling ftp'.format(self.id))
+            self.get_ftp()
+            # Get most recent resting heart rate
+            app.server.logger.debug('Activity id "{}": Pulling resting hr'.format(self.id))
+            self.get_rest_hr()
+            # Get most recent weight
+            app.server.logger.debug('Activity id "{}": Pulling weight'.format(self.id))
+            self.get_weight()
+            # Calculate power zones
+            app.server.logger.debug('Activity id "{}": Calculating power zones'.format(self.id))
+            self.calculate_power_zones()
+            # Calculate heartrate zones
+            app.server.logger.debug('Activity id "{}": Calculating heartrate zones'.format(self.id))
+            self.calculate_heartate_zones()
+            # Calculate zone intensities
+            app.server.logger.debug('Activity id "{}": Calculating zones intensities'.format(self.id))
+            self.calculate_zone_intensities()
+            # Get summary analytics
+            app.server.logger.debug('Activity id "{}": Calculating summary analytics'.format(self.id))
+            self.get_summary_analytics()
+            # Write strava_best_samples
+            app.server.logger.debug('Activity id "{}": Writing mean max power to DB'.format(self.id))
+            self.compute_mean_max_power(dbinsert=True)
+            # Write df_summary and df_samples to db
+            app.server.logger.debug('Activity id "{}": Writing df_summary and df_samples to DB'.format(self.id))
+            self.write_dfs_to_db()
+        else:
+            app.server.logger.degubg(f'No streams data returned for activity {self.id}')
 
     def assign_athlete(self, athlete_id):
 
@@ -438,67 +443,69 @@ class FitlyActivity(stravalib.model.Activity):
     def build_df_samples(self):
         seconds = 1
         streams = get_strava_client().get_activity_streams(self.id, types=types)
-        self.df_samples = pd.DataFrame(columns=types)
-        # Write each row to a dataframe
-        for item in types:
-            if item in streams.keys():
-                self.df_samples[item] = pd.Series(streams[item].data, index=None)
-        self.df_samples['start_date_local'] = self.start_date_local
-        self.df_samples['timestamp_local'] = pd.Series(
-            map(calctime, self.df_samples['time'], self.df_samples['start_date_local']))
-        self.df_samples.set_index('timestamp_local', inplace=True)
+        # Only create df_samples if there is a response from the strava streams api
+        if streams:
+            self.df_samples = pd.DataFrame(columns=types)
+            # Write each row to a dataframe
+            for item in types:
+                if item in streams.keys():
+                    self.df_samples[item] = pd.Series(streams[item].data, index=None)
+            self.df_samples['start_date_local'] = self.start_date_local
+            self.df_samples['timestamp_local'] = pd.Series(
+                map(calctime, self.df_samples['time'], self.df_samples['start_date_local']))
+            self.df_samples.set_index('timestamp_local', inplace=True)
 
-        # Parse latlngs into seperate columns
-        try:
-            self.df_samples['latitude'] = self.df_samples['latlng'].apply(
-                lambda x: x[0] if isinstance(x, list) else None).apply(
-                pd.to_numeric,
-                errors='coerce')
-            self.df_samples['longitude'] = self.df_samples['latlng'].apply(
-                lambda x: x[1] if isinstance(x, list) else None).apply(
-                pd.to_numeric,
-                errors='coerce')
-        except KeyError:
-            self.df_samples['latitude'] = None
-            self.df_samples['longitude'] = None
+            # Parse latlngs into seperate columns
+            try:
+                self.df_samples['latitude'] = self.df_samples['latlng'].apply(
+                    lambda x: x[0] if isinstance(x, list) else None).apply(
+                    pd.to_numeric,
+                    errors='coerce')
+                self.df_samples['longitude'] = self.df_samples['latlng'].apply(
+                    lambda x: x[1] if isinstance(x, list) else None).apply(
+                    pd.to_numeric,
+                    errors='coerce')
+            except KeyError:
+                self.df_samples['latitude'] = None
+                self.df_samples['longitude'] = None
 
-        # Interpolate samples - each workout in samples data should already be at 1s intervals, calling resample fills in gaps so mean() does not matter
-        self.df_samples = self.df_samples.resample(str(seconds) + 'S').mean()
-        self.df_samples = self.df_samples.interpolate(
-            limit_direction='both')  # TODO: Consider if interpolating of nans is skuing data too much
+            # Interpolate samples - each workout in samples data should already be at 1s intervals, calling resample fills in gaps so mean() does not matter
+            self.df_samples = self.df_samples.resample(str(seconds) + 'S').mean()
+            self.df_samples = self.df_samples.interpolate(
+                limit_direction='both')  # TODO: Consider if interpolating of nans is skuing data too much
 
-        try:  # Indoor activity samples wont have altitudes
-            self.df_samples['altitude'] = self.df_samples['altitude'] * 3.28084
-        except KeyError:
-            self.df_samples['altitude'] = None
+            try:  # Indoor activity samples wont have altitudes
+                self.df_samples['altitude'] = self.df_samples['altitude'] * 3.28084
+            except KeyError:
+                self.df_samples['altitude'] = None
 
-        try:
-            # Convert celcius to farenheit
-            self.df_samples['temp'] = unithelper.c2f(self.df_samples['temp'])
-        except:
-            pass
+            try:
+                # Convert celcius to farenheit
+                self.df_samples['temp'] = unithelper.c2f(self.df_samples['temp'])
+            except:
+                pass
 
-        try:
-            # Convert meter per second to mph
-            self.df_samples['velocity_smooth'] = unithelper.mph(self.df_samples['velocity_smooth']).num
-        except:
-            pass
-        try:
-            # Convert meters to feet
-            self.df_samples['distance'] = unithelper.feet(self.df_samples['distance']).num
-        except:
-            pass
+            try:
+                # Convert meter per second to mph
+                self.df_samples['velocity_smooth'] = unithelper.mph(self.df_samples['velocity_smooth']).num
+            except:
+                pass
+            try:
+                # Convert meters to feet
+                self.df_samples['distance'] = unithelper.feet(self.df_samples['distance']).num
+            except:
+                pass
 
-        # Add Time Interval
-        epoch = pd.to_datetime('1970-01-01')
-        self.df_samples['time_interval'] = self.df_samples['time'].astype('int').apply(
-            lambda x: epoch + timedelta(seconds=x))
+            # Add Time Interval
+            epoch = pd.to_datetime('1970-01-01')
+            self.df_samples['time_interval'] = self.df_samples['time'].astype('int').apply(
+                lambda x: epoch + timedelta(seconds=x))
 
-        # Add date column
-        self.df_samples['date'] = self.df_samples.index.date
-        # Add activity id and name back in
-        self.df_samples['activity_id'] = self.id
-        self.df_samples['act_name'] = self.name
+            # Add date column
+            self.df_samples['date'] = self.df_samples.index.date
+            # Add activity id and name back in
+            self.df_samples['activity_id'] = self.id
+            self.df_samples['act_name'] = self.name
 
     def calculate_power_zones(self):
         if self.max_watts is not None:
