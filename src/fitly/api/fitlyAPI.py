@@ -35,36 +35,34 @@ def get_peloton_cache(act_start_date_utc):
     # Check if there is already a file
     cache_exists = os.path.isfile('peloton-cache.csv')
     # Parse through max date
-    if cache_exists:
-        peloton_cache = pd.read_csv('peloton-cache.csv')
+    if not cache_exists:
+        app.server.logger.debug('Fetching new peloton cache')
+        peloton_mapping_df().to_csv('peloton-cache.csv', sep=',')
+    else:
         # If latest workout is more than 15 minutes newer than max workout in cache, refresh the cache
         if (pd.to_datetime(act_start_date_utc).tz_localize(None) - pd.to_datetime(
-                peloton_cache['start']).max()).total_seconds() > (60 * 15):
+                pd.read_csv('peloton-cache.csv')['start']).max()).total_seconds() > (60 * 15):
             app.server.logger.debug('Fetching new peloton cache')
-            peloton_cache = peloton_mapping_df().to_csv('peloton-cache.csv', sep=',')
-    else:
-        app.server.logger.debug('Fetching new peloton cache')
-        peloton_cache = peloton_mapping_df().to_csv('peloton-cache.csv', sep=',')
+            peloton_mapping_df().to_csv('peloton-cache.csv', sep=',')
 
-    return peloton_cache
+    return pd.read_csv('peloton-cache.csv')
 
 
 def get_stryd_cache(act_start_date_local):
     # Check if there is already a file
     cache_exists = os.path.isfile('stryd-cache.csv')
     # Parse through max date
-    if cache_exists:
-        stryd_cache = pd.read_csv('stryd-cache.csv')
+    if not cache_exists:
+        app.server.logger.debug('Fetching new stryd cache')
+        get_stryd_df_summary().to_csv('stryd-cache.csv', sep=',')
+    else:
         # If latest workout is more than 15 minutes newer than max workout in cache, refresh the cache
         if (pd.to_datetime(act_start_date_local).tz_localize(None) - pd.to_datetime(
-                stryd_cache['timestamp']).max()).total_seconds() > (60 * 15):
+                pd.read_csv('stryd-cache.csv')['timestamp']).max()).total_seconds() > (60 * 15):
             app.server.logger.debug('Fetching new stryd cache')
-            stryd_cache = get_stryd_df_summary().to_csv('stryd-cache.csv', sep=',')
-    else:
-        app.server.logger.debug('Fetching new stryd cache')
-        stryd_cache = get_stryd_df_summary().to_csv('stryd-cache.csv', sep=',')
+            get_stryd_df_summary().to_csv('stryd-cache.csv', sep=',')
 
-    return stryd_cache
+    return pd.read_csv('stryd-cache.csv')
 
 
 class FitlyActivity(stravalib.model.Activity):
