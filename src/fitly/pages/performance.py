@@ -403,12 +403,10 @@ def create_fitness_kpis(date, ctl, ramp, rr_min_threshold, rr_max_threshold, atl
         plan_recommendation = data[0]
         plan_rationale = data[1]
         oura_recommendation = data[2]
-        if oura_recommendation == 'Rest':
+        if oura_recommendation == 'Low/Rest':
             oura_rationale = 'Readiness score is < 70'
-        elif oura_recommendation == 'Low':
-            oura_rationale = 'Readiness score is between 70-79'
         elif oura_recommendation == 'Mod':
-            oura_rationale = 'Readiness score is between 80-84'
+            oura_rationale = 'Readiness score is between 70 and 85'
         elif oura_recommendation == 'High':
             oura_rationale = 'Readiness score is 85 or higher'
         else:
@@ -532,8 +530,8 @@ def create_activity_table(date=None):
                                   stravaSummary.relative_intensity, stravaSummary.efficiency_factor,
                                   stravaSummary.variability_index, stravaSummary.ftp,
                                   stravaSummary.activity_id)
-            .filter(stravaSummary.start_day_local == date)
-            .statement,
+                .filter(stravaSummary.start_day_local == date)
+                .statement,
             con=engine)
 
     else:
@@ -545,7 +543,7 @@ def create_activity_table(date=None):
                                   stravaSummary.relative_intensity, stravaSummary.efficiency_factor,
                                   stravaSummary.variability_index, stravaSummary.ftp,
                                   stravaSummary.activity_id)
-            .statement, con=engine)
+                .statement, con=engine)
 
     app.session.remove()
 
