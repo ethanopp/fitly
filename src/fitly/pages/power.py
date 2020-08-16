@@ -1151,7 +1151,7 @@ def update_fitness_kpis(hoverData, power_unit):
 def get_layout(**kwargs):
     return html.Div([
 
-        html.Div(className='row align-items-center text-center', children=[
+        html.Div(className='row align-items-start text-center', children=[
             html.Div(id='power-dashboard-header-container', className='col-12 mt-2 mb-2', children=[
 
                 html.I(id='running-icon', className='fa fa-running',
