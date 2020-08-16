@@ -119,7 +119,7 @@ def get_layout(**kwargs):
                           dbc.Button("Close", id="close-activity-modal-button", color='primary', n_clicks=0)
                       ),
                   ]),
-        html.Div(className='row align-items-center text-center mt-2 mb-2', children=[
+        html.Div(className='row align-items-start text-center mt-2 mb-2', children=[
             html.Div(id='pmd-header-and-chart', className='col-lg-8',
                      children=[
                          dbc.Card([
