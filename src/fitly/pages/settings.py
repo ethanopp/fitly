@@ -207,7 +207,7 @@ def athlete_card():
         # TODO: Update formatting of these dropdowns to match sizing of all other inputs on settings page
         peloton_bookmark_settings = html.Div(
             children=[html.H5('Peloton HRV Recommendation Auto Bookmarking', className='col-12 mb-2 mt-2'),
-                      html.Div(className='row mb-2 mt-2', children=[
+                      html.Div(className='row align-items-center mb-2 mt-2', children=[
                           html.Div(className='col-lg-6', children=[
                               dcc.Dropdown(
                                   id='peloton-bookmark-fitness-discipline-dropdown',
