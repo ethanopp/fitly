@@ -32,37 +32,39 @@ def calctime(time_sec, startdate):
 
 
 def get_peloton_cache(act_start_date_utc):
+    pelton_cache_dir = os.path.join(os.getcwd(), 'peloton-cache.csv')
     # Check if there is already a file
-    cache_exists = os.path.isfile('peloton-cache.csv')
+    cache_exists = os.path.isfile(pelton_cache_dir)
     # Parse through max date
     if not cache_exists:
         app.server.logger.debug('Fetching new peloton cache')
-        peloton_mapping_df().to_csv('peloton-cache.csv', sep=',')
+        peloton_mapping_df().to_csv(pelton_cache_dir, sep=',')
     else:
         # If latest workout is more than 15 minutes newer than max workout in cache, refresh the cache
         if (pd.to_datetime(act_start_date_utc).tz_localize(None) - pd.to_datetime(
-                pd.read_csv('peloton-cache.csv')['start']).max()).total_seconds() > (60 * 15):
+                pd.read_csv(pelton_cache_dir)['start']).max()).total_seconds() > (60 * 15):
             app.server.logger.debug('Fetching new peloton cache')
-            peloton_mapping_df().to_csv('peloton-cache.csv', sep=',')
+            peloton_mapping_df().to_csv(pelton_cache_dir, sep=',')
 
-    return pd.read_csv('peloton-cache.csv')
+    return pd.read_csv(pelton_cache_dir)
 
 
 def get_stryd_cache(act_start_date_local):
+    stryd_cache_dir = os.path.join(os.getcwd(), 'stryd-cache.csv')
     # Check if there is already a file
-    cache_exists = os.path.isfile('stryd-cache.csv')
+    cache_exists = os.path.isfile(stryd_cache_dir)
     # Parse through max date
     if not cache_exists:
         app.server.logger.debug('Fetching new stryd cache')
-        get_stryd_df_summary().to_csv('stryd-cache.csv', sep=',')
+        get_stryd_df_summary().to_csv(stryd_cache_dir, sep=',')
     else:
         # If latest workout is more than 15 minutes newer than max workout in cache, refresh the cache
         if (pd.to_datetime(act_start_date_local).tz_localize(None) - pd.to_datetime(
-                pd.read_csv('stryd-cache.csv')['timestamp']).max()).total_seconds() > (60 * 15):
+                pd.read_csv(stryd_cache_dir)['timestamp']).max()).total_seconds() > (60 * 15):
             app.server.logger.debug('Fetching new stryd cache')
-            get_stryd_df_summary().to_csv('stryd-cache.csv', sep=',')
+            get_stryd_df_summary().to_csv(stryd_cache_dir, sep=',')
 
-    return pd.read_csv('stryd-cache.csv')
+    return pd.read_csv(stryd_cache_dir)
 
 
 class FitlyActivity(stravalib.model.Activity):
