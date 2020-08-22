@@ -80,7 +80,9 @@ def db_startup(app):
             hr_zone_threshold_1=.6,
             hr_zone_threshold_2=.7,
             hr_zone_threshold_3=.8,
-            hr_zone_threshold_4=.9)
+            hr_zone_threshold_4=.9,
+            peloton_auto_bookmark_metric='readiness'
+        )
         app.session.add(dummy_athlete)
         app.session.commit()
 
