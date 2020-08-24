@@ -219,7 +219,7 @@ def athlete_card():
                                                     options=[
                                                         {'label': 'HRV', 'value': 'hrv'},
                                                         {'label': 'Readiness', 'value': 'readiness'}],
-                                                    value='readiness',
+                                                    value=athlete_info.peloton_auto_bookmark_metric,
                                                     multi=False
                                                 )
                                             ]),

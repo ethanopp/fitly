@@ -6,7 +6,7 @@ from .utils import get_dash_args_from_flask_config
 from sqlalchemy.orm import scoped_session
 from .api.database import SessionLocal, engine
 from .api.sqlalchemy_declarative import *
-import datetime
+from datetime import datetime
 
 
 def create_flask(config_object=f"{__package__}.settings"):
@@ -26,6 +26,8 @@ def create_flask(config_object=f"{__package__}.settings"):
 
 
 def create_dash(server):
+    Base.metadata.create_all(bind=engine)
+
     """Create the Dash instance for this application"""
     app = Dash(
         name=__package__,
