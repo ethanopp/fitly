@@ -143,8 +143,6 @@ details.
           - VARIABLE_NAME=server
           - TZ=America/New_York
           - TIMEOUT=1200
-          - PUID=1000
-          - PGID=100
           - DASH_DEBUG=true
         volumes:
           - <host config dir>:/app/config
