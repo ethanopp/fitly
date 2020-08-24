@@ -123,8 +123,6 @@ details.
           - "80:80"
           - "443:443"
         environment:
-          - PUID=1000
-          - PGID=100
           - TZ=America/New_York
           - EMAIL=<your email>
           - URL=<website.com>
