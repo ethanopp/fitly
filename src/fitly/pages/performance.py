@@ -123,10 +123,11 @@ def get_layout(**kwargs):
             html.Div(id='pmd-header-and-chart', className='col-lg-8',
                      children=[
                          dbc.Card([
+                             dbc.CardHeader([
+                                 html.Div(id='pmd-kpi')
+                             ]),
                              dbc.CardBody([
                                  # generates from hoverData callback
-
-                                 html.Div(id='pmd-kpi'),
                                  html.Div(id='pmc-controls', className='row mb-2', children=[
                                      html.Div(className='col-lg-8 offset-lg-1', children=[
                                          html.Div(className='row', children=[
@@ -231,12 +232,12 @@ def get_layout(**kwargs):
                                  # Populated by callback
                                  html.Div(className='row', children=[
                                      # html.Div([
-                                     dcc.Graph(id='pm-chart', className='col-lg-10 mr-0 ml-0',
+                                     dcc.Graph(id='pm-chart', className='col-lg-9 mr-0 ml-0',
                                                style={'height': '100%'},
                                                config={'displayModeBar': False}),
                                      # ]),
 
-                                     html.Div(id='workout-distribution-table', className='col-lg-2', children=[
+                                     html.Div(id='workout-distribution-table', className='col-lg-3', children=[
                                          dash_table.DataTable(
                                              id='workout-type-distributions',
                                              columns=[{'name': 'Activity', 'id': 'workout'},
