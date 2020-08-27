@@ -32,10 +32,11 @@ ftp_color = 'rgb(100, 217, 236)'
 
 def create_power_curve_kpis(interval, all, L90D, l6w, last, pr):
     return \
-        html.Div(className='row', children=[
+        html.Div(className='row align-items-center text-center', children=[
             ### Interval KPI ###
             html.Div(className='col-auto', children=[
-                html.H4(id='power-curve-title', children='Power Curve {}'.format(timedelta(seconds=interval))),
+                html.H4(id='power-curve-title', className='mb-2',
+                        children='Power Curve {}'.format(timedelta(seconds=interval))),
             ]),
             dbc.Tooltip(
                 '''A high power output for short periods of time (10 seconds) can contribute to improved performance across your entire Power Duration Curve. To improve musle power, focus on VO2 Max Intervals, Hill / Track Repeats and Supplemental Training.
@@ -46,16 +47,16 @@ def create_power_curve_kpis(interval, all, L90D, l6w, last, pr):
                 target="power-curve-title"),
 
             ### All KPI ###
-            html.Div(id='all-kpi', className='col-auto', children=[
-                html.H6('All Time {}'.format(all),
+            html.Div(id='all-kpi', className='col-auto mb-2', children=[
+                html.H5('All Time {}'.format(all),
                         style={'display': 'inline-block',  # 'fontWeight': 'bold',
                                'color': white, 'backgroundColor': dark_blue, 'marginTop': '0',
                                'marginBottom': '0',
                                'borderRadius': '.3rem'}),
             ]),
             ### L90D KPI ###
-            html.Div(id='L90D-kpi', className='col-auto', children=[
-                html.H6('L90D {}'.format(L90D if pr == '' else pr),
+            html.Div(id='L90D-kpi', className='col-auto mb-2', children=[
+                html.H5('L90D {}'.format(L90D if pr == '' else pr),
                         style={'display': 'inline-block',  # 'fontWeight': 'bold',
                                'color': white, 'backgroundColor': light_blue if pr == '' else orange,
                                'marginTop': '0',
@@ -63,16 +64,16 @@ def create_power_curve_kpis(interval, all, L90D, l6w, last, pr):
                                'borderRadius': '.3rem'}),
             ]),
             ### L6W KPI ###
-            html.Div(id='l6w-kpi', className='col-auto', children=[
-                html.H6('L6W {}'.format(l6w),
+            html.Div(id='l6w-kpi', className='col-auto mb-2', children=[
+                html.H5('L6W {}'.format(l6w),
                         style={'display': 'inline-block',  # 'fontWeight': 'bold',
                                'color': 'rgb(46,46,46)', 'backgroundColor': white, 'marginTop': '0',
                                'marginBottom': '0',
                                'borderRadius': '.3rem'}),
             ]),
             ### Last KPI ###
-            html.Div(id='last-kpi', className='col-auto', children=[
-                html.H6('Workout {}'.format(last),
+            html.Div(id='last-kpi', className='col-auto mb-2', children=[
+                html.H5('Workout {}'.format(last),
                         style={'display': 'inline-block',  # 'fontWeight': 'bold',
                                'color': 'rgb(46,46,46)', 'backgroundColor': teal, 'marginTop': '0',
                                'marginBottom': '0',
