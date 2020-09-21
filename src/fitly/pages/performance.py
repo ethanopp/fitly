@@ -370,6 +370,11 @@ light_blue = config.get('oura', 'light_blue')
 dark_blue = config.get('oura', 'dark_blue')
 orange = config.get('oura', 'orange')
 
+# Oura readiness ranges for recommendation
+oura_high_threshold = 85
+oura_med_threshold = 75
+oura_low_threshold = 65
+
 
 def training_zone(form):
     if 25 < form:
@@ -390,11 +395,11 @@ def readiness_score_recommendation(readiness_score):
     readiness_score = int(readiness_score)
     if readiness_score == 0:
         return ''
-    elif readiness_score >= 85:
+    elif readiness_score >= oura_high_threshold:
         return 'High'
-    elif 70 <= readiness_score <= 84:
+    elif readiness_score >= oura_med_threshold:
         return 'Mod'
-    elif 60 >= readiness_score:
+    elif readiness_score >= oura_low_threshold:
         return 'Low'
     else:
         return 'Rest'
@@ -406,12 +411,14 @@ def create_fitness_kpis(date, ctl, ramp, rr_min_threshold, rr_max_threshold, atl
         plan_recommendation = data[0]
         plan_rationale = data[1]
         oura_recommendation = data[2]
-        if oura_recommendation == 'Low/Rest':
-            oura_rationale = 'Readiness score is < 70'
+        if oura_recommendation == 'Rest':
+            oura_rationale = f'Readiness score is < {oura_low_threshold}'
+        elif oura_recommendation == 'Low':
+            oura_rationale = f'Readiness score is between {oura_low_threshold} and {oura_med_threshold}'
         elif oura_recommendation == 'Mod':
-            oura_rationale = 'Readiness score is between 70 and 85'
+            oura_rationale = f'Readiness score is between {oura_med_threshold} and {oura_high_threshold}'
         elif oura_recommendation == 'High':
-            oura_rationale = 'Readiness score is 85 or higher'
+            oura_rationale = f'Readiness score is {oura_high_threshold} or higher'
         else:
             oura_recommendation, oura_rationale = 'N/A', 'N/A'
         readiness_score = int(data[3])
