@@ -624,6 +624,7 @@ def peloton_mapping_df():
             instructor = ''
         # Round activity to nerest minute to then align with strava data rounded to nearest minute
         df = df.append({
+            'created_at': roundTime(pd.to_datetime(workout.created_at)),
             'start': roundTime(pd.to_datetime(workout.start_time)),
             'end': roundTime(pd.to_datetime(workout.end_time)),
             'type': workout.fitness_discipline,

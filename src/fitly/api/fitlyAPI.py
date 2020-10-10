@@ -154,10 +154,15 @@ class FitlyActivity(stravalib.model.Activity):
         client = get_strava_client()
         peloton_df = get_peloton_cache(self.start_date)
         peloton_df['start'] = pd.to_datetime(peloton_df['start'])
+        peloton_df['created_at'] = pd.to_datetime(peloton_df['created_at'])
         start = roundTime(self.start_date)
         activity = peloton_df[
-            (peloton_df['start'] >= (start - timedelta(minutes=10))) & (
-                    peloton_df['start'] <= (start + timedelta(minutes=10)))]
+            ((peloton_df['start'] >= (start - timedelta(minutes=10))) & (
+                    peloton_df['start'] <= (start + timedelta(minutes=10))))
+            |
+            ((peloton_df['created_at'] >= (start - timedelta(minutes=10))) & (
+                    peloton_df['created_at'] <= (start + timedelta(minutes=10))))
+            ]
         if len(activity) > 0:
             self.peloton_title = activity.name.values[0]
             self.name = self.peloton_title if len(self.peloton_title) > 0 else self.name
