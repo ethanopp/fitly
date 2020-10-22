@@ -1331,7 +1331,7 @@ def workout_distribution(run_status, ride_status, all_status):
     #     lambda x: re.findall(r'\d+?\smin\s(.*)\swith', x)[0] if re.search(r'\d+?\smin\s(.*)\swith', x) else x).astype(
     #     'str')
 
-    class_names = ['Power Zone Max', 'Power Zone Endurance', 'Power Zone', 'Endurance', 'Speed', 'Intervals', 'HIIT',
+    class_names = ['Power Zone Max', 'Power Zone Endurance', 'Power Zone', 'Endurance', 'Recovery', 'Speed', 'Intervals', 'HIIT',
                    'Progression', 'Race Prep', 'Tabata', 'Hills', 'Long', 'Fun', 'Tempo']  # , '5k', '10k', 'Marathon']
     for name in class_names:
         for i in df_summary.index:
