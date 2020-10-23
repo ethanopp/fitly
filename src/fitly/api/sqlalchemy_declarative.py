@@ -174,6 +174,7 @@ class ouraReadinessSummary(Base):
     score_sleep_balance = Column('score_sleep_balance', Integer())
     score_temperature = Column('score_temperature', Integer())
     score_hrv_balance = Column('score_hrv_balance', Integer())
+    rest_mode_state = Column('rest_mode_state', Integer())
 
 
 class ouraActivitySummary(Base):
@@ -212,6 +213,7 @@ class ouraActivitySummary(Base):
     to_target_km = Column('to_target_km', Float())
     to_target_miles = Column('to_target_miles', Float())
     total = Column('total', Integer())
+    rest_mode_state = Column('rest_mode_state', Integer())
 
 
 class ouraActivitySamples(Base):
