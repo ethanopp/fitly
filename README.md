@@ -122,8 +122,7 @@ want to set `--host 0.0.0.0`.
         volumes:
           - <host config dir>:/config
       fitly:
-        build:
-          dockerfile: Dockerfile
+        image: ethanopp/fitly:latest
         container_name: fitly
         restart: always
         depends_on:
