@@ -706,7 +706,9 @@ def hrv_training_workflow(min_non_warmup_workout_time, athlete_id=1):
             else:
                 workout = app.session.query(stravaSummary).filter(
                     stravaSummary.start_day_local == datetime.today().date(),
-                    stravaSummary.elapsed_time > min_non_warmup_workout_time).first()
+                    stravaSummary.elapsed_time > min_non_warmup_workout_time,
+                    # Only include workouts with a workout type specified when checking if workout has been completed for hrv workflow (i.e. ignore 'Other' workouts uploaded from apple watch)
+                    stravaSummary.type != 'Workout').first()
                 if workout:
                     todays_plan.completed = 1
                     app.session.commit()
