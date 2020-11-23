@@ -620,7 +620,6 @@ def update_athlete_db_value(value, value_name):
         Input('hr-zone3-input-submit', 'n_clicks'),
         Input('hr-zone4-input-submit', 'n_clicks'),
         Input('peloton-bookmark-metric-dropdown-input-submit', 'n_clicks'),
-
     ],
     [
         State('name-input', 'value'),
@@ -660,13 +659,12 @@ def save_athlete_settings(
         slp_goal_click, tss_goal_click, rrmax_click, rrmin_click, min_workout_click, workout_click,
         slp_click, rd_click, cycle_zone1_click, cycle_zone2_click, cycle_zone3_click, cycle_zone4_click,
         cycle_zone5_click, cycle_zone6_click, run_zone1_click, run_zone2_click, run_zone3_click, run_zone4_click,
-        hr_zone1_click, hr_zone2_click, hr_zone3_click, hr_zone4_click, peloton_bookmark_metric_click, name_value, birthday_value, sex_value,
-        weight_value, rest_hr_value, ride_ftp_value, run_ftp_value, wk_act_value, slp_goal_value, tss_goal_value,
-        rrmax_value, rrmin_value, min_workout_value, workout_value, slp_value, rd_value,
+        hr_zone1_click, hr_zone2_click, hr_zone3_click, hr_zone4_click, peloton_bookmark_metric_click, name_value,
+        birthday_value, sex_value, weight_value, rest_hr_value, ride_ftp_value, run_ftp_value, wk_act_value,
+        slp_goal_value, tss_goal_value, rrmax_value, rrmin_value, min_workout_value, workout_value, slp_value, rd_value,
         cycle_zone1_value, cycle_zone2_value, cycle_zone3_value, cycle_zone4_value, cycle_zone5_value,
         cycle_zone6_value, run_zone1_value, run_zone2_value, run_zone3_value, run_zone4_value, hr_zone1_value,
         hr_zone2_value, hr_zone3_value, hr_zone4_value, peloton_bookmark_metric_value
-
 ):
     num_metrics = 31
     output_styles = []
@@ -879,7 +877,7 @@ def refresh(n_clicks):
               [State('truncate-date', 'value')])
 def reset_hrv_plan(n_clicks, hrv_date):
     if n_clicks > 0:
-        hrv_date = datetime.strptime(hrv_date, '%Y-%m-%d')
+        hrv_date = datetime.strptime(hrv_date, '%Y-%m-%d').date()
         app.server.logger.info('Resetting HRV workout plan workflow to step 0 on {}'.format(hrv_date))
 
         try:
