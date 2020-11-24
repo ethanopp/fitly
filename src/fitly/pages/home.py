@@ -770,6 +770,7 @@ def update_kpis(date, days=7):
         sql=app.session.query(stravaSummary).filter(stravaSummary.start_date_utc <= date).statement, con=engine,
         index_col='start_date_local')
     athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1).first()
+    use_power = True if athlete_info.use_run_power or athlete_info.use_cycle_power else False
 
     ### Oura Donuts ###
 
@@ -804,12 +805,17 @@ def update_kpis(date, days=7):
 
     if tss_goal:
         tss_df = pd.read_sql(
-            sql=app.session.query(stravaSummary.start_day_local, stravaSummary.tss, stravaSummary.hrss).statement,
+            sql=app.session.query(stravaSummary.start_day_local, stravaSummary.tss, stravaSummary.hrss,
+                                  stravaSummary.trimp).filter(
+                stravaSummary.elapsed_time > athlete_info.min_non_warmup_workout_time).statement,
             con=engine,
             index_col='start_day_local')
 
-        tss_df['stress_score'] = tss_df.apply(lambda row: row['hrss'] if np.isnan(row['tss']) else row['tss'],
-                                              axis=1).fillna(0)
+        if use_power:
+            tss_df['stress_score'] = tss_df.apply(lambda row: row['hrss'] if np.isnan(row['tss']) else row['tss'],
+                                                  axis=1).fillna(0)
+        else:
+            tss_df['stress_score'] = tss_df['trimp']
 
         tss_df = tss_df.set_index(pd.to_datetime(tss_df.index))
         # Calculate Streaks
@@ -825,7 +831,8 @@ def update_kpis(date, days=7):
         class_name = 'col-lg-2'
         specific_donuts = [
             html.Div(id='tss-donut', className=class_name,
-                     children=generate_kpi_donut(kpi_name='Stress', metric=tss_df['stress_score'].sum(),
+                     children=generate_kpi_donut(kpi_name='Stress',
+                                                 metric=tss_df['stress_score'].sum(),
                                                  goal=athlete_info.weekly_tss_goal,
                                                  current_streak=tss_streak,
                                                  best_streak=best_tss_streak,
