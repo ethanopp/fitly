@@ -769,7 +769,7 @@ def save_athlete_settings(
             'weekly_tss_goal': tss_goal_value,
             'rr_max_goal': rrmax_value,
             'rr_min_goal': rrmin_value,
-            'min_non_warmup_workout_time': min_workout_value,
+            'min_non_warmup_workout_time': float(min_workout_value) * 60,
             'weekly_workout_goal': workout_value,
             'weekly_sleep_score_goal': slp_value,
             'weekly_readiness_score_goal': rd_value,
