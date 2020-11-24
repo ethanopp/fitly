@@ -368,6 +368,7 @@ class FitlyActivity(stravalib.model.Activity):
         self.trimp, self.hrss, self.wap, self.tss, self.ri, self.variability_index, self.efficiency_factor = None, None, None, None, None, None, None
         activity_length = self.df_samples['time'].max()
 
+        trimp_weighting_factor = 1.92 if str(self.Athlete.birthday).upper() == 'M' else 1.67
         # Calculate power metrics
         if 'weighttraining' in self.type.lower():
             self.tss, self.ri = self.wss_score()
@@ -388,9 +389,11 @@ class FitlyActivity(stravalib.model.Activity):
             athlete_lthr = .89 * self.athlete_max_hr
             self.df_samples['hrr'] = self.df_samples['heartrate'].apply(
                 lambda x: (x - self.hr_lowest) / (self.athlete_max_hr - self.hr_lowest))
-            self.trimp = ((1 / 60) * self.df_samples['hrr'] * (0.64 * np.exp(1.92 * self.df_samples['hrr']))).sum()
+            self.trimp = ((1 / 60) * self.df_samples['hrr'] * (
+                    0.64 * np.exp(trimp_weighting_factor * self.df_samples['hrr']))).sum()
             athlete_hrr_lthr = (athlete_lthr - self.hr_lowest) / (self.athlete_max_hr - self.hr_lowest)
-            self.hrss = (self.trimp / (60 * athlete_hrr_lthr * (0.64 * np.exp(1.92 * athlete_hrr_lthr)))) * 100
+            self.hrss = (self.trimp / (
+                    60 * athlete_hrr_lthr * (0.64 * np.exp(trimp_weighting_factor * athlete_hrr_lthr)))) * 100
             self.df_samples = self.df_samples.drop(columns='hrr')
 
         if self.max_heartrate is not None and self.wap is not None:
