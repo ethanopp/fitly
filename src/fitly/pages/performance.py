@@ -22,7 +22,11 @@ transition = int(config.get('dashboard', 'transition'))
 
 def get_layout(**kwargs):
     growth_figure, growth_hoverData = create_growth_chart()
-
+    athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1).first()
+    use_run_power = athlete_info.use_run_power
+    use_cycle_power = athlete_info.use_cycle_power
+    use_power = True if athlete_info.use_run_power or athlete_info.use_cycle_power else False
+    app.session.remove()
     return html.Div([
         # Dummy div for simultaneous callbacks on page load
         dbc.Modal(id="annotation-modal", centered=True, autoFocus=True, fade=False, backdrop='static', size='xl',
@@ -178,22 +182,6 @@ def get_layout(**kwargs):
                                                  'Include all other workouts in Fitness trend.',
                                                  target="all-pmc"),
 
-                                             html.Div(id='power-pmc', className='col-2',
-                                                      children=[
-                                                          daq.BooleanSwitch(
-                                                              id='power-pmc-switch',
-                                                              on=True,
-                                                              style={'display': 'inline-block',
-                                                                     'vertical-align': 'middle'}
-                                                          ),
-                                                          html.I(id='power-pmc-icon', className='fa fa-bolt',
-                                                                 style={'fontSize': '1.5rem', 'display': 'inline-block',
-                                                                        'vertical-align': 'middle'}),
-                                                      ]),
-                                             dbc.Tooltip(
-                                                 'Include power data for stress scores.',
-                                                 target="power-pmc"),
-
                                              html.Div(id='hr-pmc', className='col-2',
                                                       children=[
                                                           daq.BooleanSwitch(
@@ -209,6 +197,22 @@ def get_layout(**kwargs):
                                              dbc.Tooltip(
                                                  'Include heart rate data for stress scores.',
                                                  target="hr-pmc"),
+                                             html.Div(id='power-pmc', className='col-2',
+                                                      children=[
+                                                          daq.BooleanSwitch(
+                                                              id='power-pmc-switch',
+                                                              on=use_power,
+                                                              style={'display': 'inline-block',
+                                                                     'vertical-align': 'middle'},
+                                                              disabled=not use_power
+                                                          ),
+                                                          html.I(id='power-pmc-icon', className='fa fa-bolt',
+                                                                 style={'fontSize': '1.5rem', 'display': 'inline-block',
+                                                                        'vertical-align': 'middle'}),
+                                                      ]),
+                                             dbc.Tooltip(
+                                                 'Include power data for stress scores.',
+                                                 target="power-pmc"),
 
                                              html.Div(className='col-2',
                                                       children=[
@@ -312,7 +316,14 @@ def get_layout(**kwargs):
                                          {'name': 'VI', 'id': 'variability_index'},
                                          {'name': 'FTP', 'id': 'ftp'},
                                          {'name': 'activity_id', 'id': 'activity_id'}
-                                     ],
+                                     ] if use_power else [{'name': 'Date', 'id': 'date'},
+                                                          {'name': 'Name', 'id': 'name'},
+                                                          {'name': 'Type', 'id': 'type'},
+                                                          {'name': 'Time', 'id': 'time'},
+                                                          {'name': 'Mileage', 'id': 'distance'},
+                                                          {'name': 'TRIMP', 'id': 'trimp'},
+                                                          {'name': 'Calories', 'id': 'calories'},
+                                                          {'name': 'activity_id', 'id': 'activity_id'}],
                                      style_as_list_view=True,
                                      fixed_rows={'headers': True, 'data': 0},
                                      style_table={'height': '100%'},
@@ -623,14 +634,27 @@ def create_growth_kpis(date, cy_tss, ly_tss, target):
     )
 
 
-def create_growth_chart(metric='tss'):
+def create_growth_chart():
     weekly_tss_goal = app.session.query(athlete).filter(athlete.athlete_id == 1).first().weekly_tss_goal
 
-    df = pd.read_sql(
-        sql=app.session.query(stravaSummary.start_date_utc, stravaSummary.tss, stravaSummary.activity_id).filter(or_(
-            extract('year', stravaSummary.start_date_utc) == datetime.utcnow().year,
-            extract('year', stravaSummary.start_date_utc) == (datetime.utcnow().year - 1))
-        ).statement, con=engine, index_col='start_date_utc').sort_index(ascending=True)
+    athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1).first()
+    use_power = True if athlete_info.use_run_power or athlete_info.use_cycle_power else False
+    if not use_power:
+        metric = 'trimp'
+        df = pd.read_sql(
+            sql=app.session.query(stravaSummary.start_date_utc, stravaSummary.trimp, stravaSummary.activity_id).filter(
+                or_(
+                    extract('year', stravaSummary.start_date_utc) == datetime.utcnow().year,
+                    extract('year', stravaSummary.start_date_utc) == (datetime.utcnow().year - 1))
+            ).statement, con=engine, index_col='start_date_utc').sort_index(ascending=True)
+    else:
+        metric = 'tss'
+        df = pd.read_sql(
+            sql=app.session.query(stravaSummary.start_date_utc, stravaSummary.tss, stravaSummary.activity_id).filter(
+                or_(
+                    extract('year', stravaSummary.start_date_utc) == datetime.utcnow().year,
+                    extract('year', stravaSummary.start_date_utc) == (datetime.utcnow().year - 1))
+            ).statement, con=engine, index_col='start_date_utc').sort_index(ascending=True)
 
     app.session.remove()
 
@@ -768,6 +792,8 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
     rr_max_threshold = athlete_info.rr_max_goal
     rr_min_threshold = athlete_info.rr_min_goal
 
+    use_power = True if athlete_info.use_run_power or athlete_info.use_cycle_power else False
+
     df_readiness = pd.read_sql(
         sql=app.session.query(ouraReadinessSummary.report_date, ouraReadinessSummary.score).statement,
         con=engine,
@@ -868,7 +894,12 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
     elif power_status:
         df_summary['stress_score'] = df_summary['tss']
     elif hr_status:
-        df_summary['stress_score'] = df_summary['hrss']
+        # If not using power data, use trimp since hrss still uses ftp
+        if not use_power:
+            df_summary['stress_score'] = df_summary['trimp']
+        else:
+            df_summary['stress_score'] = df_summary['hrss']
+
     else:
         df_summary['stress_score'] = 0
 
@@ -923,10 +954,14 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
     pmd['tsb_tooltip'] = ['Form: <b>{} {:.1f} ({}{:.1f})</b>'.format(x, y, '+' if y - z > 0 else '', y - z) for
                           (x, y, z) in
                           zip(pmd['TSB'].map(training_zone), pmd['TSB'], pmd['TSB'].shift(1))]
-    pmd['stress_tooltip'] = [
-        'Stress: <b>{:.1f}</b><br><br>PSS: <b>{:.1f}</b><br>HRSS: <b>{:.1f}</b>'.format(x, y, z)
-        for
-        (x, y, z) in zip(pmd['stress_score'], pmd['tss'], pmd['hrss'])]
+
+    if not use_power:
+        pmd['stress_tooltip'] = ['TRIMP:  <b>{:.1f}</b>'.format(x) for x in pmd['stress_score']]
+    else:
+        pmd['stress_tooltip'] = [
+            'Stress: <b>{:.1f}</b><br><br>PSS: <b>{:.1f}</b><br>HRSS: <b>{:.1f}</b>'.format(x, y, z)
+            for
+            (x, y, z) in zip(pmd['stress_score'], pmd['tss'], pmd['hrss'])]
 
     # split actuals and forecasts into separata dataframes to plot lines
     actual = pmd[:len(pmd) - forecast_days]
@@ -1331,7 +1366,8 @@ def workout_distribution(run_status, ride_status, all_status):
     #     lambda x: re.findall(r'\d+?\smin\s(.*)\swith', x)[0] if re.search(r'\d+?\smin\s(.*)\swith', x) else x).astype(
     #     'str')
 
-    class_names = ['Power Zone Max', 'Power Zone Endurance', 'Power Zone', 'Endurance', 'Recovery', 'Speed', 'Intervals', 'HIIT',
+    class_names = ['Power Zone Max', 'Power Zone Endurance', 'Power Zone', 'Endurance', 'Recovery', 'Speed',
+                   'Intervals', 'HIIT',
                    'Progression', 'Race Prep', 'Tabata', 'Hills', 'Long', 'Fun', 'Tempo']  # , '5k', '10k', 'Marathon']
     for name in class_names:
         for i in df_summary.index:
@@ -1359,9 +1395,11 @@ def workout_distribution(run_status, ride_status, all_status):
     # df_summary['intensity'] = df_summary[
     #     ['low_intensity_seconds', 'med_intensity_seconds', 'high_intensity_seconds']].idxmax(axis=1)
 
-    df_summary['total_intensity_seconds'] = df_summary['high_intensity_seconds'].fillna(0) + df_summary[
-        'med_intensity_seconds'].fillna(0) + \
-                                            df_summary['low_intensity_seconds'].fillna(0)
+    # df_summary['total_intensity_seconds'] = df_summary['high_intensity_seconds'].fillna(0) + df_summary[
+    #     'med_intensity_seconds'].fillna(0) + \
+    #                                         df_summary['low_intensity_seconds'].fillna(0)
+
+    df_summary['total_intensity_seconds'] = df_summary['moving_time']  # Replacing different intensity groups for now
     df_summary['intensity'] = 'total_intensity_seconds'
 
     # Set up columns for table

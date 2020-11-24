@@ -109,7 +109,7 @@ def generate_cycle_power_zone_card():
         con=engine)
     cftp = round(int(cftp.loc[cftp.index.max()].fillna(0)['average_watts']) * .95) if len(cftp) > 0 else 0
     athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1).first()
-
+    use_cycle_power = athlete_info.use_cycle_power
     app.session.remove()
 
     cycle_power_zone_threshold_1 = athlete_info.cycle_power_zone_threshold_1
@@ -120,8 +120,15 @@ def generate_cycle_power_zone_card():
     cycle_power_zone_threshold_6 = athlete_info.cycle_power_zone_threshold_6
 
     return dbc.Card([
-        dbc.CardHeader(html.H4(className='text-left', children='Cycling Power Zones')),
-        dbc.CardBody([
+        dbc.CardHeader([dbc.Row([html.H4(className='col-8 text-left', children='Cycling Power Zones'),
+                                 html.Div(className='col-4', children=[daq.BooleanSwitch(
+                                     id='use-cycle-power-switch',
+                                     on=use_cycle_power,
+                                 )])])
+                        ]
+                       ),
+        dbc.Tooltip(['Use Cycling Power Data'], target='use-cycle-power-switch'),
+        dbc.CardBody(id='cycle-power-body', children=[
             html.H5('Cycling FTP: {}'.format(cftp)),
             generate_db_setting('cycle-zone1', 'Z1: <= {:.0f}'.format((cftp * cycle_power_zone_threshold_1)),
                                 cycle_power_zone_threshold_1),
@@ -163,7 +170,7 @@ def generate_run_power_zone_card():
         sql=app.session.query(stravaSummary.ftp).filter(stravaSummary.type.like('run')).statement, con=engine)
     rftp = int(rftp.loc[rftp.index.max()].fillna(0)['ftp']) if len(rftp) > 0 else 0
     athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1).first()
-
+    use_run_power = athlete_info.use_run_power
     app.session.remove()
 
     run_power_zone_threshold_1 = athlete_info.run_power_zone_threshold_1
@@ -172,8 +179,15 @@ def generate_run_power_zone_card():
     run_power_zone_threshold_4 = athlete_info.run_power_zone_threshold_4
 
     return dbc.Card([
-        dbc.CardHeader(html.H4(className='text-left', children='Running Power Zones')),
-        dbc.CardBody([
+        dbc.CardHeader([dbc.Row([html.H4(className='col-9 text-left', children='Running Power Zones'),
+                                 html.Div(className='col-3', children=[daq.BooleanSwitch(
+                                     id='use-run-power-switch',
+                                     on=use_run_power,
+                                 )])])
+                        ]
+                       ),
+        dbc.Tooltip(['Use Running Power Data'], target='use-run-power-switch'),
+        dbc.CardBody(id='run-power-body', children=[
             html.H5('Running FTP: {}'.format(rftp)),
 
             generate_db_setting('run-zone1', 'Z1: <= {:.0f}'.format((rftp * run_power_zone_threshold_1)),
@@ -437,9 +451,9 @@ def generate_settings_dashboard():
                                       dbc.CardBody(children=html.Div(id='api-connections'))
                                   ]),
                               ]),
+                     html.Div(id='hr-zones', className='col-lg-3', children=generate_hr_zone_card()),
                      html.Div(id='run-power-zones', className='col-lg-3', children=generate_run_power_zone_card()),
                      html.Div(id='cycle-power-zones', className='col-lg-3', children=generate_cycle_power_zone_card()),
-                     html.Div(id='hr-zones', className='col-lg-3', children=generate_hr_zone_card()),
                  ]),
 
         html.Div(id='settings-shelf-2', className='row align-items-start text-center mt-2', children=[
@@ -814,6 +828,30 @@ def disable_readiness(hrv, readiness):
         return False
     else:
         return hrv
+
+
+# Callback to enable/disable using power data
+@app.callback(
+    [Output('run-power-body', 'style'),
+     Output('cycle-power-body', 'style')],
+    [Input('use-run-power-switch', 'on'), Input('use-cycle-power-switch', 'on')],
+    [State('use-run-power-switch', 'on'), State('use-cycle-power-switch', 'on')],
+)
+def user_power_data(run_dummy, cycle_dummy, run, cycle):
+    athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1).first()
+    run_style = {'display': 'none'} if not run else {'display': 'inline'}
+    cycle_style = {'display': 'none'} if not cycle else {'display': 'inline'}
+
+    try:
+        athlete_info.use_run_power = run
+        athlete_info.use_cycle_power = cycle
+        app.session.commit()
+        app.server.logger.debug(f'use-run-power set to {run}, use-cycle-power set to {cycle}')
+    except BaseException as e:
+        app.server.logger.error(e)
+
+    app.session.remove()
+    return run_style, cycle_style
 
 
 # Callback for showing/hiding workout/yoga goal settings

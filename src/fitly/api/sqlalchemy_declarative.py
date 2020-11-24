@@ -44,6 +44,8 @@ class athlete(Base):
     hr_zone_threshold_4 = Column('hr_zone_threshold_4', Float())
     peloton_auto_bookmark_ids = Column('peloton_auto_bookmark_ids', String(9999))
     peloton_auto_bookmark_metric = Column('peloton_auto_bookmark_metric', String(10))
+    use_run_power = Column('use_run_power', Boolean, default=True)
+    use_cycle_power = Column('use_cycle_power', Boolean, default=True)
 
 
 class hrvWorkoutStepLog(Base):

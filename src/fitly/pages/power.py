@@ -1150,113 +1150,121 @@ def update_fitness_kpis(hoverData, power_unit):
 
 
 def get_layout(**kwargs):
-    return html.Div([
+    athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1).first()
+    use_power = True if athlete_info.use_run_power or athlete_info.use_cycle_power else False
+    app.session.remove()
 
-        html.Div(className='row align-items-start text-center', children=[
-            html.Div(id='power-dashboard-header-container', className='col-12 mt-2 mb-2', children=[
+    if not use_power:
+        return html.H1('Power data currently disabled', className='text-center')
+    else:
+        return html.Div([
 
-                html.I(id='running-icon', className='fa fa-running',
-                       style={'fontSize': '2rem', 'display': 'inline-block'}),
-                daq.ToggleSwitch(id='activity-type-toggle', className='mr-2 ml-2', style={'display': 'inline-block'}),
+            html.Div(className='row align-items-start text-center', children=[
+                html.Div(id='power-dashboard-header-container', className='col-12 mt-2 mb-2', children=[
 
-                html.I(id='bicycle-icon', className='fa fa-bicycle',
-                       style={'fontSize': '2rem', 'display': 'inline-block', 'color': teal}),
-                dbc.Tooltip('Analyze cycling activities', target="bicycle-icon"),
-                dbc.Tooltip('Toggle activity type', target="activity-type-toggle"),
-                dbc.Tooltip('Analyze running activities', target="running-icon"),
+                    html.I(id='running-icon', className='fa fa-running',
+                           style={'fontSize': '2rem', 'display': 'inline-block'}),
+                    daq.ToggleSwitch(id='activity-type-toggle', className='mr-2 ml-2',
+                                     style={'display': 'inline-block'}),
 
-                html.I(style={'fontSize': '2rem', 'display': 'inline-block', 'paddingLeft': '1%',
-                              'paddingRight': '1%'}),
+                    html.I(id='bicycle-icon', className='fa fa-bicycle',
+                           style={'fontSize': '2rem', 'display': 'inline-block', 'color': teal}),
+                    dbc.Tooltip('Analyze cycling activities', target="bicycle-icon"),
+                    dbc.Tooltip('Toggle activity type', target="activity-type-toggle"),
+                    dbc.Tooltip('Analyze running activities', target="running-icon"),
 
-                html.I(id='bolt-icon', className='fa fa-bolt',
-                       style={'fontSize': '2rem', 'display': 'inline-block',
-                              'color': teal}),
+                    html.I(style={'fontSize': '2rem', 'display': 'inline-block', 'paddingLeft': '1%',
+                                  'paddingRight': '1%'}),
 
-                daq.ToggleSwitch(id='power-unit-toggle', className='mr-2 ml-2', style={'display': 'inline-block'},
-                                 value=False),
+                    html.I(id='bolt-icon', className='fa fa-bolt',
+                           style={'fontSize': '2rem', 'display': 'inline-block',
+                                  'color': teal}),
 
-                html.I(id='weight-icon', className='fa fa-weight',
-                       style={'fontSize': '2rem', 'display': 'inline-block'}),
+                    daq.ToggleSwitch(id='power-unit-toggle', className='mr-2 ml-2', style={'display': 'inline-block'},
+                                     value=False),
 
-                dbc.Tooltip('Show watts', target="bolt-icon"),
-                dbc.Tooltip('Toggle power unit', target="power-unit-toggle"),
-                dbc.Tooltip('Show watts/kg', target="weight-icon"),
+                    html.I(id='weight-icon', className='fa fa-weight',
+                           style={'fontSize': '2rem', 'display': 'inline-block'}),
 
-            ]),
-        ]),
+                    dbc.Tooltip('Show watts', target="bolt-icon"),
+                    dbc.Tooltip('Toggle power unit', target="power-unit-toggle"),
+                    dbc.Tooltip('Show watts/kg', target="weight-icon"),
 
-        html.Div(id='power-curve-and-zone', className='row mt-2 mb-2',
-                 children=[
-                     html.Div(className='col-lg-8', children=[
-                         dbc.Card(children=[
-                             dbc.CardHeader(id='power-curve-kpis'),
-                             dbc.CardBody(
-                                 dcc.Graph(id='power-curve-chart', config={'displayModeBar': False},
-                                           style={'height': '100%'}))
-                         ]),
-                     ]),
-                     html.Div(className='col-lg-4', children=[
-                         dbc.Card(children=[
-                             dbc.CardHeader(html.H4(id='ftp-current')),
-                             dbc.Tooltip(
-                                 'Functional Threshold Power (FTP) is the highest average power you can sustain for 1 hour, measured in watts. FTP is used to determine training zones when using a power meter and to measure improvement.',
-                                 target="ftp-current", ),
-                             dbc.CardBody(dcc.Graph(id='ftp-chart', config={'displayModeBar': False},
-                                                    style={'height': '100%'}, ))
-                         ]
-                         ),
-
-                     ]),
-                 ]),
-        html.Div(id='power-profile-header',
-                 className='row align-items-center text-center mt-2 mb-2', children=[
-                html.Div(className='col', children=[
-                    html.H6('Power Profiles by'),
-                    html.Div(id='power-profile-buttons', className='col', children=[
-                        dbc.Button('Day', id='day-button', color='primary', size='md'),
-                        dbc.Button('Week', id='week-button', color='primary', size='md'),
-                        dbc.Button('Month', id='month-button', color='primary', size='md'),
-                        dbc.Button('Year', id='year-button', color='primary', size='md'),
-                    ]),
                 ]),
             ]),
 
-        html.Div(id='power-profiles', className='row', children=[
-            html.Div(className='col-lg-3', children=[
-                dbc.Card(id='power-profile-5', children=[
-                    dbc.CardHeader(html.H4('5 Second Max Power')),
-                    dbc.CardBody(dcc.Graph(
-                        id='power-profile-5-chart',
-                        config={'displayModeBar': False},
-                        style={'height': '100%'},
-                    )
-                    )])]),
-            html.Div(className='col-lg-3', children=[
-                dbc.Card(id='power-profile-60', children=[
-                    dbc.CardHeader(html.H4('1 Minute Max Power')),
-                    dbc.CardBody(dcc.Graph(
-                        id='power-profile-60-chart',
-                        config={'displayModeBar': False},
-                        style={'height': '100%'},
-                    )
-                    )])]),
-            html.Div(className='col-lg-3', children=[
-                dbc.Card(id='power-profile-300', children=[
-                    dbc.CardHeader(html.H4('5 Minute Max Power')),
-                    dbc.CardBody(dcc.Graph(
-                        id='power-profile-300-chart',
-                        config={'displayModeBar': False},
-                        style={'height': '100%'},
-                    )
-                    )])]),
-            html.Div(className='col-lg-3', children=[
-                dbc.Card(id='power-profile-1200', children=[
-                    dbc.CardHeader(html.H4('20 Minute Max Power')),
-                    dbc.CardBody(dcc.Graph(
-                        id='power-profile-1200-chart',
-                        config={'displayModeBar': False},
-                        style={'height': '100%'},
-                    )
-                    )])]),
+            html.Div(id='power-curve-and-zone', className='row mt-2 mb-2',
+                     children=[
+                         html.Div(className='col-lg-8', children=[
+                             dbc.Card(children=[
+                                 dbc.CardHeader(id='power-curve-kpis'),
+                                 dbc.CardBody(
+                                     dcc.Graph(id='power-curve-chart', config={'displayModeBar': False},
+                                               style={'height': '100%'}))
+                             ]),
+                         ]),
+                         html.Div(className='col-lg-4', children=[
+                             dbc.Card(children=[
+                                 dbc.CardHeader(html.H4(id='ftp-current')),
+                                 dbc.Tooltip(
+                                     'Functional Threshold Power (FTP) is the highest average power you can sustain for 1 hour, measured in watts. FTP is used to determine training zones when using a power meter and to measure improvement.',
+                                     target="ftp-current", ),
+                                 dbc.CardBody(dcc.Graph(id='ftp-chart', config={'displayModeBar': False},
+                                                        style={'height': '100%'}, ))
+                             ]
+                             ),
+
+                         ]),
+                     ]),
+            html.Div(id='power-profile-header',
+                     className='row align-items-center text-center mt-2 mb-2', children=[
+                    html.Div(className='col', children=[
+                        html.H6('Power Profiles by'),
+                        html.Div(id='power-profile-buttons', className='col', children=[
+                            dbc.Button('Day', id='day-button', color='primary', size='md'),
+                            dbc.Button('Week', id='week-button', color='primary', size='md'),
+                            dbc.Button('Month', id='month-button', color='primary', size='md'),
+                            dbc.Button('Year', id='year-button', color='primary', size='md'),
+                        ]),
+                    ]),
+                ]),
+
+            html.Div(id='power-profiles', className='row', children=[
+                html.Div(className='col-lg-3', children=[
+                    dbc.Card(id='power-profile-5', children=[
+                        dbc.CardHeader(html.H4('5 Second Max Power')),
+                        dbc.CardBody(dcc.Graph(
+                            id='power-profile-5-chart',
+                            config={'displayModeBar': False},
+                            style={'height': '100%'},
+                        )
+                        )])]),
+                html.Div(className='col-lg-3', children=[
+                    dbc.Card(id='power-profile-60', children=[
+                        dbc.CardHeader(html.H4('1 Minute Max Power')),
+                        dbc.CardBody(dcc.Graph(
+                            id='power-profile-60-chart',
+                            config={'displayModeBar': False},
+                            style={'height': '100%'},
+                        )
+                        )])]),
+                html.Div(className='col-lg-3', children=[
+                    dbc.Card(id='power-profile-300', children=[
+                        dbc.CardHeader(html.H4('5 Minute Max Power')),
+                        dbc.CardBody(dcc.Graph(
+                            id='power-profile-300-chart',
+                            config={'displayModeBar': False},
+                            style={'height': '100%'},
+                        )
+                        )])]),
+                html.Div(className='col-lg-3', children=[
+                    dbc.Card(id='power-profile-1200', children=[
+                        dbc.CardHeader(html.H4('20 Minute Max Power')),
+                        dbc.CardBody(dcc.Graph(
+                            id='power-profile-1200-chart',
+                            config={'displayModeBar': False},
+                            style={'height': '100%'},
+                        )
+                        )])]),
+            ])
         ])
-    ])
