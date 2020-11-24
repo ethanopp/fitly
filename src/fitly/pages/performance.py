@@ -97,23 +97,24 @@ def get_layout(**kwargs):
                           dbc.Spinner(color='info', children=[
                               html.Div(id="activity-modal-body-2", className='row mt-2 mb-2',
                                        children=[
-                                           html.Div(className='col-lg-6', children=[
+                                           html.Div(className='col-lg-6' if use_power else 'col-lg-12', children=[
                                                dbc.Card(color='dark', children=[
                                                    dbc.CardHeader(id='modal-zone-title'),
                                                    dbc.CardBody(id='modal-zones')
                                                ])
                                            ]),
-                                           html.Div(className='col-lg-6', children=[
-                                               dbc.Card(id='modal-power-curve-card', color='dark', children=[
-                                                   dbc.CardHeader(html.H4('Power Curve')),
-                                                   dbc.CardBody([
-                                                       dcc.Graph(id='modal-power-curve-chart',
-                                                                 config={'displayModeBar': False},
-                                                                 style={'height': '100%'})
-                                                   ]
-                                                   )
-                                               ])
-                                           ]),
+                                           html.Div(className='col-lg-6',
+                                                    style={} if use_power else {'display': 'none'}, children=[
+                                                   dbc.Card(id='modal-power-curve-card', color='dark', children=[
+                                                       dbc.CardHeader(html.H4('Power Curve')),
+                                                       dbc.CardBody([
+                                                           dcc.Graph(id='modal-power-curve-chart',
+                                                                     config={'displayModeBar': False},
+                                                                     style={'height': '100%'})
+                                                       ]
+                                                       )
+                                                   ])
+                                               ]),
 
                                        ])
                           ]),
@@ -322,7 +323,6 @@ def get_layout(**kwargs):
                                                           {'name': 'Time', 'id': 'time'},
                                                           {'name': 'Mileage', 'id': 'distance'},
                                                           {'name': 'TRIMP', 'id': 'trimp'},
-                                                          {'name': 'Calories', 'id': 'calories'},
                                                           {'name': 'activity_id', 'id': 'activity_id'}],
                                      style_as_list_view=True,
                                      fixed_rows={'headers': True, 'data': 0},

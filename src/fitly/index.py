@@ -5,7 +5,11 @@ from .utils import DashRouter, DashNavBar
 from .pages import home, lifting, performance, power, settings
 from .components import fa
 from dash.dependencies import Input, Output, State
-from .api.sqlalchemy_declarative import dbRefreshStatus
+from .api.sqlalchemy_declarative import dbRefreshStatus, athlete
+
+athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1).first()
+use_power = True if athlete_info.use_run_power or athlete_info.use_cycle_power else False
+app.session.remove()
 
 # Ordered iterable of routes: tuples of (route, layout), where 'route' is a
 # string corresponding to path of the route (will be prefixed with Dash's
@@ -28,6 +32,11 @@ nav_items = (
     ("home", html.Div([fa("fas fa-home"), "Home"])),
     ("performance", html.Div([fa("fas fa-seedling"), "Performance"])),
     ("power", html.Div([fa("fas fa-bolt"), "Power"])),
+    ("lifting", html.Div([fa("fas fa-dumbbell"), "Lifting"])),
+    ("settings", html.Div([fa("fa fa-sliders-h"), "Settings"])),
+) if use_power else (
+    ("home", html.Div([fa("fas fa-home"), "Home"])),
+    ("performance", html.Div([fa("fas fa-seedling"), "Performance"])),
     ("lifting", html.Div([fa("fas fa-dumbbell"), "Lifting"])),
     ("settings", html.Div([fa("fa fa-sliders-h"), "Settings"])),
 )
