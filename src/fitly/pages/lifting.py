@@ -12,9 +12,14 @@ from datetime import datetime, timedelta, date
 from dateutil.relativedelta import *
 import dash_bootstrap_components as dbc
 from ..utils import config, nextcloud_credentials_supplied
+from difflib import SequenceMatcher
 
 
 def get_layout(**kwargs):
+    muscles = sorted(pd.read_sql(sql=app.session.query(fitbod_muscles).statement, con=engine)['Muscle'].unique())
+    muscles.append('Unmapped')
+    muscle_options = [{'label': x, 'value': x} for x in muscles]
+    app.session.remove()
     # Oura data required for home page
     if not nextcloud_credentials_supplied:
         return html.H1('Please provide nextcloud credentials in config', className='text-center')
@@ -35,19 +40,8 @@ def get_layout(**kwargs):
 
                     dcc.Dropdown(id='muscle-options', className='bg-light',
                                  style={'backgroundColor': 'rgba(0,0,0,0)'},
-                                 options=[
-                                     {'label': 'Abs', 'value': 'Abs'},
-                                     {'label': 'Back', 'value': 'Back'},
-                                     {'label': 'Biceps', 'value': 'Biceps'},
-                                     {'label': 'Chest', 'value': 'Chest'},
-                                     {'label': 'Hamstrings', 'value': 'Hamstrings'},
-                                     {'label': 'Lower Back', 'value': 'Lower Back'},
-                                     {'label': 'Quadriceps', 'value': 'Quadriceps'},
-                                     {'label': 'Shoulders', 'value': 'Shoulders'},
-                                     {'label': 'Triceps', 'value': 'Triceps'}
-                                 ],
-                                 value=['Abs', 'Back', 'Biceps', 'Chest', 'Hamstrings', 'Lower Back', 'Quadriceps',
-                                        'Shoulders', 'Triceps'],
+                                 options=muscle_options,
+                                 value=muscles,
                                  multi=True,
                                  placeholder='Select Muscle(s)...'
                                  )
@@ -70,12 +64,42 @@ orange = config.get('oura', 'orange')
 ftp_color = 'rgb(100, 217, 236)'
 
 
+def find_muscle(name, muscles):
+    '''
+
+    :param name: name of exercise
+    :param muscles: dictionary of exercise/muscle mapping
+    :return: mapped musle for exercise
+    '''
+    results = []
+
+    for key, muscle in muscles.items():
+        if key in name:
+            return muscle
+
+    for key, muscle in muscles.items():
+        matcher = SequenceMatcher(None, key, name)
+        ratio = matcher.ratio()
+        if ratio >= 0.75:
+            results.append((ratio, muscle))
+
+    if not results:
+        return 'Unmapped'
+        app.server.logger.error(f'No matching muscles for: {name}')
+
+    return sorted(results)[0][1]
+
+
 def generate_exercise_charts(timeframe, muscle_options, sort_ascending=True):
     df = pd.read_sql(sql=app.session.query(fitbod).statement, con=engine)
 
     # Merge 'muscle' into exercise table for mapping
-    df_muscle = pd.read_sql(sql=app.session.query(fitbod_muscles).statement, con=engine)
-    df = df.merge(df_muscle, how='left', left_on='Exercise', right_on='Exercise')
+    muscle_dict = \
+        pd.read_sql(sql=app.session.query(fitbod_muscles).statement, con=engine).set_index('Exercise').to_dict()[
+            'Muscle']
+
+    df['Muscle'] = df['Exercise'].apply(lambda x: find_muscle(x, muscle_dict))
+
     app.session.remove()
 
     # Filter on selected msucles

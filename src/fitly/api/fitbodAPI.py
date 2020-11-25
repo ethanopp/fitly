@@ -34,6 +34,7 @@ def pull_fitbod_data():
         df = df[
             (~df['Exercise'].str.contains('Running')) &
             (~df['Exercise'].str.contains('Cycling')) &
+            (~df['Exercise'].str.contains('Hiking')) &
             (~df['Exercise'].str.contains('Rowing')) &
             (~df['Exercise'].str.contains('Elliptical')) &
             (~df['Exercise'].str.contains('Stair Stepper')) &
