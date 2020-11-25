@@ -67,7 +67,7 @@ orange = config.get('oura', 'orange')
 ftp_color = 'rgb(100, 217, 236)'
 
 
-def generate_exercise_charts(timeframe, muscle_options, metric='1RM'):
+def generate_exercise_charts(timeframe, muscle_options, metric='1RM', sort_ascending=True):
     df = pd.read_sql(sql=app.session.query(fitbod).statement, con=engine)
 
     # Merge 'muscle' into exercise table for mapping
@@ -91,35 +91,48 @@ def generate_exercise_charts(timeframe, muscle_options, metric='1RM'):
             # Calculate Brzycki 1RM based off last 6 weeks of workouts
             df_1rm['1RM'] = (df_1rm['Weight'] * (36 / (37 - df_1rm['Reps'])))
             df_1rm['1RM_Type'] = '1RM (lbs)'
+
             # Show total Reps for exercises with no weight (where 1RM can't be calculated)
-            df_reps = df[(df['Weight'] == 0) & (df['Reps'] != 0)]
+            df_reps = df[(df['Weight'] == 0) & (df['Reps'] != 0) & (df['Duration'] == 0)]
             df_reps['1RM'] = df_reps['Reps']
             df_reps['1RM_Type'] = 'Reps'
-            # Show total Duration for exercises with no weight or reps i.e. "Plank" (where 1RM can't be calculated)
+            # Remove exercises which have sets both with and without weight to avoid skewing % increases
+            df_reps = df_reps[~df_reps['Exercise'].isin(df_1rm['Exercise'].unique())]
+
+            # Show total volume (duration * weight) for time-based exercises (don't have reps so 1RM can't be calculated)
             df_duration = df[(df['Weight'] == 0) & (df['Reps'] == 0) & (df['Duration'] != 0)]
-            df_duration['1RM'] = df_duration['Duration']
-            df_duration['1RM_Type'] = 'Seconds'
+            df_duration['1RM'] = df_duration['Duration'] * df['Weight'].replace(0, 1)
+            df_duration['1RM_Type'] = 'Volume'
+
             # Consolidate dfs
             df = pd.concat([df_1rm, df_reps, df_duration], ignore_index=True)
             # Get max from each set
             df = df.groupby(['date_UTC', 'Exercise', '1RM_Type'])['1RM'].max().reset_index()
 
-        # TODO: Add toggle for this? Currently front end hardcoded to 1RM
-        elif metric == 'Volume':
-            # Calculate Volume and aggregate to the daily (workout) level
-            df['Volume'] = df['Reps'].replace(0, 1) * df['Weight'].replace(0, 1) * df['Duration'].replace(0, 1)
-            df = df.groupby(['date_UTC', 'Exercise'])['Volume'].sum().reset_index()
+            # Sort by # change
+            for exercise in df['Exercise'].sort_values().unique():
+                df_temp = df[df['Exercise'] == exercise]
+                df.at[df['Exercise'] == exercise, '% Change'] = ((df_temp[metric].tail(1).values[0] -
+                                                                  df_temp[metric].head(1).values[0]) /
+                                                                 df_temp[metric].head(1).values[0]) * 100
+
+        # # TODO: Add toggle for this? Currently front end hardcoded to 1RM
+        # elif metric == 'Volume':
+        #     # Calculate Volume and aggregate to the daily (workout) level
+        #     df['Volume'] = df['Reps'].replace(0, 1) * df['Weight'].replace(0, 1) * df['Duration'].replace(0, 1)
+        #     df = df.groupby(['date_UTC', 'Exercise'])['Volume'].sum().reset_index()
+
+        # Sort exercises by areas which have least improvement on a % basis
+        df = df.sort_values(by='% Change', ascending=sort_ascending)
 
         widgets = []
-        for exercise in df['Exercise'].sort_values().unique():
+        for exercise in df['Exercise'].unique():
             df_temp = df[df['Exercise'] == exercise]
             # Only plot exercise if at least 2 different dates with that exercise
             if len(df_temp['date_UTC'].unique()) > 1:
                 try:
-                    # Calculate overall start to end % change (1 number)
-                    percent_change = ((df_temp[metric].tail(1).values[0] - df_temp[metric].head(1).values[0]) / \
-                                      df_temp[metric].head(1).values[0]) * 100
-                    backgroundColor = 'border-danger' if percent_change < 0 else 'border-success' if percent_change > 0 else ''
+                    backgroundColor = 'border-danger' if df_temp['% Change'].values[0] < 0 else 'border-success' if \
+                        df_temp['% Change'].values[0] > 0 else ''
                 except:
                     backgroundColor = ''
 
