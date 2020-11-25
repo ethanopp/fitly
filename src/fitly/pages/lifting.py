@@ -54,9 +54,10 @@ def get_layout(**kwargs):
                 ]),
             ]),
 
-            html.Div(className='row', children=[
-                html.Div(id='exercise-containers', className='col-lg-12')
-
+            dbc.Spinner(color='info', children=[
+                html.Div(className='row', children=[
+                    html.Div(id='exercise-containers', className='col-lg-12')
+                ])
             ])
         ])
 
@@ -232,7 +233,9 @@ def generate_exercise_charts(timeframe, muscle_options, sort_ascending=True):
                                                           x=df_temp.loc[df_temp['date_UTC'].idxmax()]['date_UTC'],
                                                           y=df_temp.loc[df_temp['date_UTC'].idxmax()]['1RM'],
                                                           text="{} {:.0f}%".format(timeframe.upper(),
-                                                              df_temp.loc[df_temp['date_UTC'].idxmax()]['% Change']),
+                                                                                   df_temp.loc[
+                                                                                       df_temp['date_UTC'].idxmax()][
+                                                                                       '% Change']),
                                                           showarrow=True,
                                                           arrowhead=0,
                                                           arrowcolor=white,
