@@ -9,6 +9,7 @@ from ..api.sqlalchemy_declarative import fitbod, fitbod_muscles
 from ..api.database import engine
 import math
 from datetime import datetime, timedelta, date
+from dateutil.relativedelta import *
 import dash_bootstrap_components as dbc
 from ..utils import config, nextcloud_credentials_supplied
 
@@ -24,6 +25,7 @@ def get_layout(**kwargs):
                     html.Div(id='lifting-date-buttons', children=[
                         dbc.Button('All Time', id='all-button', color='primary', style={'marginRight': '1vw'}),
                         dbc.Button('Year to Date', id='ytd-button', color='primary', style={'marginRight': '1vw'}),
+                        dbc.Button('Last 6 Months', id='l6m-button', color='primary', style={'marginRight': '1vw'}),
                         dbc.Button('Last 6 Weeks', id='l6w-button', color='primary', style={'marginRight': '1vw'}),
                     ]),
                 ]),
@@ -67,7 +69,7 @@ orange = config.get('oura', 'orange')
 ftp_color = 'rgb(100, 217, 236)'
 
 
-def generate_exercise_charts(timeframe, muscle_options, metric='1RM', sort_ascending=True):
+def generate_exercise_charts(timeframe, muscle_options, sort_ascending=True):
     df = pd.read_sql(sql=app.session.query(fitbod).statement, con=engine)
 
     # Merge 'muscle' into exercise table for mapping
@@ -80,50 +82,59 @@ def generate_exercise_charts(timeframe, muscle_options, metric='1RM', sort_ascen
 
     # Filter on selected date range
     if timeframe == 'ytd':
-        df = df[df['date_UTC'].dt.date >= date(datetime.today().year, 1, 1)]
+        # df = df[df['date_UTC'].dt.date >= date(datetime.today().year, 1, 1)]
+        daterange = [date(datetime.today().year, 1, 1), datetime.today().date()]
     elif timeframe == 'l6w':
-        df = df[df['date_UTC'].dt.date >= (datetime.now().date() - timedelta(days=42))]
+        # df = df[df['date_UTC'].dt.date >= (datetime.now().date() - timedelta(days=42))]
+        daterange = [datetime.now().date() - timedelta(days=42), datetime.today().date()]
+    elif timeframe == 'l6m':
+        # df = df[df['date_UTC'].dt.date >= (datetime.now().date() - timedelta(months=6))]
+        daterange = [datetime.now().date() - relativedelta(months=6), datetime.today().date()]
+    else:
+        # Dummy start date for 'All'
+        daterange = [date(1980, 1, 1)]
 
     if len(df) > 0:
-        if metric == '1RM':
-            # Calculate 1RM for exercise that have both weight and reps
-            df_1rm = df[(df['Weight']) > 0 & (df['Reps'] > 0)]
-            # Calculate Brzycki 1RM based off last 6 weeks of workouts
-            df_1rm['1RM'] = (df_1rm['Weight'] * (36 / (37 - df_1rm['Reps'])))
-            df_1rm['1RM_Type'] = '1RM (lbs)'
+        # Calculate 1RM for exercise that have both weight and reps
+        df_1rm = df[(df['Weight']) > 0 & (df['Reps'] > 0)]
+        # Calculate Brzycki 1RM based off last 6 weeks of workouts
+        df_1rm['1RM'] = (df_1rm['Weight'] * (36 / (37 - df_1rm['Reps'])))
+        df_1rm['1RM_Type'] = '1RM (lbs)'
 
-            # Show total Reps for exercises with no weight (where 1RM can't be calculated)
-            df_reps = df[(df['Weight'] == 0) & (df['Reps'] != 0) & (df['Duration'] == 0)]
-            df_reps['1RM'] = df_reps['Reps']
-            df_reps['1RM_Type'] = 'Reps'
-            # Remove exercises which have sets both with and without weight to avoid skewing % increases
-            df_reps = df_reps[~df_reps['Exercise'].isin(df_1rm['Exercise'].unique())]
+        # Show total Reps for exercises with no weight (where 1RM can't be calculated)
+        df_reps = df[(df['Weight'] == 0) & (df['Reps'] != 0) & (df['Duration'] == 0)]
+        df_reps['1RM'] = df_reps['Reps']
+        df_reps['1RM_Type'] = 'Reps'
+        # Remove exercises which have sets both with and without weight to avoid skewing % increases
+        df_reps = df_reps[~df_reps['Exercise'].isin(df_1rm['Exercise'].unique())]
 
-            # Show total volume (duration * weight) for time-based exercises (don't have reps so 1RM can't be calculated)
-            df_duration = df[(df['Weight'] == 0) & (df['Reps'] == 0) & (df['Duration'] != 0)]
-            df_duration['1RM'] = df_duration['Duration'] * df['Weight'].replace(0, 1)
-            df_duration['1RM_Type'] = 'Volume'
+        # Show total volume (duration * weight) for time-based exercises (don't have reps so 1RM can't be calculated)
+        df_duration = df[(df['Weight'] == 0) & (df['Reps'] == 0) & (df['Duration'] != 0)]
+        df_duration['1RM'] = df_duration['Duration'] * df['Weight'].replace(0, 1)
+        df_duration['1RM_Type'] = 'Volume'
 
-            # Consolidate dfs
-            df = pd.concat([df_1rm, df_reps, df_duration], ignore_index=True)
-            # Get max from each set
-            df = df.groupby(['date_UTC', 'Exercise', '1RM_Type'])['1RM'].max().reset_index()
+        # Consolidate dfs
+        df = pd.concat([df_1rm, df_reps, df_duration], ignore_index=True)
+        # Get max from each set
+        df = df.groupby(['date_UTC', 'Exercise', '1RM_Type'])['1RM'].max().reset_index()
 
-            # Sort by # change
-            for exercise in df['Exercise'].sort_values().unique():
-                df_temp = df[df['Exercise'] == exercise]
-                df.at[df['Exercise'] == exercise, '% Change'] = ((df_temp[metric].tail(1).values[0] -
-                                                                  df_temp[metric].head(1).values[0]) /
-                                                                 df_temp[metric].head(1).values[0]) * 100
+        # Sort by % change
+        for exercise in df['Exercise'].sort_values().unique():
+            df_temp = df[(df['Exercise'] == exercise) & (df['date_UTC'].dt.date >= daterange[0])]
+            try:
+                percent_change = ((df_temp['1RM'].tail(1).values[0] -
+                                   df_temp['1RM'].head(1).values[0]) /
+                                  df_temp['1RM'].head(1).values[0]) * 100
+            except:
+                percent_change = 0
+            df.at[df['Exercise'] == exercise, '% Change'] = percent_change
 
-        # # TODO: Add toggle for this? Currently front end hardcoded to 1RM
-        # elif metric == 'Volume':
-        #     # Calculate Volume and aggregate to the daily (workout) level
-        #     df['Volume'] = df['Reps'].replace(0, 1) * df['Weight'].replace(0, 1) * df['Duration'].replace(0, 1)
-        #     df = df.groupby(['date_UTC', 'Exercise'])['Volume'].sum().reset_index()
-
+        # Change sort of 'no change' so they show up at bottom
+        df.at[df['% Change'] == 0, '% Change'] = 9123456789
         # Sort exercises by areas which have least improvement on a % basis
         df = df.sort_values(by='% Change', ascending=sort_ascending)
+        # Change back so correct % Change shows
+        df.at[df['% Change'] == 9123456789, '% Change'] = 0
 
         widgets = []
         for exercise in df['Exercise'].unique():
@@ -138,12 +149,7 @@ def generate_exercise_charts(timeframe, muscle_options, metric='1RM', sort_ascen
 
                 # Sort by date ascending
                 df_temp = df_temp.sort_values(by=['date_UTC'])
-                # Calculate trend of each data point vs starting point
-                df_temp['% Change'] = df_temp[metric].apply(
-                    lambda x: ((x - df_temp[metric].head(1)) / df_temp[metric].head(1)) * 100)
-                tooltip = [df_temp['1RM_Type'].iloc[
-                               0] + ':<b>{:.0f} </b>({}{:.1f}%)'.format(x, '+' if y >= 0 else '', y) for (x, y) in
-                           zip(df_temp[metric], df_temp['% Change'])]
+                tooltip = [df_temp['1RM_Type'].iloc[0] + ':<b>{:.0f}'.format(x) for x in df_temp['1RM']]
 
                 widgets.append([exercise, backgroundColor,
                                 dcc.Graph(id=exercise + '-trend',
@@ -153,12 +159,14 @@ def generate_exercise_charts(timeframe, muscle_options, metric='1RM', sort_ascen
                                               'data': [
                                                   go.Scatter(
                                                       x=df_temp['date_UTC'],
-                                                      y=df_temp['% Change'],
+                                                      # y=df_temp['% Change'],
+                                                      y=df_temp['1RM'],
                                                       mode='lines+markers',
                                                       text=tooltip,
                                                       hoverinfo='x+text',
                                                       opacity=0.7,
-                                                      line={'color': teal}
+                                                      line={'color': teal},
+                                                      line_shape='spline'
                                                   ),
                                               ],
                                               'layout': go.Layout(
@@ -176,42 +184,60 @@ def generate_exercise_charts(timeframe, muscle_options, metric='1RM', sort_ascen
                                                       showticklabels=True,
                                                       tickformat='%b %d',
                                                       # Specify range to get rid of auto x-axis padding when using scatter markers
-                                                      # range=[df.index.max() - timedelta(days=41),
-                                                      #        df.index.max()],
-                                                      # rangeselector=dict(
-                                                      #     bgcolor='rgb(66, 66, 66)',
-                                                      #     bordercolor='#d4d4d4',
-                                                      #     borderwidth=.5,
-                                                      #     buttons=buttons,
-                                                      #     xanchor='center',
-                                                      #     x=.5,
-                                                      #     y=1,
-                                                      # ),
+                                                      range=[df_temp['date_UTC'].min(),
+                                                             df_temp[
+                                                                 'date_UTC'].max()] if timeframe == 'all' else daterange,
+                                                      rangeselector=dict(
+                                                          buttons=list([
+                                                              dict(step="all",
+                                                                   label="All"),
+                                                              dict(count=1,
+                                                                   label="YTD",
+                                                                   step="year",
+                                                                   stepmode="todate"),
+                                                              dict(count=6,
+                                                                   label="L6M",
+                                                                   step="month",
+                                                                   stepmode="backward"),
+                                                              dict(count=42,
+                                                                   label="L6W",
+                                                                   step="day",
+                                                                   stepmode="backward"),
+                                                          ]),
+                                                          xanchor='center',
+                                                          font=dict(
+                                                              size=10,
+                                                          ),
+                                                          x=.5,
+                                                          y=1,
+                                                      ),
+                                                      rangeslider=dict(
+                                                          visible=True
+                                                      ),
                                                   ),
                                                   yaxis=dict(
                                                       showgrid=False,
-                                                      showticklabels=False,
+                                                      showticklabels=True,
                                                       gridcolor='rgb(73, 73, 73)',
                                                       gridwidth=.5,
                                                       # tickformat='%',
 
                                                   ),
-                                                  margin={'l': 0, 'b': 25, 't': 20, 'r': 0},
+                                                  margin={'l': 20, 'b': 0, 't': 20, 'r': 20},
                                                   showlegend=False,
                                                   annotations=[
                                                       go.layout.Annotation(
-                                                          font={'size': 14},
+                                                          font={'size': 10},
+                                                          bgcolor='rgba(92,89,96,1)',
                                                           x=df_temp.loc[df_temp['date_UTC'].idxmax()]['date_UTC'],
-                                                          y=df_temp.loc[df_temp['date_UTC'].idxmax()]['% Change'],
-                                                          xref="x",
-                                                          yref="y",
-                                                          text="{:.1f}%".format(
+                                                          y=df_temp.loc[df_temp['date_UTC'].idxmax()]['1RM'],
+                                                          text="{} {:.0f}%".format(timeframe.upper(),
                                                               df_temp.loc[df_temp['date_UTC'].idxmax()]['% Change']),
                                                           showarrow=True,
                                                           arrowhead=0,
                                                           arrowcolor=white,
-                                                          ax=5,
-                                                          ay=-20
+                                                          ax=-20,
+                                                          ay=-20,
                                                       )
                                                   ],
                                                   hovermode='x',
@@ -225,7 +251,9 @@ def generate_exercise_charts(timeframe, muscle_options, metric='1RM', sort_ascen
             html.Div(className='col-lg-2 mb-3', children=[
                 dbc.Card(className=backgroundColor, children=[
                     dbc.CardHeader(exercise),
-                    dbc.CardBody(chart)
+                    dbc.CardBody(
+                        style={'padding': '.5rem'},
+                        children=chart)
                 ])]
                      ) for exercise, backgroundColor, chart in widgets]
 
@@ -249,23 +277,28 @@ def generate_exercise_charts(timeframe, muscle_options, metric='1RM', sort_ascen
 @app.callback([Output('exercise-containers', 'children'),
                Output('all-button', 'style'),
                Output('ytd-button', 'style'),
+               Output('l6m-button', 'style'),
                Output('l6w-button', 'style')],
               [Input('muscle-options', 'value'),
                Input('all-button', 'n_clicks'),
                Input('ytd-button', 'n_clicks'),
+               Input('l6m-button', 'n_clicks'),
                Input('l6w-button', 'n_clicks')],
               [State('all-button', 'style'),
                State('ytd-button', 'style'),
+               State('l6m-button', 'style'),
                State('l6w-button', 'style')]
               )
-def update_exercise_charts(muscle_options, all_n_clicks, ytd_n_clicks, l6w_n_clicks, all_style, ytd_style, l6w_style):
-    latest_dict = {'all-button': 'all', 'ytd-button': 'ytd', 'l6w-button': 'l6w'}
-    style = {'all': {'marginRight': '1vw'}, 'ytd': {'marginRight': '1vw'}, 'l6w': {'marginRight': '1vw'}}
+def update_exercise_charts(muscle_options, all_n_clicks, ytd_n_clicks, l6m_n_clicks, l6w_n_clicks, all_style, ytd_style,
+                           l6m_style, l6w_style):
+    latest_dict = {'all-button': 'all', 'ytd-button': 'ytd', 'l6m-button': 'l6m', 'l6w-button': 'l6w'}
+    style = {'all': {'marginRight': '1vw'}, 'ytd': {'marginRight': '1vw'}, 'l6m': {'marginRight': '1vw'},
+             'l6w': {'marginRight': '1vw'}}
     ctx = dash.callback_context
     if not ctx.triggered:
         latest = 'ytd'
     elif ctx.triggered[0]['prop_id'] == 'muscle-options.value':
-        for key, value in {'all': all_style, 'ytd': ytd_style, 'l6w': l6w_style}.items():
+        for key, value in {'all': all_style, 'ytd': ytd_style, 'l6m': l6m_style, 'l6w': l6w_style}.items():
             if value == {'marginRight': '1vw', 'color': '#64D9EC', 'borderColor': '#64D9EC'}:
                 latest = key
     else:
@@ -274,4 +307,4 @@ def update_exercise_charts(muscle_options, all_n_clicks, ytd_n_clicks, l6w_n_cli
     style[latest] = {'marginRight': '1vw', 'color': '#64D9EC', 'borderColor': '#64D9EC'}
 
     return generate_exercise_charts(timeframe=latest, muscle_options=muscle_options), style['all'], style['ytd'], style[
-        'l6w']
+        'l6m'], style['l6w']
