@@ -1469,32 +1469,40 @@ def workout_distribution(run_status, ride_status, all_status):
 
 
 def workout_summary_kpi(df_samples):
-    return [
-        html.Div(className='align-items-center text-center', style={'height': '25%'}, children=[
+    athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1).first()
+    use_power = True if athlete_info.use_run_power or athlete_info.use_cycle_power else False
+    app.session.remove()
+    height = '25%' if use_power else '33%'
+
+    data = [
+        html.Div(className='align-items-center text-center', style={'height': height}, children=[
             html.H5('Power', className=' mb-0'),
             html.P('Max: {:.0f}'.format(df_samples['watts'].max()), className='mb-0'),
             html.P('Avg: {:.0f}'.format(df_samples['watts'].mean()), className='mb-0'),
             html.P('Min: {:.0f}'.format(df_samples['watts'].min()), className='mb-0')
         ]),
-        html.Div(className='align-items-center text-center', style={'height': '25%'}, children=[
+        html.Div(className='align-items-center text-center', style={'height': height}, children=[
             html.H5('Heartrate', className='mb-0'),
             html.P('Max: {:.0f}'.format(df_samples['heartrate'].max()), className='mb-0'),
             html.P('Avg: {:.0f}'.format(df_samples['heartrate'].mean()), className=' mb-0'),
             html.P('Min: {:.0f}'.format(df_samples['heartrate'].min()), className=' mb-0')
         ]),
-        html.Div(className='align-items-center text-center', style={'height': '25%'}, children=[
+        html.Div(className='align-items-center text-center', style={'height': height}, children=[
             html.H5('Speed', className=' mb-0'),
             html.P('Max: {:.0f}'.format(df_samples['velocity_smooth'].max()), className=' mb-0'),
             html.P('Avg: {:.0f}'.format(df_samples['velocity_smooth'].mean()), className=' mb-0'),
             html.P('Min: {:.0f}'.format(df_samples['velocity_smooth'].min()), className='mb-0')
         ]),
-        html.Div(className='align-items-center text-center', style={'height': '25%'}, children=[
+        html.Div(className='align-items-center text-center', style={'height': height}, children=[
             html.H5('Cadence', className=' mb-0'),
             html.P('Max: {:.0f}'.format(df_samples['cadence'].max()), className=' mb-0'),
             html.P('Avg: {:.0f}'.format(df_samples['cadence'].mean()), className=' mb-0'),
             html.P('Min: {:.0f}'.format(df_samples['cadence'].min()), className=' mb-0')
-        ]),
+        ])
     ]
+    if not use_power:
+        data = data[1:]
+    return data
 
 
 def workout_details(df_samples, start_seconds=None, end_seconds=None):
@@ -1502,6 +1510,9 @@ def workout_details(df_samples, start_seconds=None, end_seconds=None):
     :param df_samples filtered on 1 activity
     :return: metric trend charts
     '''
+    athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1).first()
+    use_power = True if athlete_info.use_run_power or athlete_info.use_cycle_power else False
+    app.session.remove()
 
     df_samples['watts'] = df_samples['watts'].fillna(0)
     df_samples['heartrate'] = df_samples['heartrate'].fillna(0)
@@ -1523,6 +1534,85 @@ def workout_details(df_samples, start_seconds=None, end_seconds=None):
             df_samples.loc[idx, 'heartrate'] = np.nan
             df_samples.loc[idx, 'watts'] = np.nan
 
+    data = [
+        go.Scatter(
+            name='Speed',
+            x=df_samples['time_interval'],
+            y=round(df_samples['velocity_smooth']),
+            # hoverinfo='x+y',
+            yaxis='y2',
+            mode='lines',
+            line={'color': teal}
+        ),
+        go.Scatter(
+            name='Speed',
+            x=highlight_df['time_interval'],
+            y=round(highlight_df['velocity_smooth']),
+            # hoverinfo='x+y',
+            yaxis='y2',
+            mode='lines',
+            line={'color': orange}
+        ),
+        go.Scatter(
+            name='Cadence',
+            x=df_samples['time_interval'],
+            y=round(df_samples['cadence']),
+            # hoverinfo='x+y',
+            yaxis='y',
+            mode='lines',
+            line={'color': teal}
+        ),
+        go.Scatter(
+            name='Cadence',
+            x=highlight_df['time_interval'],
+            y=round(highlight_df['cadence']),
+            # hoverinfo='x+y',
+            yaxis='y',
+            mode='lines',
+            line={'color': orange}
+        ),
+        go.Scatter(
+            name='Heart Rate',
+            x=df_samples['time_interval'],
+            y=round(df_samples['heartrate']),
+            # hoverinfo='x+y',
+            yaxis='y3',
+            mode='lines',
+            line={'color': teal}
+        ),
+        go.Scatter(
+            name='Heart Rate',
+            x=highlight_df['time_interval'],
+            y=round(highlight_df['heartrate']),
+            # hoverinfo='x+y',
+            yaxis='y3',
+            mode='lines',
+            line={'color': orange}
+        ),
+    ]
+
+    if use_power:
+        data.extend([
+            go.Scatter(
+                name='Power',
+                x=df_samples['time_interval'],
+                y=round(df_samples['watts']),
+                # hoverinfo='x+y',
+                yaxis='y4',
+                mode='lines',
+                line={'color': teal}
+            ),
+            go.Scatter(
+                name='Power',
+                x=highlight_df['time_interval'],
+                y=round(highlight_df['watts']),
+                # hoverinfo='x+y',
+                yaxis='y4',
+                mode='lines',
+                line={'color': orange}
+            )
+        ])
+
     return html.Div([
         dcc.Graph(
             id='trends', style={'height': '100%'},
@@ -1530,82 +1620,9 @@ def workout_details(df_samples, start_seconds=None, end_seconds=None):
                 'displayModeBar': False,
             },
             # figure= fig
-            figure={
-                'data': [
-                    go.Scatter(
-                        name='Speed',
-                        x=df_samples['time_interval'],
-                        y=round(df_samples['velocity_smooth']),
-                        # hoverinfo='x+y',
-                        yaxis='y2',
-                        mode='lines',
-                        line={'color': teal}
-                    ),
-                    go.Scatter(
-                        name='Speed',
-                        x=highlight_df['time_interval'],
-                        y=round(highlight_df['velocity_smooth']),
-                        # hoverinfo='x+y',
-                        yaxis='y2',
-                        mode='lines',
-                        line={'color': orange}
-                    ),
-                    go.Scatter(
-                        name='Cadence',
-                        x=df_samples['time_interval'],
-                        y=round(df_samples['cadence']),
-                        # hoverinfo='x+y',
-                        yaxis='y',
-                        mode='lines',
-                        line={'color': teal}
-                    ),
-                    go.Scatter(
-                        name='Cadence',
-                        x=highlight_df['time_interval'],
-                        y=round(highlight_df['cadence']),
-                        # hoverinfo='x+y',
-                        yaxis='y',
-                        mode='lines',
-                        line={'color': orange}
-                    ),
-                    go.Scatter(
-                        name='Heart Rate',
-                        x=df_samples['time_interval'],
-                        y=round(df_samples['heartrate']),
-                        # hoverinfo='x+y',
-                        yaxis='y3',
-                        mode='lines',
-                        line={'color': teal}
-                    ),
-                    go.Scatter(
-                        name='Heart Rate',
-                        x=highlight_df['time_interval'],
-                        y=round(highlight_df['heartrate']),
-                        # hoverinfo='x+y',
-                        yaxis='y3',
-                        mode='lines',
-                        line={'color': orange}
-                    ),
-                    go.Scatter(
-                        name='Power',
-                        x=df_samples['time_interval'],
-                        y=round(df_samples['watts']),
-                        # hoverinfo='x+y',
-                        yaxis='y4',
-                        mode='lines',
-                        line={'color': teal}
-                    ),
-                    go.Scatter(
-                        name='Power',
-                        x=highlight_df['time_interval'],
-                        y=round(highlight_df['watts']),
-                        # hoverinfo='x+y',
-                        yaxis='y4',
-                        mode='lines',
-                        line={'color': orange}
-                    ),
 
-                ],
+            figure={
+                'data': data,
                 'layout': go.Layout(
                     # transition=dict(duration=transition),
 
@@ -1639,7 +1656,7 @@ def workout_details(df_samples, start_seconds=None, end_seconds=None):
                                   # round(df_samples['cadence'].mean()),
                                   df_samples['cadence'].max()],
                         zeroline=False,
-                        domain=[0, 0.24],
+                        domain=[0, 0.24] if use_power else [0, 0.32],
                         anchor='x'
                     ),
                     yaxis2=dict(
@@ -1649,7 +1666,7 @@ def workout_details(df_samples, start_seconds=None, end_seconds=None):
                                   # round(df_samples['velocity_smooth'].mean()),
                                   round(df_samples['velocity_smooth'].max())],
                         zeroline=False,
-                        domain=[0.26, 0.49],
+                        domain=[0.26, 0.49] if use_power else [.34, 0.66],
                         anchor='x'
                     ),
                     yaxis3=dict(
@@ -1659,7 +1676,7 @@ def workout_details(df_samples, start_seconds=None, end_seconds=None):
                                   # round(df_samples['heartrate'].mean()),
                                   df_samples['heartrate'].max()],
                         zeroline=False,
-                        domain=[0.51, 0.74],
+                        domain=[0.51, 0.74] if use_power else [0.68, 1],
                         anchor='x'
                     ),
                     yaxis4=dict(
@@ -1671,7 +1688,7 @@ def workout_details(df_samples, start_seconds=None, end_seconds=None):
                         zeroline=False,
                         domain=[0.76, 1],
                         anchor='x'
-                    )
+                    ) if use_power else None
 
                 )
             }
