@@ -639,22 +639,16 @@ def create_growth_chart():
 
     athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1).first()
     use_power = True if athlete_info.use_run_power or athlete_info.use_cycle_power else False
-    if not use_power:
-        metric = 'trimp'
-        df = pd.read_sql(
-            sql=app.session.query(stravaSummary.start_date_utc, stravaSummary.trimp, stravaSummary.activity_id).filter(
-                or_(
-                    extract('year', stravaSummary.start_date_utc) == datetime.utcnow().year,
-                    extract('year', stravaSummary.start_date_utc) == (datetime.utcnow().year - 1))
-            ).statement, con=engine, index_col='start_date_utc').sort_index(ascending=True)
-    else:
-        metric = 'tss'
-        df = pd.read_sql(
-            sql=app.session.query(stravaSummary.start_date_utc, stravaSummary.tss, stravaSummary.activity_id).filter(
-                or_(
-                    extract('year', stravaSummary.start_date_utc) == datetime.utcnow().year,
-                    extract('year', stravaSummary.start_date_utc) == (datetime.utcnow().year - 1))
-            ).statement, con=engine, index_col='start_date_utc').sort_index(ascending=True)
+    metric = 'tss' if use_power else 'trimp'
+    metric_table_obj = stravaSummary.tss if use_power else stravaSummary.trimp
+
+    df = pd.read_sql(
+        sql=app.session.query(stravaSummary.start_date_utc, metric_table_obj, stravaSummary.activity_id).filter(
+            stravaSummary.elapsed_time > stravaSummary.min_non_warmup_workout_time,
+            or_(
+                extract('year', stravaSummary.start_date_utc) == datetime.utcnow().year,
+                extract('year', stravaSummary.start_date_utc) == (datetime.utcnow().year - 1))
+        ).statement, con=engine, index_col='start_date_utc').sort_index(ascending=True)
 
     app.session.remove()
 
