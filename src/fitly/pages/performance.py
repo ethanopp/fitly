@@ -644,7 +644,7 @@ def create_growth_chart():
 
     df = pd.read_sql(
         sql=app.session.query(stravaSummary.start_date_utc, metric_table_obj, stravaSummary.activity_id).filter(
-            stravaSummary.elapsed_time > stravaSummary.min_non_warmup_workout_time,
+            stravaSummary.elapsed_time > athlete_info.min_non_warmup_workout_time,
             or_(
                 extract('year', stravaSummary.start_date_utc) == datetime.utcnow().year,
                 extract('year', stravaSummary.start_date_utc) == (datetime.utcnow().year - 1))
