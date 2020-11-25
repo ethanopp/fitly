@@ -67,48 +67,70 @@ orange = config.get('oura', 'orange')
 ftp_color = 'rgb(100, 217, 236)'
 
 
-def generate_exercise_charts(timeframe, muscle_options):
+def generate_exercise_charts(timeframe, muscle_options, metric='1RM'):
     df = pd.read_sql(sql=app.session.query(fitbod).statement, con=engine)
 
     # Merge 'muscle' into exercise table for mapping
     df_muscle = pd.read_sql(sql=app.session.query(fitbod_muscles).statement, con=engine)
     df = df.merge(df_muscle, how='left', left_on='Exercise', right_on='Exercise')
-
     app.session.remove()
 
     # Filter on selected msucles
     df = df[df['Muscle'].isin(muscle_options)]
 
-    if len(df) > 0:
-        # Calculate Volume and aggregate to the daily (workout) level
-        df['Volume'] = df['Reps'].replace(0, 1) * df['Weight'].replace(0, 1) * df['Duration'].replace(0, 1)
-        df = df.groupby(['date_UTC', 'Exercise'])['Volume'].sum().reset_index()
+    # Filter on selected date range
+    if timeframe == 'ytd':
+        df = df[df['date_UTC'].dt.date >= date(datetime.today().year, 1, 1)]
+    elif timeframe == 'l6w':
+        df = df[df['date_UTC'].dt.date >= (datetime.now().date() - timedelta(days=42))]
 
-        if timeframe == 'ytd':
-            df = df[df['date_UTC'].dt.date >= date(datetime.today().year, 1, 1)]
-        elif timeframe == 'l6w':
-            df = df[df['date_UTC'].dt.date >= (datetime.now().date() - timedelta(days=42))]
+    if len(df) > 0:
+        if metric == '1RM':
+            # Calculate 1RM for exercise that have both weight and reps
+            df_1rm = df[(df['Weight']) > 0 & (df['Reps'] > 0)]
+            # Calculate Brzycki 1RM based off last 6 weeks of workouts
+            df_1rm['1RM'] = (df_1rm['Weight'] * (36 / (37 - df_1rm['Reps'])))
+            df_1rm['1RM_Type'] = '1RM (lbs)'
+            # Show total Reps for exercises with no weight (where 1RM can't be calculated)
+            df_reps = df[(df['Weight'] == 0) & (df['Reps'] != 0)]
+            df_reps['1RM'] = df_reps['Reps']
+            df_reps['1RM_Type'] = 'Reps'
+            # Show total Duration for exercises with no weight or reps i.e. "Plank" (where 1RM can't be calculated)
+            df_duration = df[(df['Weight'] == 0) & (df['Reps'] == 0) & (df['Duration'] != 0)]
+            df_duration['1RM'] = df_duration['Duration']
+            df_duration['1RM_Type'] = 'Seconds'
+            # Consolidate dfs
+            df = pd.concat([df_1rm, df_reps, df_duration], ignore_index=True)
+            # Get max from each set
+            df = df.groupby(['date_UTC', 'Exercise', '1RM_Type'])['1RM'].max().reset_index()
+
+        # TODO: Add toggle for this? Currently front end hardcoded to 1RM
+        elif metric == 'Volume':
+            # Calculate Volume and aggregate to the daily (workout) level
+            df['Volume'] = df['Reps'].replace(0, 1) * df['Weight'].replace(0, 1) * df['Duration'].replace(0, 1)
+            df = df.groupby(['date_UTC', 'Exercise'])['Volume'].sum().reset_index()
 
         widgets = []
         for exercise in df['Exercise'].sort_values().unique():
             df_temp = df[df['Exercise'] == exercise]
-            try:
-                # Calculate overall start to end % change (1 number)
-                percent_change = ((df_temp['Volume'].tail(1).values[0] - df_temp['Volume'].head(1).values[0]) / \
-                                  df_temp['Volume'].head(1).values[0]) * 100
-                backgroundColor = 'border-danger' if percent_change < 0 else 'border-success' if percent_change > 0 else ''
-            except:
-                backgroundColor = ''
-
             # Only plot exercise if at least 2 different dates with that exercise
             if len(df_temp['date_UTC'].unique()) > 1:
+                try:
+                    # Calculate overall start to end % change (1 number)
+                    percent_change = ((df_temp[metric].tail(1).values[0] - df_temp[metric].head(1).values[0]) / \
+                                      df_temp[metric].head(1).values[0]) * 100
+                    backgroundColor = 'border-danger' if percent_change < 0 else 'border-success' if percent_change > 0 else ''
+                except:
+                    backgroundColor = ''
+
                 # Sort by date ascending
                 df_temp = df_temp.sort_values(by=['date_UTC'])
                 # Calculate trend of each data point vs starting point
-                df_temp['% Change'] = df_temp['Volume'].apply(
-                    lambda x: ((x - df_temp['Volume'].head(1)) / df_temp['Volume'].head(1)) * 100)
-                tooltip = ['Volume:<b>{:.0f} ({}{:.1f}%)'.format(x, '+' if y >= 0 else '', y) for (x, y) in
-                           zip(df_temp['Volume'], df_temp['% Change'])]
+                df_temp['% Change'] = df_temp[metric].apply(
+                    lambda x: ((x - df_temp[metric].head(1)) / df_temp[metric].head(1)) * 100)
+                tooltip = [df_temp['1RM_Type'].iloc[
+                               0] + ':<b>{:.0f} </b>({}{:.1f}%)'.format(x, '+' if y >= 0 else '', y) for (x, y) in
+                           zip(df_temp[metric], df_temp['% Change'])]
 
                 widgets.append([exercise, backgroundColor,
                                 dcc.Graph(id=exercise + '-trend',
