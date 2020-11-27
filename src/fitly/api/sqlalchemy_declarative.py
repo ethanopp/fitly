@@ -277,6 +277,42 @@ class ouraSleepSamples(Base):
     hypnogram_5min_desc = Column('hypnogram_5min_desc', String(8))
 
 
+class correlations(Base):
+    __tablename__ = 'correlations'
+    Metric = Column('Metric', String(), index=True, primary_key=True)
+    Average_METs = Column('Average METs', Float())
+    Activity_burn = Column('Activity burn', Float())
+    Total_burn = Column('Total burn', Float())
+    Walking_equivalent = Column('Walking equivalent', Float())
+    High_activity_time = Column('High activity time', Float())
+    Inactive_time = Column('Inactive time', Float())
+    Low_activity_time = Column('Low activity time', Float())
+    Med_activity_time = Column('Med activity time', Float())
+    Non_wear_time = Column('Non-wear time', Float())
+    Rest_time = Column('Rest time', Float())
+    Activity_Score = Column('Activity Score', Float())
+    Steps = Column('Steps', Float())
+    Total_activity_time = Column('Total activity time', Float())
+    Readiness_Score = Column('Readiness Score', Float())
+    Time_awake_in_bed = Column('Time awake in bed', Float())
+    Late_to_bedtime = Column('Late to bedtime', Float())
+    Respiratory_rate = Column('Respiratory rate', Float())
+    Deep_sleep = Column('Deep sleep', Float())
+    Time_in_bed = Column('Time in bed', Float())
+    Sleep_efficiency = Column('Sleep efficiency', Float())
+    Average_HR = Column('Average HR', Float())
+    Lowest_HR = Column('Lowest HR', Float())
+    Light_sleep = Column('Light sleep', Float())
+    Sleep_midpoint = Column('Sleep midpoint', Float())
+    Sleep_latency = Column('Sleep latency', Float())
+    REM_sleep = Column('REM sleep', Float())
+    Restlessness = Column('Restlessness', Float())
+    Average_HRV = Column('Average HRV', Float())
+    Sleep_score = Column('Sleep score', Float())
+    Temperature_deviation = Column('Temperature deviation', Float())
+    Total_sleep = Column('Total sleep', Float())
+
+
 class apiTokens(Base):
     __tablename__ = 'api_tokens'
     date_utc = Column('date_utc', DateTime(), index=True, primary_key=True)

@@ -1,6 +1,6 @@
 from oura import OuraClient
 from ..api.sqlalchemy_declarative import ouraReadinessSummary, ouraActivitySummary, \
-    ouraActivitySamples, ouraSleepSamples, ouraSleepSummary, apiTokens
+    ouraActivitySamples, ouraSleepSamples, ouraSleepSummary, apiTokens, correlations
 from ..api.database import engine
 from sqlalchemy import func, delete
 from datetime import datetime, timedelta
@@ -398,10 +398,17 @@ def insert_oura_correlations(days=42):
     df['rolling_days'] = days
     df.index.name = 'Metric'
 
-    df.to_sql('oura_correlations', engine, if_exists='replace', index=True)
+    df.to_sql('correlations', engine, if_exists='replace', index=True)
 
     app.session.remove()
     return df
+
+
+def top_correlations(n, column):
+    df = pd.read_sql(sql=app.session.query(correlations).statement, con=engine, index_col='Metric')
+    top = df[column].nlargest(n)
+    bottom = df[column].nsmallest(n)
+    return pd.concat([top, bottom])
 
 
 def pull_oura_data():
