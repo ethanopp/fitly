@@ -1401,7 +1401,9 @@ def generate_oura_sleep_content(date):
                         html.Div(children=['SLEEP EFFICIENCY']),
                         html.H6('{}%'.format(df['efficiency'].max()),
                                 className='mb-0')
-                    ])
+                    ]),
+                    dbc.Tooltip('Sleep efficiency is the percentage of time sleeping while in bed',
+                                target='sleep-efficiency-button'),
                 ])
             ]),
 
@@ -3328,7 +3330,8 @@ def get_layout(**kwargs):
                                                                     className='col mb-0'),
                                                             html.H2(id='sleep-kpi', className='col mb-0',
                                                                     style={'lineHeight': 1})
-                                                        ])
+                                                        ]),
+                                             dbc.Tooltip('Click for Sleep summary', target='sleep-kpi-summary-button'),
                                          ]),
                                          html.Div(className='row', children=[
                                              dcc.Graph(id='sleep-trend', className='col-lg-12',
@@ -3376,7 +3379,9 @@ def get_layout(**kwargs):
                                                                     className='col mb-0'),
                                                             html.H2(id='readiness-kpi', className='col mb-0',
                                                                     style={'lineHeight': 1})
-                                                        ])
+                                                        ]),
+                                             dbc.Tooltip('Click for Readiness summary',
+                                                         target='readiness-kpi-summary-button'),
                                          ]),
                                          html.Div(className='row', children=[
                                              dcc.Graph(id='readiness-scatter', className='col-lg-12',
@@ -3421,7 +3426,9 @@ def get_layout(**kwargs):
                                                                     className='col mb-0'),
                                                             html.H2(id='activity-kpi', className='col mb-0',
                                                                     style={'lineHeight': 1})
-                                                        ])
+                                                        ]),
+                                             dbc.Tooltip('Click for Activity summary',
+                                                         target='activity-kpi-summary-button'),
                                          ]),
                                          html.Div(className='row', children=[
                                              dcc.Graph(id='activity-bars', className='col-lg-12',
