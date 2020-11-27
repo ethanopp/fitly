@@ -8,6 +8,7 @@ import pandas as pd
 from ..app import app
 import ast
 from ..utils import config
+from functools import reduce
 
 client_id = config.get('oura', 'client_id')
 client_secret = config.get('oura', 'client_secret')
@@ -329,3 +330,24 @@ def pull_oura_data():
     # Do not need to convert to UTC because we want the time we went to sleep wherever we went to sleep, not necessarily always EST
     # API also returns what the timezone was, so storing in MySQL as datetime is not an issue as we can always convert back by adding
     # [timezone] minuts to the datetime that is stored to get to UTC, and then convert to anywhere else if necessary
+
+
+def oura_correlations():
+    activity = pd.read_sql(sql=app.session.query(ouraActivitySummary).statement, con=engine,
+                           index_col='summary_date').sort_index(
+        ascending=True).add_prefix('Activity_')
+    readiness = pd.read_sql(sql=app.session.query(ouraReadinessSummary).statement, con=engine,
+                            index_col='summary_date').sort_index(
+        ascending=True).add_prefix('Readiness_')
+    sleep = pd.read_sql(sql=app.session.query(ouraSleepSummary).statement, con=engine,
+                        index_col='summary_date').sort_index(
+        ascending=True).add_prefix('Sleep_')
+
+    # TODO: Remove columns that don't make sense to correlate
+    # TODO: Provide user friendly names to columns
+
+    dfs = [sleep, readiness, activity]
+    df = reduce(lambda left, right: pd.merge(left, right, left_index=True, right_index=True), dfs)
+
+    df = df.corr()
+    return df
