@@ -5,6 +5,7 @@ from ..api.database import engine
 from sqlalchemy import func, delete
 from datetime import datetime, timedelta
 import pandas as pd
+import numpy as np
 from ..app import app
 import ast
 from ..utils import config
@@ -309,6 +310,100 @@ def insert_sleep_data(df_sleep_summary, df_sleep_samples, days_back=7):
         app.server.logger.error(e)
 
 
+def insert_oura_correlations(days=42):
+    '''
+    Generates 6 week correlations of oura metrics and stores in table 'oura_correlations'
+
+    '''
+    l6w = pd.to_datetime(datetime.today() - timedelta(days=days)).date()
+
+    activity = pd.read_sql(
+        sql=app.session.query(ouraActivitySummary).filter(ouraActivitySummary.summary_date >= l6w).statement,
+        con=engine,
+        index_col='summary_date').sort_index(
+        ascending=True)
+    # Drop columns we don't want to correlate over
+    activity.drop(
+        columns=['inactivity_alerts', 'met_min_high', 'met_min_inactive', 'met_min_low', 'met_min_medium',
+                 'rest_mode_state', 'score_meet_daily_targets', 'score_move_every_hour', 'score_recovery_time',
+                 'score_stay_active', 'score_training_frequency', 'score_training_volume', 'target_calories',
+                 'target_km', 'target_miles', 'to_target_km', 'to_target_miles', 'timezone'], inplace=True)
+    activity = activity.add_prefix('Activity_')
+
+    readiness = pd.read_sql(
+        sql=app.session.query(ouraReadinessSummary).filter(ouraReadinessSummary.summary_date >= l6w).statement,
+        con=engine,
+        index_col='summary_date').sort_index(
+        ascending=True)
+    readiness.drop(
+        columns=[
+            'period_id', 'score_activity_balance', 'score_previous_day', 'score_previous_night', 'score_recovery_index',
+            'score_resting_hr', 'score_sleep_balance', 'score_temperature', 'score_hrv_balance', 'rest_mode_state'],
+        inplace=True)
+    readiness = readiness.add_prefix('Readiness_')
+
+    sleep = pd.read_sql(
+        sql=app.session.query(ouraSleepSummary).filter(ouraSleepSummary.summary_date >= l6w).statement,
+        con=engine,
+        index_col='summary_date').sort_index(
+        ascending=True)
+
+    sleep.drop(
+        columns=['bedtime_end_delta', 'is_longest', 'midpoint_at_delta', 'period_id', 'score_alignment', 'score_deep',
+                 'score_disturbances', 'score_efficiency', 'score_latency', 'score_rem', 'score_total',
+                 'temperature_delta', 'temperature_trend_deviation',
+                 'timezone'],
+        inplace=True)
+
+    sleep = sleep.add_prefix('Sleep_')
+
+    friendly_names = {'Activity_average_met': 'Average METs',
+                      'Activity_cal_active': 'Activity burn',
+                      'Activity_cal_total': 'Total burn',
+                      'Activity_daily_movement': 'Walking equivalent',
+                      'Activity_high': 'High activity time',
+                      'Activity_inactive': 'Inactive time',
+                      'Activity_low': 'Low activity time',
+                      'Activity_medium': 'Med activity time',
+                      'Activity_non_wear': 'Non-wear time',
+                      'Activity_rest': 'Rest time',
+                      'Activity_score': 'Activity Score',
+                      'Activity_steps': 'Steps',
+                      'Activity_total': 'Total activity time',
+                      'Readiness_score': 'Readiness Score',
+                      'Sleep_awake': 'Time awake in bed',
+                      'Sleep_bedtime_start_delta': 'Late to bedtime',
+                      'Sleep_breath_average': 'Respiratory rate',
+                      'Sleep_deep': 'Deep sleep',
+                      'Sleep_duration': 'Time in bed',
+                      'Sleep_efficiency': 'Sleep efficiency',
+                      'Sleep_hr_average': 'Average HR',
+                      'Sleep_hr_lowest': 'Lowest HR',
+                      'Sleep_light': 'Light sleep',
+                      'Sleep_midpoint_time': 'Sleep midpoint',
+                      'Sleep_onset_latency': 'Sleep latency',
+                      'Sleep_rem': 'REM sleep',
+                      'Sleep_restless': 'Restlessness',
+                      'Sleep_rmssd': 'Average HRV',
+                      'Sleep_score': 'Sleep score',
+                      'Sleep_temperature_deviation': 'Temperature deviation',
+                      'Sleep_total': 'Total sleep'}
+
+    dfs = [sleep, readiness, activity]
+    df = reduce(lambda left, right: pd.merge(left, right, left_index=True, right_index=True), dfs)
+
+    df.columns = df.columns.to_series().map(friendly_names)
+    df = df.corr().replace(1, np.nan)
+    # Store lookback days that was used for filtering historic data to run correlation on
+    df['rolling_days'] = days
+    df.index.name = 'Metric'
+
+    df.to_sql('oura_correlations', engine, if_exists='replace', index=True)
+
+    app.session.remove()
+    return df
+
+
 def pull_oura_data():
     if oura_connected():
         days_back = int(config.get('oura', 'days_back'))
@@ -324,30 +419,12 @@ def pull_oura_data():
         insert_activity_data(df_activity_summary, df_activity_samples, days_back)
         insert_sleep_data(df_sleep_summary, df_sleep_samples, days_back)
 
+        # Generate correlation table
+        insert_oura_correlations()
+
         return df_sleep_summary.index.max() == df_readiness_summary.index.max()  # == df_activity_summary.index.max()
 
     # Oura API returns times (bedtime_start, bedtime_end etc. in the timezone of the location where went to sleep.
     # Do not need to convert to UTC because we want the time we went to sleep wherever we went to sleep, not necessarily always EST
     # API also returns what the timezone was, so storing in MySQL as datetime is not an issue as we can always convert back by adding
     # [timezone] minuts to the datetime that is stored to get to UTC, and then convert to anywhere else if necessary
-
-
-def oura_correlations():
-    activity = pd.read_sql(sql=app.session.query(ouraActivitySummary).statement, con=engine,
-                           index_col='summary_date').sort_index(
-        ascending=True).add_prefix('Activity_')
-    readiness = pd.read_sql(sql=app.session.query(ouraReadinessSummary).statement, con=engine,
-                            index_col='summary_date').sort_index(
-        ascending=True).add_prefix('Readiness_')
-    sleep = pd.read_sql(sql=app.session.query(ouraSleepSummary).statement, con=engine,
-                        index_col='summary_date').sort_index(
-        ascending=True).add_prefix('Sleep_')
-
-    # TODO: Remove columns that don't make sense to correlate
-    # TODO: Provide user friendly names to columns
-
-    dfs = [sleep, readiness, activity]
-    df = reduce(lambda left, right: pd.merge(left, right, left_index=True, right_index=True), dfs)
-
-    df = df.corr()
-    return df
