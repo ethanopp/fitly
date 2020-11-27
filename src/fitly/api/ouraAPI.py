@@ -310,15 +310,15 @@ def insert_sleep_data(df_sleep_summary, df_sleep_samples, days_back=7):
         app.server.logger.error(e)
 
 
-def insert_oura_correlations(days=42):
+def insert_oura_correlations(lookback_days=42):
     '''
     Generates 6 week correlations of oura metrics and stores in table 'oura_correlations'
 
     '''
-    l6w = pd.to_datetime(datetime.today() - timedelta(days=days)).date()
+    lookback = pd.to_datetime(datetime.today() - timedelta(days=lookback_days)).date()
 
     activity = pd.read_sql(
-        sql=app.session.query(ouraActivitySummary).filter(ouraActivitySummary.summary_date >= l6w).statement,
+        sql=app.session.query(ouraActivitySummary).filter(ouraActivitySummary.summary_date >= lookback).statement,
         con=engine,
         index_col='summary_date').sort_index(
         ascending=True)
@@ -331,7 +331,7 @@ def insert_oura_correlations(days=42):
     activity = activity.add_prefix('Activity_')
 
     readiness = pd.read_sql(
-        sql=app.session.query(ouraReadinessSummary).filter(ouraReadinessSummary.summary_date >= l6w).statement,
+        sql=app.session.query(ouraReadinessSummary).filter(ouraReadinessSummary.summary_date >= lookback).statement,
         con=engine,
         index_col='summary_date').sort_index(
         ascending=True)
@@ -343,7 +343,7 @@ def insert_oura_correlations(days=42):
     readiness = readiness.add_prefix('Readiness_')
 
     sleep = pd.read_sql(
-        sql=app.session.query(ouraSleepSummary).filter(ouraSleepSummary.summary_date >= l6w).statement,
+        sql=app.session.query(ouraSleepSummary).filter(ouraSleepSummary.summary_date >= lookback).statement,
         con=engine,
         index_col='summary_date').sort_index(
         ascending=True)
@@ -395,7 +395,7 @@ def insert_oura_correlations(days=42):
     df.columns = df.columns.to_series().map(friendly_names)
     df = df.corr().replace(1, np.nan)
     # Store lookback days that was used for filtering historic data to run correlation on
-    df['rolling_days'] = days
+    df['rolling_days'] = lookback_days
     df.index.name = 'Metric'
 
     df.to_sql('correlations', engine, if_exists='replace', index=True)
@@ -431,7 +431,8 @@ def pull_oura_data():
         insert_sleep_data(df_sleep_summary, df_sleep_samples, days_back)
 
         # Generate correlation table
-        insert_oura_correlations()
+        # TODO: Add control to settings to allow end user to control lookback days for generating correlations table
+        insert_oura_correlations(lookback_days=9999)
 
         return df_sleep_summary.index.max() == df_readiness_summary.index.max()  # == df_activity_summary.index.max()
 
