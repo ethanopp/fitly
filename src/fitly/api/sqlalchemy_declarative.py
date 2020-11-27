@@ -290,10 +290,10 @@ class correlations(Base):
     Med_activity_time = Column('Med activity time', Float())
     Non_wear_time = Column('Non-wear time', Float())
     Rest_time = Column('Rest time', Float())
-    Activity_Score = Column('Activity Score', Float())
+    Activity_Score = Column('Activity score', Float())
     Steps = Column('Steps', Float())
     Total_activity_time = Column('Total activity time', Float())
-    Readiness_Score = Column('Readiness Score', Float())
+    Readiness_Score = Column('Readiness score', Float())
     Time_awake_in_bed = Column('Time awake in bed', Float())
     Late_to_bedtime = Column('Late to bedtime', Float())
     Respiratory_rate = Column('Respiratory rate', Float())
@@ -309,7 +309,7 @@ class correlations(Base):
     Restlessness = Column('Restlessness', Float())
     Average_HRV = Column('Average HRV', Float())
     Sleep_score = Column('Sleep score', Float())
-    Temperature_deviation = Column('Temperature deviation', Float())
+    Temp_deviation = Column('Temp. deviation', Float())
     Total_sleep = Column('Total sleep', Float())
 
 

@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import dash
+import dash_table
 import dash_core_components as dcc
 import dash_html_components as html
 import plotly.figure_factory as ff
@@ -12,6 +13,7 @@ from sqlalchemy import func
 from datetime import datetime, timedelta
 from ..api.sqlalchemy_declarative import ouraReadinessSummary, ouraActivitySummary, \
     ouraActivitySamples, ouraSleepSamples, ouraSleepSummary, stravaSummary, athlete, withings
+from ..api.ouraAPI import top_n_correlations
 from ..api.database import engine
 from ..utils import calc_next_saturday, calc_prev_sunday, utc_to_local, config, oura_credentials_supplied, \
     withings_credentials_supplied
@@ -26,6 +28,45 @@ orange = 'rgb(217,100,43)'
 grey = 'rgb(50,50,50)'
 
 chartHeight = 150
+
+
+def generate_correlation_table(n, metric):
+    df = top_n_correlations(n, metric)
+    df['Pos Corr Coef.'] = df['Pos Corr Coef.'].map('{:,.3f}'.format)
+    df['Neg Corr Coef.'] = df['Neg Corr Coef.'].map('{:,.3f}'.format)
+    return dash_table.DataTable(
+        id=metric + '-correlation-table',
+        columns=[{"name": i, "id": i} for i in df.columns],
+        data=df.to_dict('records'),
+        style_as_list_view=True,
+        fixed_rows={'headers': True, 'data': 0},
+        style_header={
+            'backgroundColor': 'rgba(66, 66, 66, 0)',
+            'borderBottom': '1px solid rgb(220, 220, 220)',
+            'borderTop': '0px',
+            'textAlign': 'center',
+            'fontSize': 12,
+            'fontWeight': 'bold',
+            'fontFamily': '"Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif',
+        },
+        style_cell={
+            'backgroundColor': 'rgba(66, 66, 66, 0)',
+            'color': 'rgb(220, 220, 220)',
+            'borderBottom': '1px solid rgb(73, 73, 73)',
+            'textOverflow': 'ellipsis',
+            'fontSize': 12,
+            'maxWidth': 30,
+            'fontFamily': '"Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif',
+        },
+        style_cell_conditional=[
+            {
+                'if': {'column_id': c},
+                'textAlign': 'center'
+            } for c in df.columns
+        ],
+
+        page_action="none",
+    )
 
 
 def modal_range_buttons(df, resample='D'):
@@ -1622,25 +1663,39 @@ def generate_sleep_modal_summary(days=7):
                 ]),
             ]),
 
-        html.Div(className='row align-items-center text-center', children=[
-            html.Div(id='sleep-groupby-controls', className='col-lg-12 mb-2 mt-2', children=[
-                dbc.Button('Year', id='sleep-year-button', n_clicks=0, size='sm', className='mr-3'),
-                dbc.Button('Month', id='sleep-month-button', n_clicks=0, size='sm', className='mr-3'),
-                dbc.Button('Week', id='sleep-week-button', n_clicks=0, size='sm', className='mr-3'),
-                dbc.Button('Day', id='sleep-day-button', size='sm')
-            ]),
-        ]),
         html.Div(className='row', children=[
-            html.Div(className='col-lg-12', children=[
-                dbc.Spinner(color='info', children=[
-
-                    dcc.Graph(id='sleep-modal-full-chart',
-                              config={'displayModeBar': False}
-                              ),
-
-                ]),
+            html.Div(id='sleep-score-correlations', className='col-lg-6', children=[
+                html.Div(id='sleep-score-correlation-title', className='col-lg-12 text-center',
+                         children=[html.P('Sleep Score Correlations')]),
+                html.Div(id='sleep-score-correlation-chart', className='col-lg-12',
+                         children=[generate_correlation_table(10, 'Sleep score')]
+                         )
             ]),
-        ]),
+
+            html.Div(className='col-lg-6', children=[
+                html.Div(className='row align-items-center text-center', children=[
+                    html.Div(id='sleep-groupby-controls', className='col-lg-12 mb-2 mt-2', children=[
+                        dbc.Button('Year', id='sleep-year-button', n_clicks=0, size='sm', className='mr-3'),
+                        dbc.Button('Month', id='sleep-month-button', n_clicks=0, size='sm', className='mr-3'),
+                        dbc.Button('Week', id='sleep-week-button', n_clicks=0, size='sm', className='mr-3'),
+                        dbc.Button('Day', id='sleep-day-button', size='sm')
+                    ]),
+                ]),
+
+                html.Div(className='row', children=[
+                    html.Div(className='col-lg-12', children=[
+                        dbc.Spinner(color='info', children=[
+
+                            dcc.Graph(id='sleep-modal-full-chart',
+                                      config={'displayModeBar': False}
+                                      ),
+
+                        ]),
+                    ]),
+                ]),
+            ])
+
+        ])
 
     ]
 
@@ -2271,25 +2326,39 @@ def generate_readiness_modal_summary(days=7):
                 ]),
             ]),
 
-        html.Div(className='row align-items-center text-center', children=[
-            html.Div(id='readiness-groupby-controls', className='col-lg-12 mb-2 mt-2', children=[
-                dbc.Button('Year', id='readiness-year-button', n_clicks=0, size='sm', className='mr-3'),
-                dbc.Button('Month', id='readiness-month-button', n_clicks=0, size='sm', className='mr-3'),
-                dbc.Button('Week', id='readiness-week-button', n_clicks=0, size='sm', className='mr-3'),
-                dbc.Button('Day', id='readiness-day-button', size='sm')
-            ]),
-        ]),
         html.Div(className='row', children=[
-            html.Div(className='col-lg-12', children=[
-                dbc.Spinner(color='info', children=[
-
-                    dcc.Graph(id='readiness-modal-full-chart',
-                              config={'displayModeBar': False}
-                              ),
-
-                ]),
+            html.Div(id='readiness-score-correlations', className='col-lg-6', children=[
+                html.Div(id='readiness-score-correlation-title', className='col-lg-12 text-center',
+                         children=[html.P('Readiness Score Correlations')]),
+                html.Div(id='readiness-score-correlation-chart', className='col-lg-12',
+                         children=[generate_correlation_table(10, 'Readiness score')]
+                         )
             ]),
-        ]),
+
+            html.Div(className='col-lg-6', children=[
+                html.Div(className='row align-items-center text-center', children=[
+                    html.Div(id='readiness-groupby-controls', className='col-lg-12 mb-2 mt-2', children=[
+                        dbc.Button('Year', id='readiness-year-button', n_clicks=0, size='sm', className='mr-3'),
+                        dbc.Button('Month', id='readiness-month-button', n_clicks=0, size='sm', className='mr-3'),
+                        dbc.Button('Week', id='readiness-week-button', n_clicks=0, size='sm', className='mr-3'),
+                        dbc.Button('Day', id='readiness-day-button', size='sm')
+                    ]),
+                ]),
+
+                html.Div(className='row', children=[
+                    html.Div(className='col-lg-12', children=[
+                        dbc.Spinner(color='info', children=[
+
+                            dcc.Graph(id='readiness-modal-full-chart',
+                                      config={'displayModeBar': False}
+                                      ),
+
+                        ]),
+                    ]),
+                ]),
+            ])
+
+        ])
 
     ]
 
@@ -2740,25 +2809,40 @@ def generate_activity_modal_summary(days=7):
                              )
                 ]),
             ]),
-        html.Div(className='row align-items-center text-center', children=[
-            html.Div(id='activity-groupby-controls', className='col-lg-12 mb-2 mt-2', children=[
-                dbc.Button('Year', id='activity-year-button', n_clicks=0, size='sm', className='mr-3'),
-                dbc.Button('Month', id='activity-month-button', n_clicks=0, size='sm', className='mr-3'),
-                dbc.Button('Week', id='activity-week-button', n_clicks=0, size='sm', className='mr-3'),
-                dbc.Button('Day', id='activity-day-button', size='sm')
-            ]),
-        ]),
+
         html.Div(className='row', children=[
-            html.Div(className='col-lg-12', children=[
-                dbc.Spinner(color='info', children=[
-
-                    dcc.Graph(id='activity-modal-full-chart',
-                              config={'displayModeBar': False}
-                              ),
-
-                ]),
+            html.Div(id='activity-score-correlations', className='col-lg-6', children=[
+                html.Div(id='activity-score-correlation-title', className='col-lg-12 text-center',
+                         children=[html.P('Activity Score Correlations')]),
+                html.Div(id='activity-score-correlation-chart', className='col-lg-12',
+                         children=[generate_correlation_table(10, 'Activity score')]
+                         )
             ]),
-        ]),
+
+            html.Div(className='col-lg-6', children=[
+                html.Div(className='row align-items-center text-center', children=[
+                    html.Div(id='activity-groupby-controls', className='col-lg-12 mb-2 mt-2', children=[
+                        dbc.Button('Year', id='activity-year-button', n_clicks=0, size='sm', className='mr-3'),
+                        dbc.Button('Month', id='activity-month-button', n_clicks=0, size='sm', className='mr-3'),
+                        dbc.Button('Week', id='activity-week-button', n_clicks=0, size='sm', className='mr-3'),
+                        dbc.Button('Day', id='activity-day-button', size='sm')
+                    ]),
+                ]),
+
+                html.Div(className='row', children=[
+                    html.Div(className='col-lg-12', children=[
+                        dbc.Spinner(color='info', children=[
+
+                            dcc.Graph(id='activity-modal-full-chart',
+                                      config={'displayModeBar': False}
+                                      ),
+
+                        ]),
+                    ]),
+                ]),
+            ])
+
+        ])
 
     ]
 

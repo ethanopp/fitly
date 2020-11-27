@@ -367,10 +367,10 @@ def insert_oura_correlations(days=42):
                       'Activity_medium': 'Med activity time',
                       'Activity_non_wear': 'Non-wear time',
                       'Activity_rest': 'Rest time',
-                      'Activity_score': 'Activity Score',
+                      'Activity_score': 'Activity score',
                       'Activity_steps': 'Steps',
                       'Activity_total': 'Total activity time',
-                      'Readiness_score': 'Readiness Score',
+                      'Readiness_score': 'Readiness score',
                       'Sleep_awake': 'Time awake in bed',
                       'Sleep_bedtime_start_delta': 'Late to bedtime',
                       'Sleep_breath_average': 'Respiratory rate',
@@ -386,7 +386,7 @@ def insert_oura_correlations(days=42):
                       'Sleep_restless': 'Restlessness',
                       'Sleep_rmssd': 'Average HRV',
                       'Sleep_score': 'Sleep score',
-                      'Sleep_temperature_deviation': 'Temperature deviation',
+                      'Sleep_temperature_deviation': 'Temp. deviation',
                       'Sleep_total': 'Total sleep'}
 
     dfs = [sleep, readiness, activity]
@@ -404,11 +404,15 @@ def insert_oura_correlations(days=42):
     return df
 
 
-def top_correlations(n, column):
+def top_n_correlations(n, column):
     df = pd.read_sql(sql=app.session.query(correlations).statement, con=engine, index_col='Metric')
-    top = df[column].nlargest(n)
-    bottom = df[column].nsmallest(n)
-    return pd.concat([top, bottom])
+    positive = df[column].nlargest(n).reset_index()
+    positive.columns = ['Positive', 'Pos Corr Coef.']
+
+    negative = df[column].nsmallest(n).reset_index()
+    negative.columns = ['Negative', 'Neg Corr Coef.']
+
+    return pd.merge(positive, negative, left_index=True, right_index=True)
 
 
 def pull_oura_data():
