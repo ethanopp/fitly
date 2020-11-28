@@ -21,19 +21,43 @@ transition = int(config.get('dashboard', 'transition'))
 
 
 def get_hrv_df():
-    hrv_df = pd.read_sql(sql=app.session.query(ouraSleepSummary.report_date, ouraSleepSummary.rmssd).statement,
+    hrv_df = pd.read_sql(sql=app.session.query(ouraSleepSummary.report_date, ouraSleepSummary.rmssd,
+                                               ouraSleepSummary.hr_average, ouraSleepSummary.hr_lowest).statement,
                          con=engine, index_col='report_date').sort_index(ascending=True)
     app.session.remove()
+
     # Calculate HRV metrics
     hrv_df.set_index(pd.to_datetime(hrv_df.index), inplace=True)
     hrv_df = hrv_df.resample('D').mean()
 
+    # Hrv baseline
     hrv_df['rmssd_7'] = hrv_df['rmssd'].rolling(7, min_periods=0).mean()
+
+    # Automated trend detection: https://www.hrv4training.com/blog/interpreting-hrv-trends
+    # # Calculate Slopes
+    # hrv_df['rmssd_7_slope'] = hrv_df['rmssd_7'].rolling(14).apply(
+    #     lambda x: np.polyfit(range(14), x, 1)[0], raw=True).values
+    #
+    # # Remove trivial changes
+    # hrv_df.loc[hrv_df['rmssd_7_slope'] > (
+    #         hrv_df['rmssd_7_slope'].rolling(14).mean() + hrv_df['rmssd_7_slope'].rolling(
+    #     14).std()), 'rmssd_7_slope_non_trivial'] = hrv_df['rmssd_7_slope']
+
+    # # HR baseline
+    # hrv_df['hr_lowest_7'] = hrv_df['hr_lowest'].rolling(7, min_periods=0).mean()
+    # # Coefficient of Variation baseline
+    # hrv_df['cv_rmssd_7'] = (hrv_df['rmssd'].rolling(7, min_periods=0).std() / hrv_df['rmssd_7']) * 100
+    # # HRV Normalized baseline
+    # hrv_df['hrv_normalized_7'] = hrv_df['rmssd_7'] / hrv_df['hr_average'].rolling(7, min_periods=0).mean()
+
     hrv_df['rmssd_7_yesterday'] = hrv_df['rmssd_7'].shift(1)
+    # Normal value thresholds
     hrv_df['rmssd_60'] = hrv_df['rmssd'].rolling(60, min_periods=0).mean()
     hrv_df['stdev_rmssd_60_threshold'] = hrv_df['rmssd'].rolling(60, min_periods=0).std() * .75
     hrv_df['swc_upper'] = hrv_df['rmssd_60'] + hrv_df['stdev_rmssd_60_threshold']
     hrv_df['swc_lower'] = hrv_df['rmssd_60'] - hrv_df['stdev_rmssd_60_threshold']
+
+    # Threshold Flags
     hrv_df['under_low_threshold'] = hrv_df['rmssd_7'] < hrv_df['swc_lower']
     hrv_df['under_low_threshold_yesterday'] = hrv_df['under_low_threshold'].shift(1)
     hrv_df['over_upper_threshold'] = hrv_df['rmssd_7'] > hrv_df['swc_upper']
