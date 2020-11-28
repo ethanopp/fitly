@@ -692,7 +692,7 @@ def hrv_training_workflow(min_non_warmup_workout_time, athlete_id=1):
         db_test.at[min_oura_date, 'hrv_workout_step'] = 0
         db_test.at[min_oura_date, 'hrv_workout_step_desc'] = 'Low'
         db_test.at[min_oura_date, 'completed'] = 0
-        db_test.at[min_oura_date, 'rationale'] = 'This is the first date 30 day hrv thresholds could be calculated'
+        db_test.at[min_oura_date, 'rationale'] = 'This is the first date hrv thresholds could be calculated'
         db_test.to_sql('hrv_workout_step_log', engine, if_exists='append', index=True)
 
     # Check if a step has already been inserted for today and if so check if workout has been completed yet
@@ -789,28 +789,28 @@ def hrv_training_workflow(min_non_warmup_workout_time, athlete_id=1):
                 # If lower threshold is crossed, switch to low intensity track
                 if df.at[i, 'lower_threshold_crossed'] == True:
                     current_step = 4
-                    rationale = '7 day HRV average crossed the 30 day baseline lower threshold.'
+                    rationale = '7 day HRV average crossed the lower threshold.'
                     app.server.logger.debug('Lower threshold crossed. Setting current step = 4')
                 # If we are below lower threshold, rest until back over threshold
                 elif df.at[i, 'under_low_threshold'] == True:
                     current_step = 5
-                    rationale = '7 day HRV average is under the 30 day baseline lower threshold.'
+                    rationale = '7 day HRV average is under the lower threshold.'
                     app.server.logger.debug('HRV is under threshold. Setting current step = 5')
 
                 ### Upper Threshold Exceptions ###
                 # If upper threshold is crossed, switch to high  intensity
                 elif df.at[i, 'upper_threshold_crossed'] == True:
                     current_step = 1
-                    rationale = '7 day HRV average crossed the 30 day baseline upper threshold.'
+                    rationale = '7 day HRV average crossed the upper threshold.'
                     app.server.logger.debug('Upper threshold crossed. Setting current step = 1')
                 # If we are above upper threshold, load high intensity until back under threshold
                 elif df.at[i, 'over_upper_threshold'] == True:
                     if hrv_increase:
                         current_step = 1
-                        rationale = '7 day HRV average increased and is still over the 30 day baseline upper threshold.'
+                        rationale = '7 day HRV average increased and is still over the upper threshold.'
                     else:
                         current_step = 2
-                        rationale = "7 day HRV average decreased but is still over the 30 day baseline upper threshold."
+                        rationale = "7 day HRV average decreased but is still over the upper threshold."
                     app.server.logger.debug(
                         'HRV is above threshold. Setting current step = {}.'.format(current_step))
 
