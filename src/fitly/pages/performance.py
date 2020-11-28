@@ -23,8 +23,6 @@ transition = int(config.get('dashboard', 'transition'))
 def get_layout(**kwargs):
     growth_figure, growth_hoverData = create_growth_chart()
     athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1).first()
-    use_run_power = athlete_info.use_run_power
-    use_cycle_power = athlete_info.use_cycle_power
     use_power = True if athlete_info.use_run_power or athlete_info.use_cycle_power else False
     app.session.remove()
     return html.Div([
@@ -383,8 +381,8 @@ orange = config.get('oura', 'orange')
 
 # Oura readiness ranges for recommendation
 oura_high_threshold = 85
-oura_med_threshold = 75
-oura_low_threshold = 65
+oura_med_threshold = 77
+oura_low_threshold = 70
 
 
 def training_zone(form):
@@ -1299,6 +1297,17 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
                 line={'color': dark_blue},
             ),
             go.Scatter(
+                name='HRV',
+                x=actual.index,
+                y=actual['rmssd'],
+                yaxis='y3',
+                mode='lines',
+                text=['HRV: <b>{:.0f} ({}{:.1f})'.format(x, '+' if x - y > 0 else '', x - y)
+                      for (x, y) in zip(actual['rmssd'], actual['rmssd'].shift(1))],
+                hoverinfo='text',
+                line={'color': 'rgba(220,220,220,.5)'},
+            ),
+            go.Scatter(
                 name='HRV 7 Day Avg',
                 x=actual.index,
                 y=actual['rmssd_7'],
@@ -1307,7 +1316,7 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
                 text=['7 Day HRV Avg: <b>{:.0f} ({}{:.1f})'.format(x, '+' if x - y > 0 else '', x - y)
                       for (x, y) in zip(actual['rmssd_7'], actual['rmssd_7'].shift(1))],
                 hoverinfo='text',
-                line={'color': teal},
+                line={'color': teal, 'shape': 'spline', 'dash': 'dot'},
             ),
             # Dummy scatter to store hrv plan recommendation so hovering data can be stored in hoverdata
             go.Scatter(
