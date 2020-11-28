@@ -20,6 +20,39 @@ from ..pages.power import power_curve, zone_chart
 transition = int(config.get('dashboard', 'transition'))
 
 
+def get_hrv_df():
+    hrv_df = pd.read_sql(sql=app.session.query(ouraSleepSummary.report_date, ouraSleepSummary.rmssd).statement,
+                         con=engine, index_col='report_date').sort_index(ascending=True)
+    app.session.remove()
+    # Calculate HRV metrics
+    hrv_df.set_index(pd.to_datetime(hrv_df.index), inplace=True)
+    hrv_df = hrv_df.resample('D').mean()
+
+    hrv_df['rmssd_7'] = hrv_df['rmssd'].rolling(7, min_periods=0).mean()
+    hrv_df['rmssd_7_yesterday'] = hrv_df['rmssd_7'].shift(1)
+    hrv_df['rmssd_60'] = hrv_df['rmssd'].rolling(60, min_periods=0).mean()
+    hrv_df['stdev_rmssd_60_threshold'] = hrv_df['rmssd'].rolling(60, min_periods=0).std() * .75
+    hrv_df['swc_upper'] = hrv_df['rmssd_60'] + hrv_df['stdev_rmssd_60_threshold']
+    hrv_df['swc_lower'] = hrv_df['rmssd_60'] - hrv_df['stdev_rmssd_60_threshold']
+    hrv_df['under_low_threshold'] = hrv_df['rmssd_7'] < hrv_df['swc_lower']
+    hrv_df['under_low_threshold_yesterday'] = hrv_df['under_low_threshold'].shift(1)
+    hrv_df['over_upper_threshold'] = hrv_df['rmssd_7'] > hrv_df['swc_upper']
+    hrv_df['over_upper_threshold_yesterday'] = hrv_df['over_upper_threshold'].shift(1)
+    for i in hrv_df.index:
+        if hrv_df.at[i, 'under_low_threshold_yesterday'] == False and hrv_df.at[
+            i, 'under_low_threshold'] == True:
+            hrv_df.at[i, 'lower_threshold_crossed'] = True
+        else:
+            hrv_df.at[i, 'lower_threshold_crossed'] = False
+        if hrv_df.at[i, 'over_upper_threshold_yesterday'] == False and hrv_df.at[
+            i, 'over_upper_threshold'] == True:
+            hrv_df.at[i, 'upper_threshold_crossed'] = True
+        else:
+            hrv_df.at[i, 'upper_threshold_crossed'] = False
+
+    return hrv_df
+
+
 def get_layout(**kwargs):
     growth_figure, growth_hoverData = create_growth_chart()
     athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1).first()
@@ -776,10 +809,6 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
     df_summary = pd.read_sql(sql=app.session.query(stravaSummary).statement, con=engine,
                              index_col='start_date_local').sort_index(ascending=True)
 
-    hrv_df = pd.read_sql(sql=app.session.query(ouraSleepSummary.report_date, ouraSleepSummary.rmssd).statement,
-                         con=engine,
-                         index_col='report_date').sort_index(ascending=True)
-
     athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1).first()
     rr_max_threshold = athlete_info.rr_max_goal
     rr_min_threshold = athlete_info.rr_min_goal
@@ -820,20 +849,7 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
     ]
 
     if oura_credentials_supplied:
-        # Resample hrv to fill any missing dates so rolling is always done at the correct # of days
-        hrv_df.set_index(pd.to_datetime(hrv_df.index), inplace=True)
-        hrv_df = hrv_df.resample('D').mean()
-        # Any changes to this code will have to be done in strava api hrv_workout_cycle() and hrv_workout_step_log would need to be truncated
-        # Recalculating here to plot on PMC (same calcs as in datapull.py)
-
-        # hrv_df['rmssd_7'] = hrv_df['rmssd'].ewm(7, min_periods=0).mean()
-        hrv_df['rmssd_7'] = hrv_df['rmssd'].rolling(7, min_periods=0).mean()
-        # hrv_df['rmssd_30'] = hrv_df['rmssd'].ewm(30, min_periods=0).mean()
-        hrv_df['rmssd_30'] = hrv_df['rmssd'].rolling(30, min_periods=0).mean()
-        # hrv_df['stdev_rmssd_30_threshold'] = hrv_df['rmssd'].ewm(30, min_periods=0).std() * .5
-        hrv_df['stdev_rmssd_30_threshold'] = hrv_df['rmssd'].rolling(30, min_periods=0).std() * .5
-        hrv_df['swc_upper'] = hrv_df['rmssd_30'] + hrv_df['stdev_rmssd_30_threshold']
-        hrv_df['swc_lower'] = hrv_df['rmssd_30'] - hrv_df['stdev_rmssd_30_threshold']
+        hrv_df = get_hrv_df()
 
     # Create flag to color tss bars when ftp test - use number so column remains through resample
     df_new_run_ftp = df_summary[df_summary['type'].str.lower().str.contains('run')]
@@ -1305,7 +1321,7 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
                 text=['HRV: <b>{:.0f} ({}{:.1f})'.format(x, '+' if x - y > 0 else '', x - y)
                       for (x, y) in zip(actual['rmssd'], actual['rmssd'].shift(1))],
                 hoverinfo='text',
-                line={'color': 'rgba(220,220,220,.5)'},
+                line={'color': 'rgba(220,220,220,.20)'},
             ),
             go.Scatter(
                 name='HRV 7 Day Avg',

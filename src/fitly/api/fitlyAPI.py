@@ -18,6 +18,7 @@ from .database import engine
 from ..utils import peloton_credentials_supplied, stryd_credentials_supplied, config
 import os
 import pandas as pd
+from ..pages.performance import get_hrv_df
 
 types = ['time', 'latlng', 'distance', 'altitude', 'velocity_smooth', 'heartrate', 'cadence', 'watts', 'temp',
          'moving', 'grade_smooth']
@@ -717,8 +718,7 @@ def hrv_training_workflow(min_non_warmup_workout_time, athlete_id=1):
 
     # If plan not yet created for today, create it
     else:
-        hrv_df = pd.read_sql(sql=app.session.query(ouraSleepSummary.report_date, ouraSleepSummary.rmssd).statement,
-                             con=engine, index_col='report_date').sort_index(ascending=True)
+        hrv_df = get_hrv_df()
 
         # Wait for today's hrv to be loaded into cloud
         if hrv_df.index.max() == datetime.today().date():  # or (datetime.now() - timedelta(hours=12)) > pd.to_datetime(datetime.today().date()):
@@ -773,32 +773,6 @@ def hrv_training_workflow(min_non_warmup_workout_time, athlete_id=1):
 
             # Drop historical rows that were used for 'yesterday calcs' so we are only working with todays data
             # step_log_df = step_log_df.iloc[1:]
-
-            # Calculate HRV metrics
-            hrv_df.set_index(pd.to_datetime(hrv_df.index), inplace=True)
-            hrv_df = hrv_df.resample('D').mean()
-
-            hrv_df['rmssd_7'] = hrv_df['rmssd'].rolling(7, min_periods=0).mean()
-            hrv_df['rmssd_7_yesterday'] = hrv_df['rmssd_7'].shift(1)
-            hrv_df['rmssd_30'] = hrv_df['rmssd'].rolling(30, min_periods=0).mean()
-            hrv_df['stdev_rmssd_30_threshold'] = hrv_df['rmssd'].rolling(30, min_periods=0).std() * .5
-            hrv_df['swc_upper'] = hrv_df['rmssd_30'] + hrv_df['stdev_rmssd_30_threshold']
-            hrv_df['swc_lower'] = hrv_df['rmssd_30'] - hrv_df['stdev_rmssd_30_threshold']
-            hrv_df['under_low_threshold'] = hrv_df['rmssd_7'] < hrv_df['swc_lower']
-            hrv_df['under_low_threshold_yesterday'] = hrv_df['under_low_threshold'].shift(1)
-            hrv_df['over_upper_threshold'] = hrv_df['rmssd_7'] > hrv_df['swc_upper']
-            hrv_df['over_upper_threshold_yesterday'] = hrv_df['over_upper_threshold'].shift(1)
-            for i in hrv_df.index:
-                if hrv_df.at[i, 'under_low_threshold_yesterday'] == False and hrv_df.at[
-                    i, 'under_low_threshold'] == True:
-                    hrv_df.at[i, 'lower_threshold_crossed'] = True
-                else:
-                    hrv_df.at[i, 'lower_threshold_crossed'] = False
-                if hrv_df.at[i, 'over_upper_threshold_yesterday'] == False and hrv_df.at[
-                    i, 'over_upper_threshold'] == True:
-                    hrv_df.at[i, 'upper_threshold_crossed'] = True
-                else:
-                    hrv_df.at[i, 'upper_threshold_crossed'] = False
 
             # Merge dfs
             df = pd.merge(step_log_df, hrv_df, how='left', right_index=True, left_index=True)
