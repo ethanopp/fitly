@@ -25,7 +25,6 @@ def get_hrv_df():
                                                ouraSleepSummary.hr_average, ouraSleepSummary.hr_lowest).statement,
                          con=engine, index_col='report_date').sort_index(ascending=True)
     app.session.remove()
-
     # Calculate HRV metrics
     hrv_df.set_index(pd.to_datetime(hrv_df.index), inplace=True)
     hrv_df = hrv_df.resample('D').mean()
@@ -1016,6 +1015,13 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
 
         hover_rec = actual['workout_plan'].tail(1).values[0]
 
+    stress_bar_colors = []
+    for i in actual.index:
+        if use_power:
+            stress_bar_colors.append('green' if actual.at[i, 'tss_flag'] == 1 else 'red' if actual.at[
+                                                                                                i, 'tss_flag'] == -1 else 'rgba(127, 127, 127, 1)')
+        else:
+            stress_bar_colors.append('rgba(127, 127, 127, 1)')
     ### Start Graph ###
     hoverData = {'points': [{'x': actual.index.max().date(),
                              'y': latest['CTL'].max(),
@@ -1102,10 +1108,7 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
                 text=actual['stress_tooltip'],
                 hoverinfo='text',
                 marker={
-                    'color': ['green' if actual.at[i, 'tss_flag'] == 1 else 'red' if actual.at[
-                                                                                         i, 'tss_flag'] == -1 else 'rgba(127, 127, 127, 1)'
-                              for i
-                              in actual.index]}
+                    'color': stress_bar_colors}
             ),
 
             go.Scatter(
