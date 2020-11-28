@@ -280,37 +280,130 @@ class ouraSleepSamples(Base):
 class correlations(Base):
     __tablename__ = 'correlations'
     Metric = Column('Metric', String(), index=True, primary_key=True)
+
+    Average_METs_prev = Column('Average METs (prev)', Float())
     Average_METs = Column('Average METs', Float())
+    Average_METs_next = Column('Average METs (next)', Float())
+
+    Activity_burn_prev = Column('Activity burn (prev)', Float())
     Activity_burn = Column('Activity burn', Float())
+    Activity_burn_next = Column('Activity burn (next)', Float())
+
+    Total_burn_prev = Column('Total burn (prev)', Float())
     Total_burn = Column('Total burn', Float())
+    Total_burn_next = Column('Total burn (next)', Float())
+
+    Walking_equivalent_prev = Column('Walking equivalent (prev)', Float())
     Walking_equivalent = Column('Walking equivalent', Float())
+    Walking_equivalent_next = Column('Walking equivalent (next)', Float())
+
+    High_activity_time_prev = Column('High activity time (prev)', Float())
     High_activity_time = Column('High activity time', Float())
+    High_activity_time_next = Column('High activity time (next)', Float())
+
+    Inactive_time_prev = Column('Inactive time (prev)', Float())
     Inactive_time = Column('Inactive time', Float())
+    Inactive_time_next = Column('Inactive time (next)', Float())
+
+    Low_activity_time_prev = Column('Low activity time (prev)', Float())
     Low_activity_time = Column('Low activity time', Float())
+    Low_activity_time_next = Column('Low activity time (next)', Float())
+
+    Med_activity_time_prev = Column('Med activity time (prev)', Float())
     Med_activity_time = Column('Med activity time', Float())
+    Med_activity_time_next = Column('Med activity time (next)', Float())
+
+    Non_wear_time_prev = Column('Non-wear time (prev)', Float())
     Non_wear_time = Column('Non-wear time', Float())
+    Non_wear_time_next = Column('Non-wear time (next)', Float())
+
+    Rest_time_prev = Column('Rest time (prev)', Float())
     Rest_time = Column('Rest time', Float())
-    Activity_Score = Column('Activity score', Float())
+    Rest_time_next = Column('Rest time (next)', Float())
+
+    Activity_score_prev = Column('Activity score (prev)', Float())
+    Activity_score = Column('Activity score', Float())
+    Activity_score_next = Column('Activity score (next)', Float())
+
+    Steps_prev = Column('Steps (prev)', Float())
     Steps = Column('Steps', Float())
+    Steps_next = Column('Steps (next)', Float())
+
+    Total_activity_time_prev = Column('Total activity time (prev)', Float())
     Total_activity_time = Column('Total activity time', Float())
-    Readiness_Score = Column('Readiness score', Float())
+    Total_activity_time_next = Column('Total activity time (next)', Float())
+
+    Readiness_score_prev = Column('Readiness score (prev)', Float())
+    Readiness_score = Column('Readiness score', Float())
+    Readiness_score_next = Column('Readiness score (next)', Float())
+
+    Time_awake_in_bed_prev = Column('Time awake in bed (prev)', Float())
     Time_awake_in_bed = Column('Time awake in bed', Float())
+    Time_awake_in_bed_next = Column('Time awake in bed (next)', Float())
+
+    Late_to_bedtime_prev = Column('Late to bedtime (prev)', Float())
     Late_to_bedtime = Column('Late to bedtime', Float())
+    Late_to_bedtime_next = Column('Late to bedtime (next)', Float())
+
+    Respiratory_rate_prev = Column('Respiratory rate (prev)', Float())
     Respiratory_rate = Column('Respiratory rate', Float())
+    Respiratory_rate_next = Column('Respiratory rate (next)', Float())
+
+    Deep_sleep_prev = Column('Deep sleep (prev)', Float())
     Deep_sleep = Column('Deep sleep', Float())
+    Deep_sleep_next = Column('Deep sleep (next)', Float())
+
+    Time_in_bed_prev = Column('Time in bed (prev)', Float())
     Time_in_bed = Column('Time in bed', Float())
+    Time_in_bed_next = Column('Time in bed (next)', Float())
+
+    Sleep_efficiency_prev = Column('Sleep efficiency (prev)', Float())
     Sleep_efficiency = Column('Sleep efficiency', Float())
+    Sleep_efficiency_next = Column('Sleep efficiency (next)', Float())
+
+    Average_HR_prev = Column('Average HR (prev)', Float())
     Average_HR = Column('Average HR', Float())
+    Average_HR_next = Column('Average HR (next)', Float())
+
+    Lowest_HR_prev = Column('Lowest HR (prev)', Float())
     Lowest_HR = Column('Lowest HR', Float())
+    Lowest_HR_next = Column('Lowest HR (next)', Float())
+
+    Light_sleep_prev = Column('Light sleep (prev)', Float())
     Light_sleep = Column('Light sleep', Float())
+    Light_sleep_next = Column('Light sleep (next)', Float())
+
+    Sleep_midpoint_prev = Column('Sleep midpoint (prev)', Float())
     Sleep_midpoint = Column('Sleep midpoint', Float())
+    Sleep_midpoint_next = Column('Sleep midpoint (next)', Float())
+
+    Sleep_latency_prev = Column('Sleep latency (prev)', Float())
     Sleep_latency = Column('Sleep latency', Float())
+    Sleep_latency_next = Column('Sleep latency (next)', Float())
+
+    REM_sleep_prev = Column('REM sleep (prev)', Float())
     REM_sleep = Column('REM sleep', Float())
+    REM_sleep_next = Column('REM sleep (next)', Float())
+
+    Restlessness_prev = Column('Restlessness (prev)', Float())
     Restlessness = Column('Restlessness', Float())
+    Restlessness_next = Column('Restlessness (next)', Float())
+
+    Average_HRV_prev = Column('Average HRV (prev)', Float())
     Average_HRV = Column('Average HRV', Float())
+    Average_HRV_next = Column('Average HRV (next)', Float())
+
+    Sleep_score_prev = Column('Sleep score (prev)', Float())
     Sleep_score = Column('Sleep score', Float())
+    Sleep_score_next = Column('Sleep score (next)', Float())
+
+    Temp_deviation_prev = Column('Temp. deviation (prev)', Float())
     Temp_deviation = Column('Temp. deviation', Float())
+    Temp_deviation_next = Column('Temp. deviation (next)', Float())
+
+    Total_sleep_prev = Column('Total sleep (prev)', Float())
     Total_sleep = Column('Total sleep', Float())
+    Total_sleep_next = Column('Total sleep (next)', Float())
 
 
 class apiTokens(Base):

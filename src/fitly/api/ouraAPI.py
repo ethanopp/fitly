@@ -396,8 +396,8 @@ def insert_oura_correlations(lookback_days=42):
 
     # Create Prev/Next day for all columns
     for col in friendly_names.values():
-        df[col + ' Prev Day'] = df[col].shift(1)
-        df[col + ' Next Day'] = df[col].shift(-1)
+        df[col + ' (prev)'] = df[col].shift(1)
+        df[col + ' (next)'] = df[col].shift(-1)
 
     df = df.corr().replace(1, np.nan)
     # Store lookback days that was used for filtering historic data to run correlation on
