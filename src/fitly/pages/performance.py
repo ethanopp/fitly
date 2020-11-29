@@ -16,6 +16,7 @@ from ..api.sqlalchemy_declarative import athlete, stravaSummary, stravaSamples, 
 from ..api.database import engine
 from ..utils import utc_to_local, config, oura_credentials_supplied
 from ..pages.power import power_curve, zone_chart
+import re
 
 transition = int(config.get('dashboard', 'transition'))
 
@@ -186,149 +187,157 @@ def get_layout(**kwargs):
                                  html.Div(id='pmd-kpi')
                              ]),
                              dbc.CardBody([
-                                 # generates from hoverData callback
-                                 html.Div(id='pmc-controls', className='row mb-2', children=[
-                                     html.Div(className='col-lg-8 offset-lg-1', children=[
-                                         html.Div(className='row', children=[
-                                             html.Div(id='run-pmc', className='col-2',
-                                                      children=[
-                                                          daq.BooleanSwitch(
-                                                              id='run-pmc-switch',
-                                                              on=True,
-                                                              style={'display': 'inline-block',
-                                                                     'vertical-align': 'middle'}
-                                                          ),
-                                                          html.I(id='ride-pmc-icon', className='fa fa-running',
-                                                                 style={'fontSize': '1.5rem', 'display': 'inline-block',
-                                                                        'vertical-align': 'middle'}),
-                                                      ]),
-                                             dbc.Tooltip(
-                                                 'Include running workouts in Fitness trend.',
-                                                 target="run-pmc"),
-                                             html.Div(id='ride-pmc', className='col-2',
-                                                      children=[
-                                                          daq.BooleanSwitch(
-                                                              id='ride-pmc-switch',
-                                                              on=True,
-                                                              style={'display': 'inline-block',
-                                                                     'vertical-align': 'middle'}
-                                                          ),
-                                                          html.I(id='ride-pmc-icon', className='fa fa-bicycle',
-                                                                 style={'fontSize': '1.5rem', 'display': 'inline-block',
-                                                                        'vertical-align': 'middle'}),
-                                                      ]),
-                                             dbc.Tooltip(
-                                                 'Include cycling workouts in Fitness trend.',
-                                                 target="ride-pmc"),
-
-                                             html.Div(id='all-pmc', className='col-2',
-                                                      children=[
-                                                          daq.BooleanSwitch(
-                                                              id='all-pmc-switch',
-                                                              on=True,
-                                                              style={'display': 'inline-block',
-                                                                     'vertical-align': 'middle'}
-                                                          ),
-                                                          html.I(id='all-pmc-icon', className='fa fa-stream',
-                                                                 style={'fontSize': '1.5rem', 'display': 'inline-block',
-                                                                        'vertical-align': 'middle'}),
-                                                      ]),
-                                             dbc.Tooltip(
-                                                 'Include all other workouts in Fitness trend.',
-                                                 target="all-pmc"),
-
-                                             html.Div(id='hr-pmc', className='col-2',
-                                                      children=[
-                                                          daq.BooleanSwitch(
-                                                              id='hr-pmc-switch',
-                                                              on=True,
-                                                              style={'display': 'inline-block',
-                                                                     'vertical-align': 'middle'}
-                                                          ),
-                                                          html.I(id='hr-pmc-icon', className='fa fa-heart',
-                                                                 style={'fontSize': '1.5rem', 'display': 'inline-block',
-                                                                        'vertical-align': 'middle'}),
-                                                      ]),
-                                             dbc.Tooltip(
-                                                 'Include heart rate data for stress scores.',
-                                                 target="hr-pmc"),
-                                             html.Div(id='power-pmc', className='col-2',
-                                                      children=[
-                                                          daq.BooleanSwitch(
-                                                              id='power-pmc-switch',
-                                                              on=use_power,
-                                                              style={'display': 'inline-block',
-                                                                     'vertical-align': 'middle'},
-                                                              disabled=not use_power
-                                                          ),
-                                                          html.I(id='power-pmc-icon', className='fa fa-bolt',
-                                                                 style={'fontSize': '1.5rem', 'display': 'inline-block',
-                                                                        'vertical-align': 'middle'}),
-                                                      ]),
-                                             dbc.Tooltip(
-                                                 'Include power data for stress scores.',
-                                                 target="power-pmc"),
-
-                                             html.Div(className='col-2',
-                                                      children=[
-                                                          html.Button(id="open-annotation-modal-button",
-                                                                      className='fa fa-comment-alt',
-                                                                      n_clicks=0,
-                                                                      style={'fontSize': '1.5rem',
-                                                                             'display': 'inline-block',
-                                                                             'vertical-align': 'middle',
-                                                                             'border': '0'}),
-                                                      ]),
-                                             dbc.Tooltip(
-                                                 'Chart Annotations',
-                                                 target="open-annotation-modal-button"),
-                                         ]),
-                                     ]),
-                                 ]),
 
                                  # Start Graph #
 
-                                 # Populated by callback
                                  html.Div(className='row', children=[
-                                     # html.Div([
-                                     dcc.Graph(id='pm-chart', className='col-lg-9 mr-0 ml-0',
+
+                                     html.Div(id='daily-recommendations', className='col-lg-3'),
+                                     # Populated by callback
+                                     # PMC Chart
+                                     dcc.Graph(id='pm-chart', className='col-lg-8 mr-0 ml-0',  # Populated by callback
                                                style={'height': '100%'},
                                                config={'displayModeBar': False}),
-                                     # ]),
+                                     # Switches
+                                     html.Div(id='pmc-controls', className='col-lg-1',
+                                              style={'display': 'flex', 'justifyContent': 'space-between'}, children=[
+                                             html.Div(className='row', children=[
+                                                 html.Div(id='run-pmc', className='col-lg-12 col-sm-4',
+                                                          children=[
+                                                              daq.BooleanSwitch(
+                                                                  id='run-pmc-switch',
+                                                                  on=True,
+                                                                  style={'display': 'inline-block',
+                                                                         'vertical-align': 'middle'}
+                                                              ),
+                                                              html.I(id='ride-pmc-icon', className='fa fa-running',
+                                                                     style={'fontSize': '1.5rem',
+                                                                            'display': 'inline-block',
+                                                                            'vertical-align': 'middle'}),
+                                                          ]),
+                                                 dbc.Tooltip(
+                                                     'Include running workouts in Fitness trend.',
+                                                     target="run-pmc"),
+                                                 html.Div(id='ride-pmc', className='col-lg-12 col-sm-4',
+                                                          children=[
+                                                              daq.BooleanSwitch(
+                                                                  id='ride-pmc-switch',
+                                                                  on=True,
+                                                                  style={'display': 'inline-block',
+                                                                         'vertical-align': 'middle'}
+                                                              ),
+                                                              html.I(id='ride-pmc-icon', className='fa fa-bicycle',
+                                                                     style={'fontSize': '1.5rem',
+                                                                            'display': 'inline-block',
+                                                                            'vertical-align': 'middle'}),
+                                                          ]),
+                                                 dbc.Tooltip(
+                                                     'Include cycling workouts in Fitness trend.',
+                                                     target="ride-pmc"),
 
-                                     html.Div(id='workout-distribution-table', className='col-lg-3', children=[
-                                         dash_table.DataTable(
-                                             id='workout-type-distributions',
-                                             columns=[{'name': 'Activity', 'id': 'workout'},
-                                                      {'name': '%', 'id': 'Percent of Total'}],
-                                             style_as_list_view=True,
-                                             fixed_rows={'headers': True, 'data': 0},
-                                             style_header={'backgroundColor': 'rgba(0,0,0,0)',
-                                                           'borderBottom': '1px solid rgb(220, 220, 220)',
-                                                           'borderTop': '0px',
-                                                           # 'textAlign': 'center',
-                                                           'fontWeight': 'bold',
-                                                           'fontFamily': '"Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif',
-                                                           },
-                                             style_cell={
-                                                 'backgroundColor': 'rgba(0,0,0,0)',
-                                                 'color': 'rgb(220, 220, 220)',
-                                                 'borderBottom': '1px solid rgb(73, 73, 73)',
-                                                 'textOverflow': 'ellipsis',
-                                                 'maxWidth': 25,
-                                                 'fontFamily': '"Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif',
-                                             },
-                                             style_cell_conditional=[
-                                                 {
-                                                     'if': {'column_id': c},
-                                                     'textAlign': 'center'
-                                                 } for c in ['workout', 'Percent of Total']
-                                             ],
+                                                 html.Div(id='all-pmc', className='col-lg-12 col-sm-4',
+                                                          children=[
+                                                              daq.BooleanSwitch(
+                                                                  id='all-pmc-switch',
+                                                                  on=True,
+                                                                  style={'display': 'inline-block',
+                                                                         'vertical-align': 'middle'}
+                                                              ),
+                                                              html.I(id='all-pmc-icon', className='fa fa-stream',
+                                                                     style={'fontSize': '1.5rem',
+                                                                            'display': 'inline-block',
+                                                                            'vertical-align': 'middle'}),
+                                                          ]),
+                                                 dbc.Tooltip(
+                                                     'Include all other workouts in Fitness trend.',
+                                                     target="all-pmc"),
 
-                                             page_action="none",
-                                         )
+                                                 html.Div(id='hr-pmc', className='col-lg-12 col-sm-4',
+                                                          children=[
+                                                              daq.BooleanSwitch(
+                                                                  id='hr-pmc-switch',
+                                                                  on=True,
+                                                                  style={'display': 'inline-block',
+                                                                         'vertical-align': 'middle'}
+                                                              ),
+                                                              html.I(id='hr-pmc-icon', className='fa fa-heart',
+                                                                     style={'fontSize': '1.5rem',
+                                                                            'display': 'inline-block',
+                                                                            'vertical-align': 'middle'}),
+                                                          ]),
+                                                 dbc.Tooltip(
+                                                     'Include heart rate data for stress scores.',
+                                                     target="hr-pmc"),
+                                                 html.Div(id='power-pmc', className='col-lg-12 col-sm-4',
+                                                          children=[
+                                                              daq.BooleanSwitch(
+                                                                  id='power-pmc-switch',
+                                                                  on=use_power,
+                                                                  style={'display': 'inline-block',
+                                                                         'vertical-align': 'middle'},
+                                                                  disabled=not use_power
+                                                              ),
+                                                              html.I(id='power-pmc-icon', className='fa fa-bolt',
+                                                                     style={'fontSize': '1.5rem',
+                                                                            'display': 'inline-block',
+                                                                            'vertical-align': 'middle'}),
+                                                          ]),
+                                                 dbc.Tooltip(
+                                                     'Include power data for stress scores.',
+                                                     target="power-pmc"),
 
-                                     ]),
+                                                 html.Div(className='col-lg-12 col-sm-4',
+                                                          children=[
+                                                              html.Button(id="open-annotation-modal-button",
+                                                                          className='fa fa-comment-alt',
+                                                                          n_clicks=0,
+                                                                          style={'fontSize': '1.5rem',
+                                                                                 'display': 'inline-block',
+                                                                                 'vertical-align': 'middle',
+                                                                                 'border': '0'}),
+                                                          ]),
+                                                 dbc.Tooltip(
+                                                     'Chart Annotations',
+                                                     target="open-annotation-modal-button"),
+                                             ]),
+
+                                         ]),
+
+                                     html.Div(id='workout-distribution-table', className='col-lg-3',
+                                              style={'display': 'none'},  # TODO: Remove to show workout distributions
+                                              children=[
+                                                  dash_table.DataTable(
+                                                      id='workout-type-distributions',
+                                                      columns=[{'name': 'Activity', 'id': 'workout'},
+                                                               {'name': '%', 'id': 'Percent of Total'}],
+                                                      style_as_list_view=True,
+                                                      fixed_rows={'headers': True, 'data': 0},
+                                                      style_header={'backgroundColor': 'rgba(0,0,0,0)',
+                                                                    'borderBottom': '1px solid rgb(220, 220, 220)',
+                                                                    'borderTop': '0px',
+                                                                    # 'textAlign': 'center',
+                                                                    'fontWeight': 'bold',
+                                                                    'fontFamily': '"Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif',
+                                                                    },
+                                                      style_cell={
+                                                          'backgroundColor': 'rgba(0,0,0,0)',
+                                                          'color': 'rgb(220, 220, 220)',
+                                                          'borderBottom': '1px solid rgb(73, 73, 73)',
+                                                          'textOverflow': 'ellipsis',
+                                                          'maxWidth': 25,
+                                                          'fontFamily': '"Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif',
+                                                      },
+                                                      style_cell_conditional=[
+                                                          {
+                                                              'if': {'column_id': c},
+                                                              'textAlign': 'center'
+                                                          } for c in ['workout', 'Percent of Total']
+                                                      ],
+
+                                                      page_action="none",
+                                                  )
+
+                                              ]),
 
                                  ]),
                              ]),
@@ -470,12 +479,23 @@ def readiness_score_recommendation(readiness_score):
         return 'Rest'
 
 
-def create_fitness_kpis(date, ctl, ramp, rr_min_threshold, rr_max_threshold, atl, tsb, hrv, hrv_plan_rec):
-    if hrv_plan_rec:
-        data = hrv_plan_rec.replace('rec_', '').split('-')
+def create_daily_recommendations(hrv, hrv_change, hrv7, hrv7_change, plan_rec):
+    if plan_rec:
+        data = plan_rec.replace('rec_', '').split('-')
         plan_recommendation = data[0]
         plan_rationale = data[1]
         oura_recommendation = data[2]
+        swc_lower = data[3]
+        swc_upper = data[4]
+
+        hrv = hrv if hrv else 'N/A'
+        hrv_change = hrv_change if hrv_change else 'N/A'
+        hrv_yesterday = hrv - hrv_change if hrv != 'N/A' and hrv_change != 'N/A' else 'N/A'
+
+        hrv7 = round(hrv7, 2) if hrv7 else 'N/A'
+        hrv7_change = round(hrv7_change, 2) if hrv7_change else 'N/A'
+        hrv7_yesterday = hrv7 - hrv7_change if hrv7 and hrv7_change else 'N/A'
+
         if oura_recommendation == 'Rest':
             oura_rationale = f'Readiness score is < {oura_low_threshold}'
         elif oura_recommendation == 'Low':
@@ -488,12 +508,134 @@ def create_fitness_kpis(date, ctl, ramp, rr_min_threshold, rr_max_threshold, atl
             oura_recommendation, oura_rationale = 'N/A', 'N/A'
         readiness_score = int(data[3])
     else:
-        plan_rationale, plan_recommendation, oura_recommendation, readiness_score, oura_rationale = 'N/A', 'N/A', 'N/A', None, None
+        hrv, hrv_change, hrv_yesterday, hrv7, hrv7_change, hrv7_yesterday, plan_rationale, plan_recommendation, oura_recommendation, readiness_score, oura_rationale = 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', None, None
 
-    hrv = round(hrv) if hrv else 'N/A'
+    readiness_score = round(readiness_score) if readiness_score else 'N/A'
+
+    if oura_recommendation == 'High':
+        oura_color = teal
+    elif oura_recommendation == 'Mod':
+        oura_color = light_blue
+    elif oura_recommendation == 'Low':
+        oura_color = white
+    elif oura_recommendation == 'Rest':
+        oura_color = orange
+    elif oura_recommendation == 'N/A':
+        oura_color = 'rgba(220,220,220,.25)'
+
+    return html.Div(id='recommendation', style={'height': '100%', 'display': 'flex', 'flexDirection': 'column',
+                                                'justifyContent': 'space-between'},
+                    children=[
+                        html.Div(children=[
+                            html.H4('Daily Recommendations', className='col-lg-12'),
+                            html.H6('Oura Recommendation', className='col-lg-12'),
+                            html.Div(className='col-lg-12', children=[
+                                dcc.Graph(id='oura-donut-chart', className='col-lg-12',
+                                          config={
+                                              'displayModeBar': False,
+                                          },
+                                          figure={
+                                              'data': [
+                                                  go.Pie(
+                                                      # name=kpi_name,
+                                                      sort=False,
+                                                      values=[readiness_score,
+                                                              100 - readiness_score] if readiness_score != 'N/A' else [
+                                                          0,
+                                                          0],
+                                                      hole=.8,
+                                                      hoverinfo='none',
+                                                      textinfo='none',
+                                                      marker=dict(colors=[oura_color,
+                                                                          'rgb(48, 48, 48)'])),
+
+                                              ],
+                                              'layout': go.Layout(
+                                                  height=100,
+                                                  transition=dict(duration=transition),
+                                                  showlegend=False,
+                                                  autosize=True,
+                                                  margin={'l': 0, 'b': 0, 't': 0, 'r': 0},
+                                                  annotations=[
+                                                      dict(
+                                                          font={
+                                                              "size": 14,
+                                                              "color": oura_color
+                                                          },
+                                                          showarrow=False,
+                                                          text="{:.0f}".format(
+                                                              readiness_score) if readiness_score != 'N/A' else 'N/A',
+                                                          x=0.5,
+                                                          y=0.85
+                                                      ),
+                                                      dict(
+                                                          font={
+                                                              "size": 20,
+                                                              "color": oura_color
+                                                          },
+                                                          showarrow=False,
+                                                          text=oura_recommendation,
+                                                          x=0.5,
+                                                          y=0.5
+                                                      ),
+                                                  ]
+
+                                              )
+                                          }
+                                          )
+                            ]),
+                            dbc.Tooltip(None if oura_recommendation == 'N/A' else oura_rationale,
+                                        target="oura-donut-chart"),
+
+                        ]),
+
+                        html.Div(children=[
+                            html.H6('HRV Recommendation', className='col-lg-12'),
+                            html.H4(plan_recommendation, className='col-lg-12', id='hrv-rationale'),
+                            dbc.Tooltip(None if plan_recommendation == 'N/A' else plan_rationale,
+                                        target="hrv-rationale", ),
+
+                            html.Div(className='row text-center align-items-center', children=[
+                                html.H6('Acute HRV', className='col-lg-12'),
+                                html.Div(className='col-lg-4', children=[
+                                    html.P(f'HRV {hrv}')
+                                ]),
+                                html.Div(className='col-lg-4', children=[
+                                    html.P(f'Yesterday {hrv_yesterday}')
+                                ]),
+                                html.Div(className='col-lg-4', children=[
+                                    html.P(f'Baseline {hrv7}')
+                                ]),
+                            ]),
+
+                            html.Div(className='row text-center align-items-center', children=[
+                                html.H6('Baseline HRV', className='col-lg-12'),
+                                html.Div(className='col-lg-4', children=[
+                                    html.P(f'Baseline {hrv7}')
+                                ]),
+                                html.Div(className='col-lg-4', children=[
+                                    html.P(f'Yesterday {hrv7_yesterday}')
+                                ]),
+                                html.Div(className='col-lg-4', children=[
+                                    html.P(f'Baseline {hrv7}')
+                                ]),
+                            ])
+
+                        ]),
+
+                        # html.Div(className='col-lg-4',
+                        #          children=[
+                        #              html.H6('Injury Risk: {}'.format(injury_risk), id='injury-rationale')]),
+                        # dbc.Tooltip('7 day CTL △ = {:.1f}'.format(ramp),
+                        #             target="injury-rationale", ),
+
+                    ])
+
+
+def create_fitness_kpis(date, ctl, ramp, rr_min_threshold, rr_max_threshold, atl, tsb, hrv7):
+    hrv7 = round(hrv7, 1) if hrv7 else 'N/A'
     ctl = round(ctl, 1) if ctl else 'N/A'
     tsb = round(tsb, 1) if tsb else 'N/A'
-    readiness_score = round(readiness_score) if readiness_score else 'N/A'
     injury_risk = 'High' if ramp >= rr_max_threshold else 'Medium' if ramp >= rr_min_threshold else 'Low'
 
     return [html.Div(className='row', children=[
@@ -543,49 +685,29 @@ def create_fitness_kpis(date, ctl, ramp, rr_min_threshold, rr_max_threshold, atl
             "Training Stress Balance (TSB) or Form represents the balance of training stress. A positive TSB number means that you would have a good chance of performing well during those 'positive' days, and would suggest that you are both fit and fresh.",
             target="tsb-kpi", ),
 
-        ### HRV KPI ###
-        html.Div(id='hrv-kpi', className='col-lg-2', children=[
+        ### HRV7 KPI ###
+        html.Div(id='hrv7-kpi', className='col-lg-2', children=[
             html.Div(children=[
-                html.H6('7 Day HRV {}'.format(hrv),
+                html.H6('7 Day HRV {}'.format(hrv7),
                         className='d-inline-block',
                         style={'color': teal, 'marginTop': '0', 'marginBottom': '0'})
             ]),
         ]),
         dbc.Tooltip(
             "Rolling 7 Day HRV Average. Falling below the baseline threshold indicates you are not recovered and should hold back on intense training. Staying within the thresholds indicates you should stay on course, and exceeding the thresholds indicates a positive adaptation and workout intensity can be increased.",
-            target="hrv-kpi", ),
+            target="hrv7-kpi", ),
 
         ### HRV Plan Recommended Workout ###
-        html.Div(id='oura-readiness', className='col-lg-2', children=[
+        html.Div(id='injury-risk', className='col-lg-2', children=[
             html.Div(children=[
-                html.H6('Oura: {}'.format(readiness_score),
+                html.H6('Injury Risk: {}'.format(injury_risk),
                         className='d-inline-block',
                         style={'color': white, 'marginTop': '0', 'marginBottom': '0'})
             ]),
         ]),
+        dbc.Tooltip('7 day CTL △ = {:.1f}'.format(ramp), target='injury-risk'),
 
-        dbc.Tooltip('Oura Readiness Score',
-                    target="oura-readiness", ),
     ]),
-
-            html.Div(id='workout-recommendation', className='row', children=[
-                html.Div(className='col-lg-4',
-                         children=[
-                             html.H6('HRV Recommendation: {}'.format(plan_recommendation), id='hrv-rationale')]),
-                dbc.Tooltip(None if plan_recommendation == 'N/A' else plan_rationale,
-                            target="hrv-rationale", ),
-                html.Div(className='col-lg-4',
-                         children=[
-                             html.H6('Oura Recommendation: {}'.format(oura_recommendation), id='oura-rationale')]),
-                dbc.Tooltip(oura_rationale,
-                            target="oura-rationale", ),
-                html.Div(className='col-lg-4',
-                         children=[
-                             html.H6('Injury Risk: {}'.format(injury_risk), id='injury-rationale')]),
-                dbc.Tooltip('7 day CTL △ = {:.1f}'.format(ramp),
-                            target="injury-rationale", ),
-
-            ])
 
             ]
 
@@ -1000,7 +1122,6 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
     # Start chart at first point where CTL exists (Start+42 days)
     pmd = pmd[42:]
     actual = actual[42:]
-    latest = actual.loc[actual.index.max()]
     if oura_credentials_supplied:
         # Merge hrv data into actual df
         actual = actual.merge(hrv_df, how='left', left_index=True, right_index=True)
@@ -1011,7 +1132,8 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
 
         actual['workout_plan'] = 'rec_' + actual['hrv_workout_step_desc'] + '-' + actual['rationale'] + '-' + actual[
             'score'].fillna(0).apply(
-            readiness_score_recommendation) + '-' + actual['score'].fillna(0).astype('int').astype('str')
+            readiness_score_recommendation) + '-' + actual['score'].fillna(0).astype('int').astype('str') + '-' + \
+                                 actual['swc_lower'].astype('str') + '-' + actual['swc_upper'].astype('str')
 
         hover_rec = actual['workout_plan'].tail(1).values[0]
 
@@ -1022,6 +1144,10 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
                                                                                                 i, 'tss_flag'] == -1 else 'rgba(127, 127, 127, 1)')
         else:
             stress_bar_colors.append('rgba(127, 127, 127, 1)')
+
+    latest = actual.loc[actual.index.max()]
+    yesterday = actual.loc[actual.index.max() - timedelta(days=1)]
+
     ### Start Graph ###
     hoverData = {'points': [{'x': actual.index.max().date(),
                              'y': latest['CTL'].max(),
@@ -1031,6 +1157,17 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
                             {'y': rr_min_threshold, 'text': 'RR Low'},
                             {'y': latest['ATL'].max(), 'text': 'Fatigue'},
                             {'y': latest['TSB'].max(), 'text': 'Form'},
+                            {'text': 'HRV: <b>{:.0f} ({}{:.0f})'.format(latest['rmssd'].max(),
+                                                                        '+' if latest['rmssd'].max() - yesterday[
+                                                                            'rmssd'].max() > 0 else '',
+                                                                        latest['rmssd'].max() - yesterday[
+                                                                            'rmssd'].max())},
+                            {'text': '7 Day HRV Avg: <b>{:.2f} ({}{:.2f})'.format(latest['rmssd_7'].max(),
+                                                                                  '+' if latest['rmssd_7'].max() -
+                                                                                         yesterday[
+                                                                                             'rmssd_7'].max() > 0 else '',
+                                                                                  latest['rmssd_7'].max() - yesterday[
+                                                                                      'rmssd_7'].max())},
                             ]
                  }
 
@@ -1306,7 +1443,7 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
                 side='right',
                 overlaying='y',
             ),
-            margin={'l': 25, 'b': 25, 't': 0, 'r': 25},
+            margin={'l': 0, 'b': 25, 't': 0, 'r': 0},
             showlegend=False,
             autosize=True,
             bargap=.75,
@@ -1345,7 +1482,7 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
                 y=actual['rmssd'],
                 yaxis='y3',
                 mode='lines',
-                text=['HRV: <b>{:.0f} ({}{:.1f})'.format(x, '+' if x - y > 0 else '', x - y)
+                text=['HRV: <b>{:.0f} ({}{:.0f})'.format(x, '+' if x - y > 0 else '', x - y)
                       for (x, y) in zip(actual['rmssd'], actual['rmssd'].shift(1))],
                 hoverinfo='text',
                 line={'color': 'rgba(220,220,220,.20)'},
@@ -1356,7 +1493,7 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
                 y=actual['rmssd_7'],
                 yaxis='y3',
                 mode='lines',
-                text=['7 Day HRV Avg: <b>{:.0f} ({}{:.1f})'.format(x, '+' if x - y > 0 else '', x - y)
+                text=['7 Day HRV Avg: <b>{:.2f} ({}{:.2f})'.format(x, '+' if x - y > 0 else '', x - y)
                       for (x, y) in zip(actual['rmssd_7'], actual['rmssd_7'].shift(1))],
                 hoverinfo='text',
                 line={'color': teal, 'shape': 'spline', 'dash': 'dot'},
@@ -1859,10 +1996,11 @@ def create_annotation_table():
 
 # PMC KPIs
 @app.callback(
-    Output('pmd-kpi', 'children'),
+    [Output('daily-recommendations', 'children'),
+     Output('pmd-kpi', 'children')],
     [Input('pm-chart', 'hoverData')])
 def update_fitness_kpis(hoverData):
-    date, fitness, ramp, fatigue, form, hrv, hrv_plan_rec = None, None, None, None, None, None, None
+    date, fitness, ramp, fatigue, form, hrv, hrv_change, hrv7, hrv7_change, plan_rec = None, None, None, None, None, None, None, None, None, None
     if hoverData is not None:
         if len(hoverData['points']) > 3:
             date = hoverData['points'][0]['x']
@@ -1880,15 +2018,19 @@ def update_fitness_kpis(hoverData):
                         fatigue = point['y']
                     if 'Form' in point['text']:
                         form = point['y']
+                    if 'HRV:' in point['text']:
+                        hrv = float(re.findall(r'(?<=\>)(.*?)(?=\s)', point['text'])[0])
+                        hrv_change = float(re.findall(r'\((.*?)\)', point['text'].replace('+', ''))[0])
                     if '7 Day' in point['text']:
-                        hrv = point['y']
+                        hrv7 = float(re.findall(r'(?<=\>)(.*?)(?=\s)', point['text'])[0])
+                        hrv7_change = float(re.findall(r'\((.*?)\)', point['text'].replace('+', ''))[0])
                     if 'rec_' in point['text']:
-                        hrv_plan_rec = point['text']
+                        plan_rec = point['text']
                 except:
                     continue
 
-            return create_fitness_kpis(date, fitness, ramp, rr_max_threshold, rr_min_threshold, fatigue, form, hrv,
-                                       hrv_plan_rec)
+            return create_daily_recommendations(hrv, hrv_change, hrv7, hrv7_change, plan_rec), \
+                   create_fitness_kpis(date, fitness, ramp, rr_max_threshold, rr_min_threshold, fatigue, form, hrv7)
 
 
 # PMD Boolean Switches
