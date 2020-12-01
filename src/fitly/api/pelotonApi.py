@@ -650,6 +650,11 @@ def get_class_types():
     peloton_class_types = res['class_types']
     peloton_class_dict = {}
     for x in peloton_class_types:
+        if x['fitness_discipline'] == 'bike_bootcamp':
+            x['fitness_discipline'] = 'Bootcamp (bike)'
+        elif x['fitness_discipline'] == 'circuit':
+            x['fitness_discipline'] = 'Bootcamp (tread)'
+
         if x['is_active']:
             if not peloton_class_dict.get(x['fitness_discipline']):
                 peloton_class_dict[x['fitness_discipline']] = {}
@@ -752,6 +757,8 @@ def get_bookmarks():
 
 
 from ..pages.performance import readiness_score_recommendation
+
+
 def set_peloton_workout_recommendations():
     athlete_peloton_settings = app.session.query(athlete.peloton_auto_bookmark_ids,
                                                  athlete.peloton_auto_bookmark_metric).filter(

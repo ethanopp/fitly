@@ -640,7 +640,7 @@ def create_daily_recommendations(hrv, hrv_change, hrv7, hrv7_change, plan_rec):
                             ]),
 
                             html.Div(className='row text-center align-items-center', children=[
-                                html.H6('Today', className='col-lg-12 mb-0'),
+                                html.H6("Today's HRV", className='col-lg-12 mb-0'),
                                 #     html.Div(className='col-lg-12 text-center align-items-center mb-2', children=[
                                 #         html.H5(hrv, style={'display': 'inline'}),
                             ]),
