@@ -678,7 +678,7 @@ def hrv_training_workflow(min_non_warmup_workout_time, athlete_id=1):
     Once stored, continuously check if workout has been completed and fill in 'Compelted' field
     '''
 
-    # https://www.trainingpeaks.com/coach-blog/new-study-widens-hrv-evidence-for-more-athletes/
+    # https://www.alancouzens.com/blog/Training_prescription_guided_by_HRV_in_cycling.pdf
 
     # Check if entire table is empty, if so the earliest hrv plan can start is after 30 days of hrv readings
     db_test = pd.read_sql(
@@ -722,11 +722,9 @@ def hrv_training_workflow(min_non_warmup_workout_time, athlete_id=1):
 
         # Wait for today's hrv to be loaded into cloud
         if hrv_df.index.max() == datetime.today().date():  # or (datetime.now() - timedelta(hours=12)) > pd.to_datetime(datetime.today().date()):
-
             step_log_df = pd.read_sql(
                 sql=app.session.query(hrvWorkoutStepLog.date, hrvWorkoutStepLog.hrv_workout_step,
-                                      hrvWorkoutStepLog.completed).filter(
-                    hrvWorkoutStepLog.athlete_id == 1).statement,
+                                      hrvWorkoutStepLog.completed).filter(hrvWorkoutStepLog.athlete_id == 1).statement,
                 con=engine, index_col='date').sort_index(ascending=False)
 
             # Store the last value of step 2 "HIIT" or "Mod" to cycle between the 2
@@ -735,21 +733,17 @@ def hrv_training_workflow(min_non_warmup_workout_time, athlete_id=1):
                     'hrv_workout_step_desc'].head(1).values[0]
             except:
                 last_hiit_mod = 'HIIT'
-            next_hiit_mod = 'HIIT' if last_hiit_mod == 'Mod' else 'Mod'
+            next_hiit_mod = 'HIIT' if last_hiit_mod == 'Moderate' else 'Moderate'
 
             step_log_df = step_log_df[step_log_df.index == step_log_df.index.max()]
-
             # Store last step in variable for starting point in loop
             last_db_step = step_log_df['hrv_workout_step'].iloc[0]
-
             # Resample to today
             step_log_df.at[pd.to_datetime(datetime.today().date()), 'hrv_workout_step'] = None
             step_log_df.set_index(pd.to_datetime(step_log_df.index), inplace=True)
             step_log_df = step_log_df.resample('D').mean()
-
             # Remove first row from df so it does not get re inserted into db
             step_log_df = step_log_df.iloc[1:]
-
             # We already know there is no step for today from "current_step" parameter, so manually add today's date
             step_log_df.at[pd.to_datetime(datetime.today().date()), 'completed'] = 0
 
@@ -757,8 +751,7 @@ def hrv_training_workflow(min_non_warmup_workout_time, athlete_id=1):
             if step_log_df['completed'].isnull().values.any():
                 workouts = pd.read_sql(
                     sql=app.session.query(stravaSummary.start_day_local, stravaSummary.activity_id).filter(
-                        stravaSummary.elapsed_time > min_non_warmup_workout_time)
-                        .statement, con=engine,
+                        stravaSummary.elapsed_time > min_non_warmup_workout_time).statement, con=engine,
                     index_col='start_day_local')
                 # Resample workouts to the per day level - just take max activity_id in case they were more than 1 workout for that day to avoid duplication of hrv data
                 workouts.set_index(pd.to_datetime(workouts.index), inplace=True)
@@ -783,69 +776,65 @@ def hrv_training_workflow(min_non_warmup_workout_time, athlete_id=1):
                 df.at[i, 'completed_yesterday'] = 1 if last_step == 4 or last_step == 5 else df.at[
                     i, 'completed_yesterday']
 
-                hrv_increase = df.at[i, 'rmssd_7'] >= df.at[i, 'rmssd_7_yesterday']
+                # hrv_increase = df.at[i, 'rmssd_7'] >= df.at[i, 'rmssd_7_yesterday']
+                within_swc = df.at[i, 'within_swc']
 
-                ### Low Threshold Exceptions ###
-                # If lower threshold is crossed, switch to low intensity track
-                if df.at[i, 'lower_threshold_crossed'] == True:
-                    current_step = 4
-                    rationale = '7 day HRV average crossed the lower threshold.'
-                    app.server.logger.debug('Lower threshold crossed. Setting current step = 4')
-                # If we are below lower threshold, rest until back over threshold
-                elif df.at[i, 'under_low_threshold'] == True:
-                    current_step = 5
-                    rationale = '7 day HRV average is under the lower threshold.'
-                    app.server.logger.debug('HRV is under threshold. Setting current step = 5')
+                # ### Low Threshold Exceptions ###
+                # # If lower threshold is crossed, switch to low intensity track
+                # if df.at[i, 'lower_threshold_crossed'] == True:
+                #     current_step = 4
+                #     rationale = '7 day HRV average crossed the lower threshold.'
+                #     app.server.logger.debug('Lower threshold crossed. Setting current step = 4')
+                # # If we are below lower threshold, rest until back over threshold
+                # elif df.at[i, 'under_low_threshold'] == True:
+                #     current_step = 5
+                #     rationale = '7 day HRV average is under the lower threshold.'
+                #     app.server.logger.debug('HRV is under threshold. Setting current step = 5')
 
-                ### Upper Threshold Exceptions ###
-                # If upper threshold is crossed, switch to high  intensity
-                elif df.at[i, 'upper_threshold_crossed'] == True:
-                    current_step = 1
-                    rationale = '7 day HRV average crossed the upper threshold.'
-                    app.server.logger.debug('Upper threshold crossed. Setting current step = 1')
-                # If we are above upper threshold, load high intensity until back under threshold
-                elif df.at[i, 'over_upper_threshold'] == True:
-                    if hrv_increase:
-                        current_step = 1
-                        rationale = '7 day HRV average increased and is still over the upper threshold.'
-                    else:
-                        current_step = 2
-                        rationale = "7 day HRV average decreased but is still over the upper threshold."
-                    app.server.logger.debug(
-                        'HRV is above threshold. Setting current step = {}.'.format(current_step))
+                # ### Upper Threshold Exceptions ###
+                # # If upper threshold is crossed, switch to high  intensity
+                # elif df.at[i, 'upper_threshold_crossed'] == True:
+                #     current_step = 1
+                #     rationale = '7 day HRV average crossed the upper threshold.'
+                #     app.server.logger.debug('Upper threshold crossed. Setting current step = 1')
+                # # If we are above upper threshold, load high intensity until back under threshold
+                # elif df.at[i, 'over_upper_threshold'] == True:
+                #     if hrv_increase:
+                #         current_step = 1
+                #         rationale = '7 day HRV average increased and is still over the upper threshold.'
+                #     else:
+                #         current_step = 2
+                #         rationale = "7 day HRV average decreased but is still over the upper threshold."
+                #     app.server.logger.debug(
+                #         'HRV is above threshold. Setting current step = {}.'.format(current_step))
 
                 ### Missed Workout Exceptions ###
-                # If workout was not completed yesterday but we are still within thresholds and current step is high/moderate go high if hrv increases, or stay on moderate if hrv decreases
-                elif df.at[i, 'completed_yesterday'] == 0 and df.at[i, 'under_low_threshold'] == False and df.at[
-                    i, 'over_upper_threshold'] == False and (last_step == 1 or last_step == 2):
-                    if hrv_increase:
-                        current_step = 1
-                        rationale = "7 day HRV average increased and yesterday's workout was not completed."
-                    else:
-                        current_step = 2
-                        rationale = "7 day HRV average decreased and yesterday's workout was not completed."
+                # If workout was not completed yesterday but we are still within thresholds maintain current step
+                if df.at[i, 'completed_yesterday'] == 0 and within_swc and last_step in [1, 2]:
+                    current_step = last_step
+                    rationale = "Yesterday's workout was not completed and we are still within SWC."
                     app.server.logger.debug(
                         'No workout detected for previous day however still within thresholds. Maintaining last step = {}'.format(
                             current_step))
                 else:
                     app.server.logger.debug(
                         'No exceptions detected. Following the normal workout plan workflow.')
-                    rationale = '7 day HRV average is within the tresholds. Following the normal workout plan workflow.'
+                    rationale = 'Normal workout plan workflow.'
                     # Workout workflow logic when no exceptions
                     if last_step == 0:
                         current_step = 1
                     elif last_step == 1:
-                        current_step = 2 if hrv_increase else 6
+                        current_step = 2 if within_swc else 6
                     elif last_step == 2:
                         current_step = 3
                     elif last_step == 3:
-                        current_step = 1 if hrv_increase else 4
+                        current_step = 1 if within_swc else 4
                     elif last_step == 4:
-                        current_step = 6 if hrv_increase else 5
+                        current_step = 6 if within_swc else 5
                     elif last_step == 5:
                         current_step = 6
                     elif last_step == 6:
-                        current_step = 1 if hrv_increase else 4
+                        current_step = 1 if within_swc else 4
 
                 df.at[i, 'completed'] = 1 if current_step == 4 or current_step == 5 else df.at[i, 'completed']
                 df.at[i, 'hrv_workout_step'] = current_step
