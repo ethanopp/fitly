@@ -33,7 +33,7 @@ def get_hrv_df():
     # Hrv baseline
     hrv_df['rmssd_7'] = hrv_df['rmssd'].rolling(7, min_periods=0).mean()
 
-    # Automated trend detection: https://www.hrv4training.com/blog/interpreting-hrv-trends
+    # #TODO: Automated trend detection: https://www.hrv4training.com/blog/interpreting-hrv-trends
     # # Calculate Slopes
     # hrv_df['rmssd_7_slope'] = hrv_df['rmssd_7'].rolling(14).apply(
     #     lambda x: np.polyfit(range(14), x, 1)[0], raw=True).values

@@ -727,13 +727,16 @@ def hrv_training_workflow(min_non_warmup_workout_time, athlete_id=1):
                                       hrvWorkoutStepLog.completed).filter(hrvWorkoutStepLog.athlete_id == 1).statement,
                 con=engine, index_col='date').sort_index(ascending=False)
 
-            # Store the last value of step 2 "HIIT" or "Mod" to cycle between the 2
+            ### Modified version of flow chart to allow for additional MOD day in step 2 ###
+            # Store the last value of step 2 to cycle between MOD->MOD->HIIT every 3rd time
             try:
-                last_hiit_mod = step_log_df[(step_log_df['hrv_workout_step'] == 2) & (step_log_df['completed'] == 1)][
-                    'hrv_workout_step_desc'].head(1).values[0]
+                last_hiit_mod = \
+                    step_log_df[(step_log_df['hrv_workout_step'].isin([21, 22, 23])) & (step_log_df['completed'] == 1)][
+                        'hrv_workout_step'].head(1).values[0]
             except:
-                last_hiit_mod = 'HIIT'
-            next_hiit_mod = 'HIIT' if last_hiit_mod == 'Moderate' else 'Moderate'
+                last_hiit_mod = 20
+
+            next_hiit_mod = last_hiit_mod + 1 if last_hiit_mod != 23 else 21
 
             step_log_df = step_log_df[step_log_df.index == step_log_df.index.max()]
             # Store last step in variable for starting point in loop
@@ -824,8 +827,8 @@ def hrv_training_workflow(min_non_warmup_workout_time, athlete_id=1):
                     if last_step == 0:
                         current_step = 1
                     elif last_step == 1:
-                        current_step = 2 if within_swc else 6
-                    elif last_step == 2:
+                        current_step = next_hiit_mod if within_swc else 6
+                    elif last_step in [21, 22, 23]:
                         current_step = 3
                     elif last_step == 3:
                         current_step = 1 if within_swc else 4
@@ -842,10 +845,11 @@ def hrv_training_workflow(min_non_warmup_workout_time, athlete_id=1):
 
                 # Map descriptions and alternate every HIIT and Mod
                 df.at[i, 'hrv_workout_step_desc'] = \
-                    {0: 'Low', 1: 'High', 2: next_hiit_mod, 3: 'Low', 4: 'Rest', 5: 'Rest', 6: 'Low'}[
+                    {0: 'Low', 1: 'High', 21: 'Mod', 22: 'Mod', 23: 'HIIT', 3: 'Low', 4: 'Rest', 5: 'Rest', 6: 'Low'}[
                         df.at[i, 'hrv_workout_step']]
-                if df.at[i, 'hrv_workout_step'] == 2 and df.at[i, 'completed'] == 1:
-                    next_hiit_mod = 'HIIT' if next_hiit_mod == 'Mod' else 'Mod'
+
+                if df.at[i, 'hrv_workout_step'] in [21, 22, 23] and df.at[i, 'completed'] == 1:
+                    next_hiit_mod = next_hiit_mod + 1 if next_hiit_mod != 23 else 21
 
                 df.at[i, 'rationale'] = rationale
 
