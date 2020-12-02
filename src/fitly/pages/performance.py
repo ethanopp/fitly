@@ -52,21 +52,25 @@ def get_hrv_df():
 
     hrv_df['rmssd_7_yesterday'] = hrv_df['rmssd_7'].shift(1)
 
-    # Normal value (SWC) thresholds for 7 day hrv baseline
     hrv_df['rmssd_30'] = hrv_df['rmssd'].rolling(30, min_periods=0).mean()
-    hrv_df['stdev_rmssd_30_threshold'] = hrv_df['rmssd'].rolling(30, min_periods=0).std() * .5
+    hrv_df['stdev_rmssd_30_threshold'] = hrv_df['rmssd'].rolling(30, min_periods=0).std()
+
+    # Normal value (SWC) thresholds for 7 day hrv baseline trends
     hrv_df['swc_upper'] = hrv_df['rmssd_30'] + hrv_df['stdev_rmssd_30_threshold']
     hrv_df['swc_lower'] = hrv_df['rmssd_30'] - hrv_df['stdev_rmssd_30_threshold']
 
+    # Normal value (SWC) thresholds for 7 day hrv baseline trends to guide workflow steps
+    hrv_df['swc_flowchart_upper'] = hrv_df['rmssd_30'] + (hrv_df['stdev_rmssd_30_threshold'] * .5)
+    hrv_df['swc_flowchart_lower'] = hrv_df['rmssd_30'] - (hrv_df['stdev_rmssd_30_threshold'] * .5)
+    hrv_df['within_swc'] = True
+    hrv_df.loc[(hrv_df['rmssd_7'] < hrv_df['swc_flowchart_lower']) | (hrv_df['rmssd_7'] > hrv_df[
+        'swc_flowchart_upper']), 'within_swc'] = False
+
     # Normal value thresholds (SWC) for daily rmssd
     hrv_df['rmssd_60'] = hrv_df['rmssd'].rolling(60, min_periods=0).mean()
-    hrv_df['stdev_rmssd_60_threshold'] = hrv_df['rmssd'].rolling(60, min_periods=0).std() * 1.5
-    hrv_df['swc_upper_60'] = hrv_df['rmssd_60'] + hrv_df['stdev_rmssd_60_threshold']
-    hrv_df['swc_lower_60'] = hrv_df['rmssd_60'] - hrv_df['stdev_rmssd_60_threshold']
-
-    hrv_df['within_swc'] = True
-    hrv_df.loc[(hrv_df['rmssd_7'] < hrv_df['swc_lower']) | (hrv_df['rmssd_7'] > hrv_df[
-        'swc_upper']), 'within_swc'] = False
+    hrv_df['stdev_rmssd_60_threshold'] = hrv_df['rmssd'].rolling(60, min_periods=0).std()
+    hrv_df['swc_upper_60'] = hrv_df['rmssd_60'] + (hrv_df['stdev_rmssd_60_threshold'] * 1.5)
+    hrv_df['swc_lower_60'] = hrv_df['rmssd_60'] - (hrv_df['stdev_rmssd_60_threshold'] * 1.5)
 
     # Threshold Flags
     # hrv_df['under_low_threshold'] = hrv_df['rmssd_7'] < hrv_df['swc_lower']
@@ -1600,6 +1604,15 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
                 line={'color': 'rgba(220,220,220,.20)'},
             ),
             go.Scatter(
+                name='HRV SWC Flowchart (Lower)',
+                x=actual.index,
+                y=actual['swc_flowchart_lower'],
+                yaxis='y3',
+                mode='lines',
+                hoverinfo='none',
+                line={'color': 'rgba(100, 217, 236,.5)', 'shape': 'spline', 'dash': 'dot'},
+            ),
+            go.Scatter(
                 name='HRV 7 Day Avg',
                 x=actual.index,
                 y=actual['rmssd_7'],
@@ -1608,7 +1621,16 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
                 text=['7 Day HRV Avg: <b>{:.2f} ({}{:.2f})'.format(x, '+' if x - y > 0 else '', x - y)
                       for (x, y) in zip(actual['rmssd_7'], actual['rmssd_7'].shift(1))],
                 hoverinfo='text',
-                line={'color': teal, 'shape': 'spline', 'dash': 'dot'},
+                line={'color': teal, 'shape': 'spline'},
+            ),
+            go.Scatter(
+                name='HRV SWC Flowchart (Upper)',
+                x=actual.index,
+                y=actual['swc_flowchart_upper'],
+                yaxis='y3',
+                mode='lines',
+                hoverinfo='none',
+                line={'color': 'rgba(100, 217, 236,.5)', 'shape': 'spline', 'dash': 'dot'},
             ),
             # Dummy scatter to store hrv plan recommendation so hovering data can be stored in hoverdata
             go.Scatter(
