@@ -217,6 +217,21 @@ def get_layout(**kwargs):
                                      html.Div(id='pmc-controls', className='col-lg-1',
                                               style={'display': 'flex', 'justifyContent': 'space-between'}, children=[
                                              html.Div(className='row', children=[
+                                                 html.Div(className='col-lg-12 col-sm-4',
+                                                          style={'padding': '0', 'textAlign': 'start'},
+                                                          children=[
+                                                              html.Button(id="open-annotation-modal-button",
+                                                                          className='fa fa-comment-alt',
+                                                                          n_clicks=0,
+                                                                          style={'fontSize': '1.5rem',
+                                                                                 'display': 'inline-block',
+                                                                                 'vertical-align': 'middle',
+                                                                                 'border': '0'}),
+                                                          ]),
+                                                 dbc.Tooltip(
+                                                     'Chart Annotations',
+                                                     target="open-annotation-modal-button"),
+
                                                  html.Div(id='run-pmc', className='col-lg-12 col-sm-4',
                                                           style={'padding': '0', 'textAlign': 'start'},
                                                           children=[
@@ -316,22 +331,7 @@ def get_layout(**kwargs):
                                                      'Include power data for stress scores.',
                                                      target="power-pmc"),
 
-                                                 html.Div(className='col-lg-12 col-sm-4',
-                                                          style={'padding': '0', 'textAlign': 'start'},
-                                                          children=[
-                                                              html.Button(id="open-annotation-modal-button",
-                                                                          className='fa fa-comment-alt',
-                                                                          n_clicks=0,
-                                                                          style={'fontSize': '1.5rem',
-                                                                                 'display': 'inline-block',
-                                                                                 'vertical-align': 'middle',
-                                                                                 'border': '0'}),
-                                                          ]),
-                                                 dbc.Tooltip(
-                                                     'Chart Annotations',
-                                                     target="open-annotation-modal-button"),
                                              ]),
-
                                          ]),
 
                                      html.Div(id='workout-distribution-table', className='col-lg-3',
