@@ -2,7 +2,7 @@ from ..api.stravaApi import get_strava_client, strava_connected
 from ..api.ouraAPI import pull_oura_data
 from ..api.withingsAPI import pull_withings_data
 from ..api.fitbodAPI import pull_fitbod_data
-from ..api.pelotonApi import get_peloton_class_types
+from ..api.pelotonApi import get_peloton_class_names
 from ..api.sqlalchemy_declarative import *
 from sqlalchemy import func, delete
 import datetime
@@ -209,7 +209,7 @@ def refresh_database(refresh_method='system', truncate=False, truncateDate=None)
 
                 # Refresh peloton class types local json file
                 if peloton_credentials_supplied:
-                    get_peloton_class_types()
+                    get_peloton_class_names()
 
                 app.server.logger.info('Refresh Complete')
 

@@ -8,7 +8,7 @@ from oura import OuraOAuth2Client
 from ..api.ouraAPI import oura_connected, connect_oura_link, save_oura_token
 from ..api.stravaApi import strava_connected, get_strava_client, connect_strava_link, save_strava_token
 from ..api.withingsAPI import withings_connected, connect_withings_link, save_withings_token
-from ..api.pelotonApi import get_peloton_class_types
+from ..api.pelotonApi import get_peloton_class_names
 from nokia import NokiaAuth, NokiaApi
 from ..api.sqlalchemy_declarative import stravaSummary, ouraSleepSummary, athlete, hrvWorkoutStepLog, \
     dbRefreshStatus
@@ -217,7 +217,7 @@ def athlete_card():
     color = '' if athlete_info.name and athlete_info.birthday and athlete_info.sex and athlete_info.weight_lbs and athlete_info.resting_hr and athlete_info.run_ftp and athlete_info.ride_ftp else 'border-danger'
 
     if peloton_credentials_supplied and oura_credentials_supplied:
-        peloton_class_types = get_peloton_class_types()
+        peloton_class_types = get_peloton_class_names()
         # TODO: Update formatting of these dropdowns to match sizing of all other inputs on settings page
         peloton_bookmark_settings = html.Div(
             children=[html.H5('Peloton Recommendation Auto Bookmarking', className='col-12 mb-2 mt-2'),
@@ -1100,7 +1100,7 @@ def query_peloton_bookmark_settings(fitness_discipline, effort):
         else:
             values = []
         # Query all possible options from peloton api for dropdown options
-        class_types = get_peloton_class_types()[fitness_discipline]
+        class_types = get_peloton_class_names()[fitness_discipline]
 
         return values,  [{'label': f'{k}', 'value': f'{k}'} for k, v in class_types.items()]
     else:

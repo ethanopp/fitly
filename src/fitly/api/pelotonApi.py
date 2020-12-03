@@ -7,7 +7,7 @@ import decimal
 from datetime import datetime, timezone, date, timedelta
 from ..utils import config
 import pandas as pd
-from .sqlalchemy_declarative import hrvWorkoutStepLog, ouraReadinessSummary, athlete
+from .sqlalchemy_declarative import hrvWorkoutStepLog, ouraReadinessSummary, athlete, stravaSummary
 from ..app import app
 import json
 import os
@@ -634,7 +634,7 @@ def peloton_mapping_df():
     return df
 
 
-def get_schedule(fitness_discipline, class_types=None, taken_class_ids=[], limit=10, is_favorite_ride=False,
+def get_schedule(fitness_discipline, class_names=None, taken_class_ids=[], limit=10, is_favorite_ride=False,
                  genre=None, difficulty=None):
     """ Returns list of on-demand workouts"""
     # Genre and difficulty not currently being automatically used
@@ -660,7 +660,25 @@ def get_schedule(fitness_discipline, class_types=None, taken_class_ids=[], limit
         'desc': 'true'
     }
 
-    class_types = 'all' if not class_types else class_types
+    # If more than 1 class name for specified fitness discipline and effort recommendation, use the 'next' class in list
+    # from whatever the most previous completed class was
+    if not class_names:
+        class_names = ['all']
+    else:
+        # Query workouts for last workout completed in the list of class_names passed
+        workouts = app.session.query(stravaSummary.name).all()
+        last_workout = 0
+        for workout in workouts:
+            for class_name in class_names:
+                if class_name in workout[0]:
+                    last_workout = class_names.index(class_name)
+                    break
+
+        # If we are at the final value in list, revert to first value
+        if len(class_names) == last_workout + 1:
+            next_workout = class_names[0]
+        else:
+            next_workout = class_names[last_workout + 1]
 
     if fitness_discipline == 'outdoor':
         params['content_format'] = 'audio'
@@ -689,7 +707,7 @@ def get_schedule(fitness_discipline, class_types=None, taken_class_ids=[], limit
         else:
             # Add the first page data to our return list, only add classes if not already taken
             ret = [workout for workout in res['data'] if
-                   workout['id'] not in taken_class_ids and (workout['title'] in class_types or class_types == 'all')]
+                   workout['id'] not in taken_class_ids and (workout['title'] == next_workout or class_names == 'all')]
 
             # If there are not enough workouts in our list, go to next page
             while len(ret) < limit and params['page'] < res['page_count']:
@@ -697,8 +715,7 @@ def get_schedule(fitness_discipline, class_types=None, taken_class_ids=[], limit
                 params['page'] += 1
                 res = PelotonAPI._api_request(uri=uri, params=params).json()
                 [ret.append(workout) for workout in res['data'] if
-                 workout['id'] not in taken_class_ids and (workout['title'] in class_types or class_types == 'all')]
-
+                 workout['id'] not in taken_class_ids and (workout['title'] == next_workout or class_names == 'all')]
             # Only take up to limit when adding new bookmarks
             ret = ret[:limit]
 
@@ -709,14 +726,14 @@ def get_schedule(fitness_discipline, class_types=None, taken_class_ids=[], limit
         return pd.DataFrame()
 
 
-def get_peloton_class_types():
+def get_peloton_class_names():
     """ Returns dict of class types """
 
-    peloton_class_types_file = 'peloton_class_dict.json'
+    peloton_class_names_file = 'peloton_class_dict.json'
 
     # If file exists, read it's last refresh time
-    if os.path.isfile(peloton_class_types_file):
-        with open(peloton_class_types_file, 'r') as file:
+    if os.path.isfile(peloton_class_names_file):
+        with open(peloton_class_names_file, 'r') as file:
             peloton_class_dict = json.load(file)
         if pd.to_datetime(peloton_class_dict['last_refresh']).date() > (datetime.today() - timedelta(days=30)).date():
             app.server.logger.debug('Peloton class type json not older than 30 days, skipping refresh')
@@ -763,7 +780,7 @@ def get_peloton_class_types():
         except:
             pass
 
-    with open(peloton_class_types_file, 'w') as file:
+    with open(peloton_class_names_file, 'w') as file:
         peloton_class_dict['last_refresh'] = str(datetime.today().date())
         file.write(json.dumps(peloton_class_dict))
 
@@ -829,19 +846,15 @@ def set_peloton_workout_recommendations():
 
     # Loop through each workout type to add new bookmarks
     for fitness_discipline in fitness_disciplines:
-        class_type_recommendations = athlete_bookmarks.get(fitness_discipline).get(effort_recommendation)
+        class_name_recommendations = athlete_bookmarks.get(fitness_discipline).get(effort_recommendation)
         # If no class types for given HRV step, do not add bookmarks
-        if class_type_recommendations:
-            class_type_recommendations = json.loads(class_type_recommendations)
-            limit = int(20 / len(class_type_recommendations))
-            # Allow for outdoor workout bookmarks
-            limit = limit * 2 if fitness_discipline == 'running' else limit
-            for d in class_type_recommendations:
+        if class_name_recommendations:
+            class_name_recommendations = json.loads(class_name_recommendations)
+            for d in class_name_recommendations:
                 # Allow for outdoor workout bookmarks
                 fitness_discipline_outdoor_toggle = 'outdoor' if 'outdoor' in d.lower() else fitness_discipline
 
                 new_bookmarks = get_schedule(fitness_discipline=fitness_discipline_outdoor_toggle,
-                                             class_types=class_type_recommendations,
-                                             limit=limit, taken_class_ids=taken_class_ids)
+                                             class_names=class_name_recommendations, taken_class_ids=taken_class_ids)
                 if len(new_bookmarks) > 0:
                     [add_bookmark(x) for x in new_bookmarks['id']]
