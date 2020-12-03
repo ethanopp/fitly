@@ -8,7 +8,7 @@ from oura import OuraOAuth2Client
 from ..api.ouraAPI import oura_connected, connect_oura_link, save_oura_token
 from ..api.stravaApi import strava_connected, get_strava_client, connect_strava_link, save_strava_token
 from ..api.withingsAPI import withings_connected, connect_withings_link, save_withings_token
-from ..api.pelotonApi import get_class_types
+from ..api.pelotonApi import get_peloton_class_types
 from nokia import NokiaAuth, NokiaApi
 from ..api.sqlalchemy_declarative import stravaSummary, ouraSleepSummary, athlete, hrvWorkoutStepLog, \
     dbRefreshStatus
@@ -217,7 +217,7 @@ def athlete_card():
     color = '' if athlete_info.name and athlete_info.birthday and athlete_info.sex and athlete_info.weight_lbs and athlete_info.resting_hr and athlete_info.run_ftp and athlete_info.ride_ftp else 'border-danger'
 
     if peloton_credentials_supplied and oura_credentials_supplied:
-        peloton_class_types = get_class_types()
+        peloton_class_types = get_peloton_class_types()
         # TODO: Update formatting of these dropdowns to match sizing of all other inputs on settings page
         peloton_bookmark_settings = html.Div(
             children=[html.H5('Peloton Recommendation Auto Bookmarking', className='col-12 mb-2 mt-2'),
@@ -254,8 +254,8 @@ def athlete_card():
                                   id='peloton-bookmark-fitness-discipline-dropdown',
                                   placeholder="Fitness Discipline",
                                   options=[
-                                      {'label': f'{x.capitalize()}', 'value': f'{x}'} for x in
-                                      peloton_class_types.keys()],
+                                      {'label': f'{x.replace("_"," ").title()}', 'value': f'{x}'} for x in
+                                      sorted(peloton_class_types.keys())],
                                   multi=False
                               )
                           ]),
@@ -1086,24 +1086,23 @@ def update_tokens(n_clicks, search):
 )
 def query_peloton_bookmark_settings(fitness_discipline, effort):
     if fitness_discipline and effort:
+        fitness_discipline = fitness_discipline.replace(' ', '_').lower()
         # Query athlete table for current peloton settings to show in value of dropdown
-
         athlete_bookmarks = json.loads(app.session.query(athlete.peloton_auto_bookmark_ids).filter(
             athlete.athlete_id == 1).first().peloton_auto_bookmark_ids)
 
         app.session.remove()
         if athlete_bookmarks:
             try:
-                athlete_bookmarks = ast.literal_eval(athlete_bookmarks.get(fitness_discipline).get(effort))
-                values = [x["value"] for x in athlete_bookmarks]
+                values = ast.literal_eval(athlete_bookmarks.get(fitness_discipline).get(effort))
             except:
                 values = []
         else:
             values = []
         # Query all possible options from peloton api for dropdown options
-        class_types = get_class_types()[fitness_discipline]
+        class_types = get_peloton_class_types()[fitness_discipline]
 
-        return values, [{'label': f'{v}', 'value': f'{k}'} for k, v in class_types.items()]
+        return values,  [{'label': f'{k}', 'value': f'{k}'} for k, v in class_types.items()]
     else:
         return [], []
 
@@ -1144,7 +1143,7 @@ def save_peloton_bookmark_settings(n_clicks, fitness_discipline, effort, options
                 athlete_bookmarks_json[fitness_discipline][effort] = {}
 
             athlete_bookmarks_json[fitness_discipline][effort] = json.dumps(
-                [x for x in options if x['value'] in values])
+                [x['value'] for x in options if x['value'] in values])
 
             app.session.query(athlete.peloton_auto_bookmark_ids).filter(
                 athlete.athlete_id == 1).update({athlete.peloton_auto_bookmark_ids: json.dumps(athlete_bookmarks_json)})

@@ -10,6 +10,7 @@ import pandas as pd
 from .sqlalchemy_declarative import hrvWorkoutStepLog, ouraReadinessSummary, athlete
 from ..app import app
 import json
+import os
 
 # Pulled from
 # https://github.com/geudrik/peloton-api
@@ -633,37 +634,7 @@ def peloton_mapping_df():
     return df
 
 
-def get_class_types():
-    """ Returns dict of class types """
-    uri = '/api/v2/ride/archived'
-    params = {
-        'content_format': 'audio,video',
-        'limit': 10,
-        'page': 0,
-        'sort_by': 'original_air_time',
-        'desc': 'true'
-    }
-
-    # Get our first page, which includes number of successive pages
-    res = PelotonAPI._api_request(uri=uri, params=params).json()
-
-    peloton_class_types = res['class_types']
-    peloton_class_dict = {}
-    for x in peloton_class_types:
-        if x['fitness_discipline'] == 'bike_bootcamp':
-            x['fitness_discipline'] = 'Bootcamp (bike)'
-        elif x['fitness_discipline'] == 'circuit':
-            x['fitness_discipline'] = 'Bootcamp (tread)'
-
-        if x['is_active']:
-            if not peloton_class_dict.get(x['fitness_discipline']):
-                peloton_class_dict[x['fitness_discipline']] = {}
-            peloton_class_dict[x['fitness_discipline']][x['id']] = x['name']
-
-    return peloton_class_dict
-
-
-def get_schedule(fitness_discipline, class_type_id=None, taken_class_ids=[], limit=10, is_favorite_ride=False,
+def get_schedule(fitness_discipline, class_types=None, taken_class_ids=[], limit=10, is_favorite_ride=False,
                  genre=None, difficulty=None):
     """ Returns list of on-demand workouts"""
     # Genre and difficulty not currently being automatically used
@@ -689,14 +660,14 @@ def get_schedule(fitness_discipline, class_type_id=None, taken_class_ids=[], lim
         'desc': 'true'
     }
 
+    class_types = 'all' if not class_types else class_types
+
     if fitness_discipline == 'outdoor':
         params['content_format'] = 'audio'
     # Filtering on already bookmarked rides to delete and make room for new bookmarks, so all other parameters should be ignored
     if is_favorite_ride:
         params['is_favorite_ride'] = 'true'
     else:
-        if class_type_id:
-            params['class_type_id'] = class_type_id
         if genre:
             params['super_genre_id'] = music_dict[genre]
         if difficulty:
@@ -707,7 +678,6 @@ def get_schedule(fitness_discipline, class_type_id=None, taken_class_ids=[], lim
 
     # if there are workouts to parse through...
     if len(res['data']) > 0:
-
         # If is_favorite_ride was passed, we are getting all bookmarked classes to delete, so ignore limit and loop through all pages
         if is_favorite_ride:
             ret = [workout for workout in res['data']]
@@ -718,14 +688,16 @@ def get_schedule(fitness_discipline, class_type_id=None, taken_class_ids=[], lim
 
         else:
             # Add the first page data to our return list, only add classes if not already taken
-            ret = [workout for workout in res['data'] if workout['id'] not in taken_class_ids]
+            ret = [workout for workout in res['data'] if
+                   workout['id'] not in taken_class_ids and (workout['title'] in class_types or class_types == 'all')]
 
             # If there are not enough workouts in our list, go to next page
             while len(ret) < limit and params['page'] < res['page_count']:
                 # We've got page 0, so add page at beginning of loop
                 params['page'] += 1
                 res = PelotonAPI._api_request(uri=uri, params=params).json()
-                [ret.append(workout) for workout in res['data'] if workout['id'] not in taken_class_ids]
+                [ret.append(workout) for workout in res['data'] if
+                 workout['id'] not in taken_class_ids and (workout['title'] in class_types or class_types == 'all')]
 
             # Only take up to limit when adding new bookmarks
             ret = ret[:limit]
@@ -735,6 +707,69 @@ def get_schedule(fitness_discipline, class_type_id=None, taken_class_ids=[], lim
         return workouts
     else:
         return pd.DataFrame()
+
+
+def get_peloton_class_types():
+    """ Returns dict of class types """
+
+    peloton_class_types_file = 'peloton_class_dict.json'
+
+    # If file exists, read it's last refresh time
+    if os.path.isfile(peloton_class_types_file):
+        with open(peloton_class_types_file, 'r') as file:
+            peloton_class_dict = json.load(file)
+        if pd.to_datetime(peloton_class_dict['last_refresh']).date() > (datetime.today() - timedelta(days=30)).date():
+            app.server.logger.debug('Peloton class type json not older than 30 days, skipping refresh')
+            del peloton_class_dict['last_refresh']
+            return peloton_class_dict
+
+    app.server.logger.info('Refreshing peloton class type dict...')
+    uri = '/api/v2/ride/archived'
+    params = {
+        'content_format': 'audio,video',
+        'limit': 10,
+        'page': 0,
+        'sort_by': 'original_air_time',
+        'desc': 'true'
+    }
+
+    # Get our first page, which includes number of successive pages
+    res = PelotonAPI._api_request(uri=uri, params=params).json()
+
+    fitness_disciplines = res['fitness_disciplines']
+    peloton_class_dict = {}
+
+    # for x in fitness_disciplines:
+    for x in fitness_disciplines:
+        fitness_discipline = x['id']
+        # api still returning 'circuit' for Tread bootcamp when it should be 'bootcamp' so override value from response
+        if fitness_discipline == 'circuit':
+            fitness_discipline = 'bootcamp'
+
+        # If fitness_discipline node not already in dict, add it
+        if not peloton_class_dict.get(fitness_discipline):
+            peloton_class_dict[fitness_discipline] = {}
+
+        # Try to grab series id's from each fitness_discipline and add to sub_dict
+        try:
+            # Query schedule to get all types of classes within respective fitness discipline
+            df = get_schedule(fitness_discipline, limit=500)[['title']]
+            df = df.sort_values(by='title')
+            df = df.drop_duplicates()
+
+            if len(df) > 0:
+                for index, row in df.iterrows():
+                    peloton_class_dict[fitness_discipline][row['title']] = fitness_discipline
+        except:
+            pass
+
+    with open(peloton_class_types_file, 'w') as file:
+        peloton_class_dict['last_refresh'] = str(datetime.today().date())
+        file.write(json.dumps(peloton_class_dict))
+
+    del peloton_class_dict['last_refresh']
+    app.server.logger.info('Peloton class type dict refresh complete')
+    return peloton_class_dict
 
 
 def add_bookmark(ride_id):
@@ -803,10 +838,10 @@ def set_peloton_workout_recommendations():
             limit = limit * 2 if fitness_discipline == 'running' else limit
             for d in class_type_recommendations:
                 # Allow for outdoor workout bookmarks
-                fitness_discipline_outdoor_toggle = 'outdoor' if 'outdoor' in d['label'].lower() else fitness_discipline
+                fitness_discipline_outdoor_toggle = 'outdoor' if 'outdoor' in d.lower() else fitness_discipline
 
                 new_bookmarks = get_schedule(fitness_discipline=fitness_discipline_outdoor_toggle,
-                                             class_type_id=d['value'],
+                                             class_types=class_type_recommendations,
                                              limit=limit, taken_class_ids=taken_class_ids)
                 if len(new_bookmarks) > 0:
                     [add_bookmark(x) for x in new_bookmarks['id']]
