@@ -33,7 +33,7 @@ def get_hrv_df():
     # Hrv baseline
     hrv_df['rmssd_7'] = hrv_df['rmssd'].rolling(7, min_periods=0).mean()
 
-    # #TODO: Automated trend detection: https://www.hrv4training.com/blog/interpreting-hrv-trends
+    # # #TODO: Automated trend detection: https://www.hrv4training.com/blog/interpreting-hrv-trends
     # # Calculate Slopes
     # hrv_df['rmssd_7_slope'] = hrv_df['rmssd_7'].rolling(14).apply(
     #     lambda x: np.polyfit(range(14), x, 1)[0], raw=True).values
@@ -42,13 +42,15 @@ def get_hrv_df():
     # hrv_df.loc[hrv_df['rmssd_7_slope'] > (
     #         hrv_df['rmssd_7_slope'].rolling(14).mean() + hrv_df['rmssd_7_slope'].rolling(
     #     14).std()), 'rmssd_7_slope_non_trivial'] = hrv_df['rmssd_7_slope']
-
+    #
     # # HR baseline
     # hrv_df['hr_lowest_7'] = hrv_df['hr_lowest'].rolling(7, min_periods=0).mean()
     # # Coefficient of Variation baseline
     # hrv_df['cv_rmssd_7'] = (hrv_df['rmssd'].rolling(7, min_periods=0).std() / hrv_df['rmssd_7']) * 100
     # # HRV Normalized baseline
     # hrv_df['hrv_normalized_7'] = hrv_df['rmssd_7'] / hrv_df['hr_average'].rolling(7, min_periods=0).mean()
+    #
+    # hrv_df.to_csv('trends.csv',sep=',')
 
     hrv_df['rmssd_7_yesterday'] = hrv_df['rmssd_7'].shift(1)
 
@@ -487,16 +489,19 @@ oura_low_threshold = 70
 
 
 def training_zone(form):
-    if 25 < form:
-        return 'Transition'
-    elif 5 < form <= 25:
-        return 'Freshness'
-    elif -10 < form <= 5:
-        return 'Neutral'
-    elif -30 < form <= -10:
-        return 'Optimal'
-    elif form < -30:
-        return 'Overload'
+    if form:
+        if 25 < form:
+            return 'Transition'
+        elif 5 < form <= 25:
+            return 'Freshness'
+        elif -10 < form <= 5:
+            return 'Neutral'
+        elif -30 < form <= -10:
+            return 'Optimal'
+        elif form < -30:
+            return 'Overload'
+        else:
+            return 'Form'
     else:
         return 'Form'
 
@@ -742,10 +747,30 @@ def create_daily_recommendations(hrv, hrv_change, hrv7, hrv7_change, plan_rec):
 
 
 def create_fitness_kpis(date, ctl, ramp, rr_min_threshold, rr_max_threshold, atl, tsb, hrv7):
+    # TODO: Remove ramp rate?
+    if isinstance(atl, float) and isinstance(ctl, float):
+        ctl = round(ctl, 1) if ctl else 'N/A'
+        tsb = round(tsb, 1) if tsb else 'N/A'
+
+        if round(ctl, 1) == 0:
+            hrv4training_injury_risk = 'No Fitness'
+        else:
+            atl_ctl_ratio = atl / ctl
+            if atl_ctl_ratio > 1.75:
+                hrv4training_injury_risk = 'High Injury Risk'
+            elif 1.3 < atl_ctl_ratio <= 1.75:
+                hrv4training_injury_risk = 'Increased Injury Risk'
+            elif 0.8 < atl_ctl_ratio <= 1.3:
+                hrv4training_injury_risk = 'Optimal Load'
+            elif 0.8 >= atl_ctl_ratio:
+                hrv4training_injury_risk = 'Loss of Fitness'
+    else:
+        hrv4training_injury_risk = 'N/A'
+        atl_ctl_ratio = None
+
+    # injury_risk = 'High' if ramp >= rr_max_threshold else 'Medium' if ramp >= rr_min_threshold else 'Low'
+
     hrv7 = round(hrv7, 1) if hrv7 else 'N/A'
-    ctl = round(ctl, 1) if ctl else 'N/A'
-    tsb = round(tsb, 1) if tsb else 'N/A'
-    injury_risk = 'High' if ramp >= rr_max_threshold else 'Medium' if ramp >= rr_min_threshold else 'Low'
 
     return [html.Div(className='row', children=[
 
@@ -797,12 +822,15 @@ def create_fitness_kpis(date, ctl, ramp, rr_min_threshold, rr_max_threshold, atl
         ### Injury Risk ###
         html.Div(id='injury-risk', className='col-lg-2', children=[
             html.Div(children=[
-                html.H6('Injury Risk: {}'.format(injury_risk),
+                # html.H6('Injury Risk: {}'.format(injury_risk),
+                html.H6('{}'.format(hrv4training_injury_risk),
                         className='d-inline-block',
                         style={'color': white, 'marginTop': '0', 'marginBottom': '0'})
             ]),
         ]),
-        dbc.Tooltip('7 day CTL △ = {:.1f}'.format(ramp), target='injury-risk'),
+        # dbc.Tooltip('7 day CTL △ = {:.1f}'.format(ramp), target='injury-risk'),
+        dbc.Tooltip('ATL to CTL ratio = {}'.format(round(atl_ctl_ratio, 1) if atl_ctl_ratio else 'N/A'),
+                    target='injury-risk'),
 
         ### HRV7 KPI ###
         html.Div(id='hrv7-kpi', className='col-lg-2', children=[
