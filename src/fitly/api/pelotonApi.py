@@ -24,6 +24,7 @@ PELOTON_PASSWORD = config.get('peloton', 'password')
 
 _USER_AGENT = "Mozilla/5.0"
 
+
 # Whether or not to verify SSL connections (defaults to True)
 # try:
 #     SSL_VERIFY = parser.getboolean("peloton", "ssl_verify")
@@ -634,7 +635,7 @@ def peloton_mapping_df():
     return df
 
 
-def get_schedule(fitness_discipline, class_names=None, taken_class_ids=[], limit=10, is_favorite_ride=False,
+def get_schedule(fitness_discipline, class_names=['all'], taken_class_ids=[], limit=10, is_favorite_ride=False,
                  genre=None, difficulty=None):
     """ Returns list of on-demand workouts"""
     # Genre and difficulty not currently being automatically used
@@ -662,12 +663,10 @@ def get_schedule(fitness_discipline, class_names=None, taken_class_ids=[], limit
 
     # If more than 1 class name for specified fitness discipline and effort recommendation, use the 'next' class in list
     # from whatever the most previous completed class was
-    if not class_names:
-        class_names = ['all']
-    else:
+    next_workout, last_workout = None, 0
+    if class_names != ['all']:
         # Query workouts for last workout completed in the list of class_names passed
         workouts = app.session.query(stravaSummary.name).all()
-        last_workout = 0
         for workout in workouts:
             for class_name in class_names:
                 if class_name in workout[0]:
@@ -707,7 +706,8 @@ def get_schedule(fitness_discipline, class_names=None, taken_class_ids=[], limit
         else:
             # Add the first page data to our return list, only add classes if not already taken
             ret = [workout for workout in res['data'] if
-                   workout['id'] not in taken_class_ids and (workout['title'] == next_workout or class_names == 'all')]
+                   workout['id'] not in taken_class_ids and (
+                           workout['title'] == next_workout or class_names == ['all'])]
 
             # If there are not enough workouts in our list, go to next page
             while len(ret) < limit and params['page'] < res['page_count']:
@@ -715,7 +715,7 @@ def get_schedule(fitness_discipline, class_names=None, taken_class_ids=[], limit
                 params['page'] += 1
                 res = PelotonAPI._api_request(uri=uri, params=params).json()
                 [ret.append(workout) for workout in res['data'] if
-                 workout['id'] not in taken_class_ids and (workout['title'] == next_workout or class_names == 'all')]
+                 workout['id'] not in taken_class_ids and (workout['title'] == next_workout or class_names == ['all'])]
             # Only take up to limit when adding new bookmarks
             ret = ret[:limit]
 
@@ -754,6 +754,7 @@ def get_peloton_class_names():
     res = PelotonAPI._api_request(uri=uri, params=params).json()
 
     fitness_disciplines = res['fitness_disciplines']
+    fitness_disciplines.append({'id': 'outdoor', 'name': 'Outdoor'})
     peloton_class_dict = {}
 
     # for x in fitness_disciplines:
