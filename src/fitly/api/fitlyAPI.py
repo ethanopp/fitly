@@ -813,7 +813,7 @@ def hrv_training_workflow(min_non_warmup_workout_time, athlete_id=1):
 
                 ### Missed Workout Exceptions ###
                 # If workout was not completed yesterday but we are still within thresholds maintain current step
-                if df.at[i, 'completed_yesterday'] == 0 and within_swc and last_step in [1, 2]:
+                if df.at[i, 'completed_yesterday'] == 0 and within_swc and last_step in [1, 21, 22, 23]:
                     current_step = last_step
                     rationale = "Yesterday's workout was not completed and we are still within SWC."
                     app.server.logger.debug(

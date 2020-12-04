@@ -75,7 +75,9 @@ def refresh_database(refresh_method='system', truncate=False, truncateDate=None)
                             app.session.execute(
                                 delete(ouraActivitySamples).where(ouraActivitySamples.timestamp_local >= truncateDate))
                             app.server.logger.debug('Truncating hrv_workout_step_log')
-                            app.session.execute(delete(hrvWorkoutStepLog).where(hrvWorkoutStepLog.date >= truncateDate))
+                            # Delete extra day back so hrv workflow can recalculate the 'completed_yesterday' flag
+                            app.session.execute(delete(hrvWorkoutStepLog).where(
+                                hrvWorkoutStepLog.date >= (truncateDate - timedelta(days=1))))
                             app.server.logger.debug('Truncating withings')
                             app.session.execute(delete(withings).where(withings.date_utc >= truncateDate))
                             app.session.commit()
