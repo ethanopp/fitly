@@ -21,36 +21,116 @@ import re
 transition = int(config.get('dashboard', 'transition'))
 
 
+def detect_trend(rmssd_7_slope_trivial, hr_lowest_7_slope_trivial, cv_rmssd_7_slope_trivial,
+                 hrv_normalized_7_slope_trivial, trimp_7_slope_trivial):
+    if rmssd_7_slope_trivial >= 0 and hr_lowest_7_slope_trivial <= 0 and cv_rmssd_7_slope_trivial < 0:
+        return 'Coping well'
+    elif rmssd_7_slope_trivial < 0 and hr_lowest_7_slope_trivial < 0 \
+            and trimp_7_slope_trivial >= 0:  # E.O Customization
+        return 'Risk of accumulated fatigue'
+    elif hr_lowest_7_slope_trivial > 0 and cv_rmssd_7_slope_trivial > 0:
+        return 'Maladaptation'
+    elif rmssd_7_slope_trivial < 0 and hr_lowest_7_slope_trivial > 0 and cv_rmssd_7_slope_trivial < 0 \
+            and trimp_7_slope_trivial > 0:  # E.O Customization:
+        return 'Accumulated fatigue'
+    else:
+        return 'No Relevant Trends'
+
+
 def get_hrv_df():
-    hrv_df = pd.read_sql(sql=app.session.query(ouraSleepSummary.report_date, ouraSleepSummary.rmssd,
-                                               ouraSleepSummary.hr_average, ouraSleepSummary.hr_lowest).statement,
-                         con=engine, index_col='report_date').sort_index(ascending=True)
+    hrv_df = pd.read_sql(
+        sql=app.session.query(ouraSleepSummary.report_date, ouraSleepSummary.summary_date, ouraSleepSummary.rmssd,
+                              ouraSleepSummary.hr_average, ouraSleepSummary.hr_lowest).statement,
+        con=engine, index_col='report_date').sort_index(ascending=True)
+    trimp_df = pd.read_sql(sql=app.session.query(stravaSummary.start_day_local, stravaSummary.trimp).statement,
+                           con=engine, index_col='start_day_local').sort_index(ascending=True)
     app.session.remove()
+    trimp_df.index = pd.to_datetime(trimp_df.index)
+    hrv_df = pd.merge(hrv_df, trimp_df, how='left', left_index=True, right_index=True)
     # Calculate HRV metrics
     hrv_df.set_index(pd.to_datetime(hrv_df.index), inplace=True)
     hrv_df = hrv_df.resample('D').mean()
 
+    # Automated trend detection: https://www.hrv4training.com/blog/interpreting-hrv-trends
     # Hrv baseline
     hrv_df['rmssd_7'] = hrv_df['rmssd'].rolling(7, min_periods=0).mean()
+    # HR baseline
+    hrv_df['hr_lowest_7'] = hrv_df['hr_lowest'].rolling(7, min_periods=0).mean()
+    # Coefficient of Variation baseline
+    hrv_df['cv_rmssd_7'] = (hrv_df['rmssd'].rolling(7, min_periods=0).std() / hrv_df['rmssd_7']) * 100
+    # HRV Normalized baseline
+    hrv_df['hrv_normalized_7'] = hrv_df['rmssd_7'] / hrv_df['hr_average'].rolling(7, min_periods=0).mean()
 
-    # # #TODO: Automated trend detection: https://www.hrv4training.com/blog/interpreting-hrv-trends
     # # Calculate Slopes
-    # hrv_df['rmssd_7_slope'] = hrv_df['rmssd_7'].rolling(14).apply(
-    #     lambda x: np.polyfit(range(14), x, 1)[0], raw=True).values
-    #
-    # # Remove trivial changes
-    # hrv_df.loc[hrv_df['rmssd_7_slope'] > (
-    #         hrv_df['rmssd_7_slope'].rolling(14).mean() + hrv_df['rmssd_7_slope'].rolling(
-    #     14).std()), 'rmssd_7_slope_non_trivial'] = hrv_df['rmssd_7_slope']
-    #
-    # # HR baseline
-    # hrv_df['hr_lowest_7'] = hrv_df['hr_lowest'].rolling(7, min_periods=0).mean()
-    # # Coefficient of Variation baseline
-    # hrv_df['cv_rmssd_7'] = (hrv_df['rmssd'].rolling(7, min_periods=0).std() / hrv_df['rmssd_7']) * 100
-    # # HRV Normalized baseline
-    # hrv_df['hrv_normalized_7'] = hrv_df['rmssd_7'] / hrv_df['hr_average'].rolling(7, min_periods=0).mean()
-    #
-    # hrv_df.to_csv('trends.csv',sep=',')
+    hrv_df['rmssd_7_slope'] = hrv_df['rmssd_7'].rolling(14).apply(
+        lambda x: np.polyfit(range(14), x, 1)[0], raw=True).values
+    hrv_df['hr_lowest_7_slope'] = hrv_df['hr_lowest_7'].rolling(14).apply(
+        lambda x: np.polyfit(range(14), x, 1)[0], raw=True).values
+    hrv_df['cv_rmssd_7_slope'] = hrv_df['cv_rmssd_7'].rolling(14).apply(
+        lambda x: np.polyfit(range(14), x, 1)[0], raw=True).values
+    hrv_df['hrv_normalized_7_slope'] = hrv_df['hrv_normalized_7'].rolling(14).apply(
+        lambda x: np.polyfit(range(14), x, 1)[0], raw=True).values
+
+    # E.O Customization
+    # TRIMP Normalized baseline
+    hrv_df['trimp_7'] = hrv_df['trimp'].rolling(7, min_periods=0).mean().fillna(0)
+    hrv_df['trimp_7_slope'] = hrv_df['trimp_7'].rolling(14).apply(
+        lambda x: np.polyfit(range(14), x, 1)[0], raw=True).values
+    hrv_df.loc[
+        (
+                (hrv_df['trimp_7_slope'] >
+                 (hrv_df['trimp_7_slope'].rolling(14).mean() + hrv_df['trimp_7_slope'].rolling(
+                     14).std())) |
+                (hrv_df['trimp_7_slope'] <
+                 (hrv_df['trimp_7_slope'].rolling(14).mean() - hrv_df['trimp_7_slope'].rolling(
+                     14).std()))
+        ), 'trimp_7_slope_trivial'] = hrv_df['trimp_7_slope']
+
+    # Remove trivial changes
+    hrv_df.loc[
+        (
+                (hrv_df['rmssd_7_slope'] >
+                 (hrv_df['rmssd_7_slope'].rolling(14).mean() + hrv_df['rmssd_7_slope'].rolling(14).std())) |
+                (hrv_df['rmssd_7_slope'] <
+                 (hrv_df['rmssd_7_slope'].rolling(14).mean() - hrv_df['rmssd_7_slope'].rolling(14).std()))
+        ), 'rmssd_7_slope_trivial'] = hrv_df['rmssd_7_slope']
+    hrv_df.loc[
+        (
+                (hrv_df['hr_lowest_7_slope'] >
+                 (hrv_df['hr_lowest_7_slope'].rolling(14).mean() + hrv_df['hr_lowest_7_slope'].rolling(14).std())) |
+                (hrv_df['hr_lowest_7_slope'] <
+                 (hrv_df['hr_lowest_7_slope'].rolling(14).mean() - hrv_df['hr_lowest_7_slope'].rolling(14).std()))
+        ), 'hr_lowest_7_slope_trivial'] = hrv_df['hr_lowest_7_slope']
+
+    hrv_df.loc[
+        (
+                (hrv_df['cv_rmssd_7_slope'] >
+                 (hrv_df['cv_rmssd_7_slope'].rolling(14).mean() + hrv_df['cv_rmssd_7_slope'].rolling(14).std())) |
+                (hrv_df['cv_rmssd_7_slope'] <
+                 (hrv_df['cv_rmssd_7_slope'].rolling(14).mean() - hrv_df['cv_rmssd_7_slope'].rolling(14).std()))
+        ), 'cv_rmssd_7_slope_trivial'] = hrv_df['cv_rmssd_7_slope']
+
+    hrv_df.loc[
+        (
+                (hrv_df['hrv_normalized_7_slope'] >
+                 (hrv_df['hrv_normalized_7_slope'].rolling(14).mean() + hrv_df['hrv_normalized_7_slope'].rolling(
+                     14).std())) |
+                (hrv_df['hrv_normalized_7_slope'] <
+                 (hrv_df['hrv_normalized_7_slope'].rolling(14).mean() - hrv_df['hrv_normalized_7_slope'].rolling(
+                     14).std()))
+        ), 'hrv_normalized_7_slope_trivial'] = hrv_df['hrv_normalized_7_slope']
+
+    # Fill slopes with 0 when non trivial for trend detection
+    for col in hrv_df.columns:
+        if 'trivial' in col:
+            hrv_df[col] = hrv_df[col].fillna(0)
+
+            # Check for trend
+    hrv_df["detected_trend"] = hrv_df[
+        ["rmssd_7_slope_trivial", "hr_lowest_7_slope_trivial", "cv_rmssd_7_slope_trivial",
+         "hrv_normalized_7_slope_trivial", "trimp_7_slope_trivial"]].apply(lambda x: detect_trend(*x), axis=1)
+
+    # hrv_df.to_csv('trends.csv', sep=',') # Debugging
 
     hrv_df['rmssd_7_yesterday'] = hrv_df['rmssd_7'].shift(1)
 
@@ -1088,7 +1168,6 @@ def get_workout_types(df_summary, run_status, ride_status, all_status):
 
 
 def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_status):
-    # TODO: Automate trend detection https://www.hrv4training.com/blog/interpreting-hrv-trends to color tss bars with and show trend instead of 7 day hrv at top kpi
     df_summary = pd.read_sql(sql=app.session.query(stravaSummary).statement, con=engine,
                              index_col='start_date_local').sort_index(ascending=True)
 
@@ -1668,8 +1747,37 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
                 text=actual['workout_plan'],
                 hoverinfo='none',
                 marker={'color': 'rgba(0, 0, 0, 0)'}
-            )
+            ),
         ])
+
+        ### Trends ###
+        for trend in ['Coping well', 'Risk of accumulated fatigue', 'Maladaptation', 'Accumulated fatigue']:
+            actual.loc[actual['detected_trend'] == trend, trend] = actual['rmssd_7']
+
+            if trend == 'Coping well':
+                color = 'green'
+            if trend == 'Risk of accumulated fatigue':
+                color = 'yellow'
+            elif trend == 'Maladaptation':
+                color = 'orange'
+            elif trend == 'Accumulated fatigue':
+                color = 'red'
+
+            ### Detected Trends ###
+            figure['data'].append(
+                go.Scatter(
+                    name=trend,
+                    x=actual.index,
+                    y=actual[trend],
+                    text=actual['detected_trend'],
+                    yaxis='y3',
+                    mode='markers',
+                    hoverinfo='text',
+                    # marker={'size': 8},
+                    line={'color': color},
+                )
+            )
+
         figure['layout']['yaxis3'] = dict(
             # domain=[.85, 1],
             range=[actual['rmssd_7'].min() * -1.5, actual['rmssd_7'].max() * 1.05],
