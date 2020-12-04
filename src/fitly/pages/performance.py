@@ -645,7 +645,7 @@ def create_daily_recommendations(hrv, hrv_change, hrv7, hrv7_change, plan_rec):
                             html.Div(className='col-lg-12', children=[
 
                                 html.Img(src=f'../assets/images/hrv{plan_step}.png', height=200,
-                                         width=150) if plan_step else html.Div(),
+                                         width=150) if plan_step is not None else html.Div(),
                             ]),
 
                             html.Div(className='row text-center align-items-center', children=[
