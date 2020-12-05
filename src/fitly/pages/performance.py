@@ -338,6 +338,26 @@ def get_layout(**kwargs):
                                                      'Include power data for stress scores.',
                                                      target="power-pmc"),
 
+                                                 html.Div(id='atl-pmc', className='col-lg-12 col-sm-4',
+                                                          style={'padding': '0', 'textAlign': 'start'},
+                                                          children=[
+                                                              daq.BooleanSwitch(
+                                                                  id='atl-pmc-switch',
+                                                                  on=True,
+                                                                  style={'display': 'inline-block',
+                                                                         'vertical-align': 'middle'},
+                                                              ),
+                                                              html.I(id='atl-pmc-icon', className='fa fa-chart-line',
+                                                                     style={'fontSize': '1.5rem',
+                                                                            'display': 'inline-block',
+                                                                            'vertical-align': 'middle',
+                                                                            'paddingLeft': '.25vw', }),
+
+                                                          ]),
+                                                 dbc.Tooltip(
+                                                     'Always include fatigue from all sports',
+                                                     target="atl-pmc"),
+
                                              ]),
                                          ]),
 
@@ -492,17 +512,17 @@ oura_low_threshold = 70
 def training_zone(form):
     if form:
         if 25 < form:
-            return 'Transition'
+            return 'N/A'
         elif 5 < form <= 25:
-            return 'Freshness'
+            return 'Performance'
         elif -10 < form <= 5:
-            return 'Neutral'
-        elif -30 < form <= -10:
-            return 'Optimal'
-        elif form < -30:
-            return 'Overload'
-        else:
-            return 'Form'
+            return 'Maintenance'
+        elif -25 < form <= -10:
+            return 'Productive'
+        elif -40 < form < -25:
+            return 'Cautionary'
+        elif form <= -40:
+            return 'Overreaching'
     else:
         return 'Form'
 
@@ -1088,7 +1108,7 @@ def get_workout_types(df_summary, run_status, ride_status, all_status):
     return workout_types
 
 
-def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_status):
+def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_status, atl_status):
     df_summary = pd.read_sql(sql=app.session.query(stravaSummary).statement, con=engine,
                              index_col='start_date_local').sort_index(ascending=True)
 
@@ -1185,20 +1205,23 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
     elif power_status:
         df_summary['stress_score'] = df_summary['tss']
     elif hr_status:
-        # If not using power data, use trimp since hrss still uses ftp
-        if not use_power:
-            df_summary['stress_score'] = df_summary['trimp']
-        else:
-            df_summary['stress_score'] = df_summary['hrss']
-
+        df_summary['stress_score'] = df_summary['hrss']
     else:
         df_summary['stress_score'] = 0
 
     # Calculate Metrics
+    # Fitness and Form will change based off booleans that are selected
+    # ATL should always be based off of ALL sports so toggle defaults to true
+    # However if user wants to just see ATL for toggled sports they can disable toggle
+    workout_types = get_workout_types(df_summary, run_status, ride_status, all_status)
 
-    # ATL should always be based off of ALL sports
     # Sample to daily level and sum stress scores to aggregate multiple workouts per day
-    atl_df = df_summary[['stress_score', 'tss', 'hrss']].resample('D').sum()
+    if atl_status:
+        atl_df = df_summary[df_summary['type'].isin(workout_types)]
+        atl_df = atl_df[['stress_score', 'tss', 'hrss']].resample('D').sum()
+    else:
+        atl_df = df_summary[['stress_score', 'tss', 'hrss']].resample('D').sum()
+
     atl_df['ATL'] = np.nan
     atl_df['ATL'].iloc[0] = (atl_df['stress_score'].iloc[0] * (1 - atl_exp)) + (initial_atl * atl_exp)
     for i in range(1, len(atl_df)):
@@ -1209,9 +1232,6 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
     atl_df = atl_df.drop(columns=['stress_score', 'tss', 'hrss'])
 
     # Sample to daily level and sum stress scores to aggregate multiple workouts per day
-
-    # Fitness and Form will change based off booleans that are selected
-    workout_types = get_workout_types(df_summary, run_status, ride_status, all_status)
 
     pmd = df_summary[df_summary['type'].isin(workout_types)]
     # Make sure df goes to same max date as ATL df
@@ -1457,8 +1477,8 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
             ),
 
             go.Scatter(
-                name='Freshness',
-                text=['Freshness' if x == pmd.index.max() else '' for x in
+                name='N/A',
+                text=['N/A' if x == pmd.index.max() else '' for x in
                       pmd.index],
                 textposition='top left',
                 x=pmd.index,
@@ -1470,8 +1490,8 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
                 showlegend=False,
             ),
             go.Scatter(
-                name='Neutral',
-                text=['Neutral' if x == pmd.index.max() else '' for x in
+                name='Performance',
+                text=['Performance' if x == pmd.index.max() else '' for x in
                       pmd.index],
                 textposition='top left',
                 x=pmd.index,
@@ -1483,8 +1503,8 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
                 showlegend=False,
             ),
             go.Scatter(
-                name='Optimal',
-                text=['Optimal' if x == pmd.index.max() else '' for x in
+                name='Maintenance',
+                text=['Maintenance' if x == pmd.index.max() else '' for x in
                       pmd.index],
                 textposition='top left',
                 x=pmd.index,
@@ -1496,19 +1516,44 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
                 showlegend=False,
             ),
             go.Scatter(
-                name='Overload',
-                text=['Overload' if x == pmd.index.max() else '' for x in
+                name='Productive',
+                text=['Productive' if x == pmd.index.max() else '' for x in
                       pmd.index],
                 textposition='top left',
                 x=pmd.index,
-                y=[-30 for x in pmd.index],
+                y=[-25 for x in pmd.index],
                 mode='lines+text',
                 hoverinfo='none',
                 line={'dash': 'dashdot',
                       'color': 'rgba(127, 127, 127, .35)'},
                 showlegend=False,
-            )
-            #
+            ),
+            go.Scatter(
+                name='Cautionary',
+                text=['Cautionary' if x == pmd.index.max() else '' for x in
+                      pmd.index],
+                textposition='top left',
+                x=pmd.index,
+                y=[-40 for x in pmd.index],
+                mode='lines+text',
+                hoverinfo='none',
+                line={'dash': 'dashdot',
+                      'color': 'rgba(127, 127, 127, .35)'},
+                showlegend=False,
+            ),
+            go.Scatter(
+                name='Overreaching',
+                text=['Overreaching' if x == pmd.index.max() else '' for x in
+                      pmd.index],
+                textposition='top left',
+                x=pmd.index,
+                y=[-45 for x in pmd.index],
+                mode='lines+text',
+                hoverinfo='none',
+                line={'dash': 'dashdot',
+                      'color': 'rgba(127, 127, 127, .35)'},
+                showlegend=False,
+            ),
         ],
         'layout': go.Layout(
             # transition=dict(duration=transition),
@@ -2313,18 +2358,22 @@ def update_fitness_kpis(hoverData):
      Input('run-pmc-switch', 'on'),
      Input('all-pmc-switch', 'on'),
      Input('power-pmc-switch', 'on'),
-     Input('hr-pmc-switch', 'on')],
+     Input('hr-pmc-switch', 'on'),
+     Input('atl-pmc-switch', 'on')],
     [State('ride-pmc-switch', 'on'),
      State('run-pmc-switch', 'on'),
      State('all-pmc-switch', 'on'),
      State('power-pmc-switch', 'on'),
-     State('hr-pmc-switch', 'on')
+     State('hr-pmc-switch', 'on'),
+     State('atl-pmc-switch', 'on')
      ]
 )
-def refresh_fitness_chart(ride_switch, run_switch, all_switch, power_switch, hr_switch, ride_status, run_status,
-                          all_status, power_status, hr_status):
+def refresh_fitness_chart(ride_switch, run_switch, all_switch, power_switch, hr_switch, atl_pmc_switch, ride_status,
+                          run_status,
+                          all_status, power_status, hr_status, atl_status):
     pmc_figure, hoverData = create_fitness_chart(ride_status=ride_status, run_status=run_status,
-                                                 all_status=all_status, power_status=power_status, hr_status=hr_status)
+                                                 all_status=all_status, power_status=power_status, hr_status=hr_status,
+                                                 atl_status=atl_status)
 
     return pmc_figure, hoverData, workout_distribution(ride_status=ride_status, run_status=run_status,
                                                        all_status=all_status)
