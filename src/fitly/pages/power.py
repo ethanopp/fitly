@@ -162,6 +162,8 @@ def power_profiles(interval, activity_type='ride', power_unit='mmp', group='M'):
 
 
 def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend=False, strydmetrics=True):
+    # TODO: Add power cuvrve model once sweatpy has been finished
+    # https://sweatpy.gssns.io/features/Power%20duration%20modelling/#comparison-of-power-duration-models
     activity_type = '%' + activity_type + '%'
 
     max_interval = app.session.query(

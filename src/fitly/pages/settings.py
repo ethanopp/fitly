@@ -9,7 +9,7 @@ from ..api.ouraAPI import oura_connected, connect_oura_link, save_oura_token
 from ..api.stravaApi import strava_connected, get_strava_client, connect_strava_link, save_strava_token
 from ..api.withingsAPI import withings_connected, connect_withings_link, save_withings_token
 from ..api.pelotonApi import get_peloton_class_names
-from nokia import NokiaAuth, NokiaApi
+from withings_api import WithingsAuth, AuthScope
 from ..api.sqlalchemy_declarative import stravaSummary, ouraSleepSummary, athlete, hrvWorkoutStepLog, \
     dbRefreshStatus
 from ..api.database import engine
@@ -27,8 +27,10 @@ import json
 import ast
 
 strava_auth_client = get_strava_client()
-withings_auth_client = NokiaAuth(config.get('withings', 'client_id'), config.get('withings', 'client_secret'),
-                                 callback_uri=config.get('withings', 'redirect_uri'))
+withings_auth_client = WithingsAuth(config.get('withings', 'client_id'), config.get('withings', 'client_secret'),
+                                    callback_uri=config.get('withings', 'redirect_uri'), scope=(
+        AuthScope.USER_ACTIVITY, AuthScope.USER_METRICS, AuthScope.USER_INFO, AuthScope.USER_SLEEP_EVENTS
+    ))
 oura_auth_client = OuraOAuth2Client(client_id=config.get('oura', 'client_id'),
                                     client_secret=config.get('oura', 'client_secret'))
 
@@ -91,8 +93,10 @@ def check_withings_connection():
                            className='mb-2',
                            size='sm')],
                           href=connect_withings_link(
-                              NokiaAuth(config.get('withings', 'client_id'), config.get('withings', 'client_secret'),
-                                        callback_uri=config.get('withings', 'redirect_uri'))))
+                              WithingsAuth(config.get('withings', 'client_id'), config.get('withings', 'client_secret'),
+                                           callback_uri=config.get('withings', 'redirect_uri'), scope=(
+                                      AuthScope.USER_ACTIVITY, AuthScope.USER_METRICS, AuthScope.USER_INFO,
+                                      AuthScope.USER_SLEEP_EVENTS))))
         else:
             return html.H4('Withings Connected!', className='col-lg-12', )
     else:
@@ -254,7 +258,7 @@ def athlete_card():
                                   id='peloton-bookmark-fitness-discipline-dropdown',
                                   placeholder="Fitness Discipline",
                                   options=[
-                                      {'label': f'{x.replace("_"," ").title()}', 'value': f'{x}'} for x in
+                                      {'label': f'{x.replace("_", " ").title()}', 'value': f'{x}'} for x in
                                       sorted(peloton_class_types.keys())],
                                   multi=False
                               )
@@ -1102,7 +1106,7 @@ def query_peloton_bookmark_settings(fitness_discipline, effort):
         # Query all possible options from peloton api for dropdown options
         class_types = get_peloton_class_names()[fitness_discipline]
 
-        return values,  [{'label': f'{k}', 'value': f'{k}'} for k, v in class_types.items()]
+        return values, [{'label': f'{k}', 'value': f'{k}'} for k, v in class_types.items()]
     else:
         return [], []
 

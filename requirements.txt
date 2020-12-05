@@ -4,7 +4,8 @@ dash
 dash-daq
 dash-bootstrap-components
 configparser
-nokia
+# nokia
+withings-api
 numpy
 oura
 pandas

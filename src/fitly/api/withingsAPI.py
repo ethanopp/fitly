@@ -1,4 +1,5 @@
-from nokia import NokiaApi, NokiaCredentials
+from withings_api import WithingsApi, Credentials
+from withings_api.common import get_measure_value, MeasureType
 from ..api.sqlalchemy_declarative import apiTokens, withings
 from ..api.database import engine
 from sqlalchemy import func, delete
@@ -39,7 +40,7 @@ def save_withings_token(tokens):
             'token_expiry': int((datetime.utcnow() - datetime(1970, 1, 1)).total_seconds()) + int(
                 tokens['expires_in']),
             'token_type': tokens['token_type'],
-            'user_id': tokens['userid'],
+            'userid': tokens['userid'],
             'refresh_token': tokens['refresh_token']
         }
 
@@ -49,7 +50,7 @@ def save_withings_token(tokens):
             'access_token': tokens.access_token,
             'token_expiry': tokens.token_expiry,
             'token_type': tokens.token_type,
-            'user_id': tokens.user_id,
+            'userid': tokens.userid,
             'refresh_token': tokens.refresh_token
         }
 
@@ -63,27 +64,27 @@ def save_withings_token(tokens):
     app.server.logger.debug('***** SAVED TOKENS *****')
 
 
-def nokia_creds(token_dict):
+def withings_creds(token_dict):
     '''
     :param token_dict:
-    :return: Nokia Credentials Object
+    :return: Withings Credentials Object
     '''
-    return NokiaCredentials(client_id=client_id,
-                            consumer_secret=client_secret,
-                            access_token=token_dict['access_token'],
-                            token_expiry=token_dict['token_expiry'],
-                            token_type=token_dict['token_type'],
-                            user_id=token_dict['user_id'],
-                            refresh_token=token_dict['refresh_token'])
+    return Credentials(client_id=client_id,
+                       consumer_secret=client_secret,
+                       access_token=token_dict['access_token'],
+                       token_expiry=token_dict['token_expiry'],
+                       token_type=token_dict['token_type'],
+                       userid=token_dict['userid'],
+                       refresh_token=token_dict['refresh_token'])
 
 
 def withings_connected():
     token_dict = current_token_dict()
     try:
         if token_dict:
-            creds = nokia_creds(token_dict)
-            client = NokiaApi(credentials=creds, refresh_cb=save_withings_token)
-            measures = client.get_measures(limit=1)
+            creds = withings_creds(token_dict)
+            client = WithingsApi(credentials=creds, refresh_cb=save_withings_token)
+            measures = client.measure_get_meas()
             app.server.logger.debug('Withings Connected')
             return True
     except BaseException as e:
@@ -101,18 +102,26 @@ def connect_withings_link(auth_client):
 def pull_withings_data():
     # UTC dates will get sampled into daily
     if withings_connected():
-        client = NokiaApi(nokia_creds(current_token_dict()), refresh_cb=save_withings_token)
-        df = pd.DataFrame([measure.__dict__ for measure in client.get_measures()])
-        df['date_utc'] = df['date'].apply(
-            lambda x: datetime.strptime(str(x.format('YYYY-MM-DD HH:mm:ss')), '%Y-%m-%d %H:%M:%S'))
-        df = df.drop(columns=['date'])
-        df = df.set_index(df['date_utc'])
+        client = WithingsApi(withings_creds(current_token_dict()), refresh_cb=save_withings_token)
+
+        df = pd.DataFrame(columns=['date_utc', 'weight', 'fat_ratio', 'hydration'])
+        meas_result = client.measure_get_meas()
+        for x in meas_result.measuregrps:
+            date = pd.to_datetime(str(x.date))
+            weight = get_measure_value(x, with_measure_type=MeasureType.WEIGHT)
+            fat_ratio = get_measure_value(x, with_measure_type=MeasureType.FAT_RATIO)
+            hydration = get_measure_value(x, with_measure_type=MeasureType.HYDRATION)
+
+            if weight and fat_ratio:
+                df = df.append({'date_utc': date, 'weight': weight, 'fat_ratio': fat_ratio, 'hydration': hydration},
+                               ignore_index=True)
+
+        df = df.set_index(df['date_utc'].apply(lambda x: x.replace(tzinfo=None)))
         df = df[['weight', 'fat_ratio', 'hydration']]
         # Convert to lbs
         df['weight'] *= 2.20462
 
         # Filter to days later than what is already in db
-
         withings_max_date = app.session.query(func.max(withings.date_utc)).first()[0]
         withings_max_date = datetime.strptime('1991-08-30 00:00:00',
                                               '%Y-%m-%d %H:%M:%S') if not withings_max_date else withings_max_date
