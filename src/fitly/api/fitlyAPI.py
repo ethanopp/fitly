@@ -387,7 +387,7 @@ class FitlyActivity(stravalib.model.Activity):
 
         if self.max_heartrate is not None:
             # Calculate heartrate metrics
-            athlete_lthr = .89 * self.athlete_max_hr
+            athlete_lthr = ((self.athlete_max_hr - self.hr_lowest) * .85) + self.hr_lowest # Karvonen 
             self.df_samples['hrr'] = self.df_samples['heartrate'].apply(
                 lambda x: (x - self.hr_lowest) / (self.athlete_max_hr - self.hr_lowest))
             self.trimp = ((1 / 60) * self.df_samples['hrr'] * (
