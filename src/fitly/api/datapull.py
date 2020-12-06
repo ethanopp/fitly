@@ -1,6 +1,6 @@
 from ..api.stravaApi import get_strava_client, strava_connected
 from ..api.ouraAPI import pull_oura_data
-from ..api.withingsAPI import pull_withings_data
+from ..api.api_withings import pull_withings_data
 from ..api.fitbodAPI import pull_fitbod_data
 from ..api.pelotonApi import get_peloton_class_names
 from ..api.sqlalchemy_declarative import *
