@@ -1,5 +1,5 @@
-from withings_api import WithingsApi, Credentials
-from withings_api.common import get_measure_value, MeasureType
+from withings_api import WithingsApi
+from withings_api.common import get_measure_value, MeasureType, Credentials
 from ..api.sqlalchemy_declarative import apiTokens, withings
 from ..api.database import engine
 from sqlalchemy import func, delete
