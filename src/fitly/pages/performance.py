@@ -343,7 +343,7 @@ def get_layout(**kwargs):
                                                           children=[
                                                               daq.BooleanSwitch(
                                                                   id='atl-pmc-switch',
-                                                                  on=True,
+                                                                  on=False,
                                                                   style={'display': 'inline-block',
                                                                          'vertical-align': 'middle'},
                                                               ),
