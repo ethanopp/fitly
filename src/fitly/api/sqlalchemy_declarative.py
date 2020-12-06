@@ -42,6 +42,7 @@ class athlete(Base):
     hr_zone_threshold_2 = Column('hr_zone_threshold_2', Float())
     hr_zone_threshold_3 = Column('hr_zone_threshold_3', Float())
     hr_zone_threshold_4 = Column('hr_zone_threshold_4', Float())
+    pmc_switch_settings = Column('pmc_switch_settings', String(9999))
     peloton_auto_bookmark_ids = Column('peloton_auto_bookmark_ids', String(9999))
     peloton_auto_bookmark_metric = Column('peloton_auto_bookmark_metric', String(10))
     use_run_power = Column('use_run_power', Boolean, default=True)

@@ -17,6 +17,7 @@ from ..api.database import engine
 from ..utils import utc_to_local, config, oura_credentials_supplied
 from ..pages.power import power_curve, zone_chart
 import re
+import json
 
 transition = int(config.get('dashboard', 'transition'))
 
@@ -98,6 +99,7 @@ def get_hrv_df():
 def get_layout(**kwargs):
     growth_figure, growth_hoverData = create_growth_chart()
     athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1).first()
+    pmc_switch_settings = json.loads(athlete_info.pmc_switch_settings)
     use_power = True if athlete_info.use_run_power or athlete_info.use_cycle_power else False
     app.session.remove()
     return html.Div([
@@ -263,7 +265,7 @@ def get_layout(**kwargs):
                                                           children=[
                                                               daq.BooleanSwitch(
                                                                   id='ride-pmc-switch',
-                                                                  on=True,
+                                                                  on=pmc_switch_settings['ride_status'],
                                                                   style={'display': 'inline-block',
                                                                          'vertical-align': 'middle'}
                                                               ),
@@ -283,7 +285,7 @@ def get_layout(**kwargs):
                                                           children=[
                                                               daq.BooleanSwitch(
                                                                   id='all-pmc-switch',
-                                                                  on=True,
+                                                                  on=pmc_switch_settings['all_status'],
                                                                   style={'display': 'inline-block',
                                                                          'vertical-align': 'middle'}
                                                               ),
@@ -305,7 +307,8 @@ def get_layout(**kwargs):
                                                                   on=use_power,
                                                                   style={'display': 'inline-block',
                                                                          'vertical-align': 'middle'},
-                                                                  disabled=not use_power
+                                                                  disabled=pmc_switch_settings[
+                                                                               'power_status'] and not use_power
                                                               ),
                                                               html.I(id='power-pmc-icon', className='fa fa-bolt',
                                                                      style={'fontSize': '1.5rem',
@@ -322,7 +325,7 @@ def get_layout(**kwargs):
                                                           children=[
                                                               daq.BooleanSwitch(
                                                                   id='hr-pmc-switch',
-                                                                  on=True,
+                                                                  on=pmc_switch_settings['hr_status'],
                                                                   style={'display': 'inline-block',
                                                                          'vertical-align': 'middle'}
                                                               ),
@@ -342,7 +345,7 @@ def get_layout(**kwargs):
                                                           children=[
                                                               daq.BooleanSwitch(
                                                                   id='atl-pmc-switch',
-                                                                  on=False,
+                                                                  on=pmc_switch_settings['atl_status'],
                                                                   style={'display': 'inline-block',
                                                                          'vertical-align': 'middle'},
                                                               ),
@@ -772,7 +775,7 @@ def create_fitness_kpis(date, ctl, ramp, rr_min_threshold, rr_max_threshold, atl
         ctl = round(ctl, 1) if ctl else 'N/A'
         tsb = round(tsb, 1) if tsb else 'N/A'
 
-        if round(ctl, 1) == 0 or ctl =='N/A':
+        if round(ctl, 1) == 0 or ctl == 'N/A':
             hrv4training_injury_risk = 'No Fitness'
         else:
             atl_ctl_ratio = atl / ctl
@@ -2371,8 +2374,15 @@ def update_fitness_kpis(hoverData):
      ]
 )
 def refresh_fitness_chart(ride_switch, run_switch, all_switch, power_switch, hr_switch, atl_pmc_switch, ride_status,
-                          run_status,
-                          all_status, power_status, hr_status, atl_status):
+                          run_status, all_status, power_status, hr_status, atl_status):
+    pmc_switch_settings = {'ride_status': ride_status, 'run_status': run_status, 'all_status': all_status,
+                           'power_status': power_status, 'hr_status': hr_status, 'atl_status': atl_status}
+    ### Save Switch settings in DB ###
+    app.session.query(athlete).filter(athlete.athlete_id == 1).update(
+        {athlete.pmc_switch_settings: json.dumps(pmc_switch_settings)})
+    app.session.commit()
+    app.session.remove()
+
     pmc_figure, hoverData = create_fitness_chart(ride_status=ride_status, run_status=run_status,
                                                  all_status=all_status, power_status=power_status, hr_status=hr_status,
                                                  atl_status=atl_status)
