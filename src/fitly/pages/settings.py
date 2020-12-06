@@ -7,7 +7,7 @@ import dash_daq as daq
 from oura import OuraOAuth2Client
 from ..api.ouraAPI import oura_connected, connect_oura_link, save_oura_token
 from ..api.stravaApi import strava_connected, get_strava_client, connect_strava_link, save_strava_token
-from ..api.withingsAPI import withings_connected, connect_withings_link, save_withings_token
+from ..api.api_withings import withings_connected, connect_withings_link, save_withings_token
 from ..api.pelotonApi import get_peloton_class_names
 from withings_api import WithingsAuth, AuthScope
 from ..api.sqlalchemy_declarative import stravaSummary, ouraSleepSummary, athlete, hrvWorkoutStepLog, \
