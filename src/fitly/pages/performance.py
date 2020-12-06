@@ -772,7 +772,7 @@ def create_fitness_kpis(date, ctl, ramp, rr_min_threshold, rr_max_threshold, atl
         ctl = round(ctl, 1) if ctl else 'N/A'
         tsb = round(tsb, 1) if tsb else 'N/A'
 
-        if round(ctl, 1) == 0:
+        if round(ctl, 1) == 0 or ctl =='N/A':
             hrv4training_injury_risk = 'No Fitness'
         else:
             atl_ctl_ratio = atl / ctl
@@ -1215,8 +1215,11 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
     workout_types = get_workout_types(df_summary, run_status, ride_status, all_status)
 
     # Sample to daily level and sum stress scores to aggregate multiple workouts per day
-    if atl_status:
-        atl_df = df_summary[df_summary['type'].isin(workout_types)]
+    if not atl_status:
+        atl_df = df_summary
+        atl_df.at[~atl_df['type'].isin(workout_types), 'stress_score'] = 0
+        atl_df.at[~atl_df['type'].isin(workout_types), 'tss'] = 0
+        atl_df.at[~atl_df['type'].isin(workout_types), 'hrss'] = 0
         atl_df = atl_df[['stress_score', 'tss', 'hrss']].resample('D').sum()
     else:
         atl_df = df_summary[['stress_score', 'tss', 'hrss']].resample('D').sum()
