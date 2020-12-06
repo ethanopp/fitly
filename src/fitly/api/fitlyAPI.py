@@ -387,7 +387,7 @@ class FitlyActivity(stravalib.model.Activity):
 
         if self.max_heartrate is not None:
             # Calculate heartrate metrics
-            athlete_lthr = ((self.athlete_max_hr - self.hr_lowest) * .85) + self.hr_lowest # Karvonen 
+            athlete_lthr = ((self.athlete_max_hr - self.hr_lowest) * .85) + self.hr_lowest  # Karvonen
             self.df_samples['hrr'] = self.df_samples['heartrate'].apply(
                 lambda x: (x - self.hr_lowest) / (self.athlete_max_hr - self.hr_lowest))
             self.trimp = ((1 / 60) * self.df_samples['hrr'] * (
@@ -575,6 +575,25 @@ class FitlyActivity(stravalib.model.Activity):
                         self.df_samples.at[i, 'hr_zone'] = 5
                 else:
                     return np.nan
+
+    # https://www.movescount.com/apps/app10925786-Strava_Suffer_Score
+    # def strava_suffer_score(self):
+    #     self.df_samples['strava_suffer_score'] = np.nan
+    #     for i in self.df_samples.index:
+    #         hr_zone = self.df_samples.loc[i].hr_zone
+    #         if hr_zone is not None:
+    #             if hr_zone == 1:
+    #                 self.df_samples.at[i, 'strava_suffer_score'] = 25 / 3600
+    #             elif hr_zone <= 2:
+    #                 self.df_samples.at[i, 'strava_suffer_score'] = 60 / 3600
+    #             elif hr_zone == 3:
+    #                 self.df_samples.at[i, 'strava_suffer_score'] = 115 / 3600
+    #             elif hr_zone == 4:
+    #                 self.df_samples.at[i, 'strava_suffer_score'] = 250 / 3600
+    #             elif hr_zone == 5:
+    #                 self.df_samples.at[i, 'strava_suffer_score'] = 300 / 3600
+    #         else:
+    #             return np.nan
 
     def calculate_zone_intensities(self):
         df_zone_intensities = self.df_samples.copy()
