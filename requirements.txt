@@ -4,7 +4,6 @@ dash
 dash-daq
 dash-bootstrap-components
 configparser
-# nokia
 withings-api
 numpy
 oura
