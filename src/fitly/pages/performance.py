@@ -297,26 +297,6 @@ def get_layout(**kwargs):
                                                  dbc.Tooltip(
                                                      'Include all other workouts in Fitness trend.',
                                                      target="all-pmc"),
-
-                                                 html.Div(id='hr-pmc', className='col-lg-12 col-sm-4',
-                                                          style={'padding': '0', 'textAlign': 'start'},
-                                                          children=[
-                                                              daq.BooleanSwitch(
-                                                                  id='hr-pmc-switch',
-                                                                  on=True,
-                                                                  style={'display': 'inline-block',
-                                                                         'vertical-align': 'middle'}
-                                                              ),
-                                                              html.I(id='hr-pmc-icon', className='fa fa-heart',
-                                                                     style={'fontSize': '1.5rem',
-                                                                            'display': 'inline-block',
-                                                                            'vertical-align': 'middle',
-                                                                            'paddingLeft': '.25vw', }),
-
-                                                          ]),
-                                                 dbc.Tooltip(
-                                                     'Include heart rate data for stress scores.',
-                                                     target="hr-pmc"),
                                                  html.Div(id='power-pmc', className='col-lg-12 col-sm-4',
                                                           style={'padding': '0', 'textAlign': 'start'},
                                                           children=[
@@ -337,6 +317,25 @@ def get_layout(**kwargs):
                                                  dbc.Tooltip(
                                                      'Include power data for stress scores.',
                                                      target="power-pmc"),
+                                                 html.Div(id='hr-pmc', className='col-lg-12 col-sm-4',
+                                                          style={'padding': '0', 'textAlign': 'start'},
+                                                          children=[
+                                                              daq.BooleanSwitch(
+                                                                  id='hr-pmc-switch',
+                                                                  on=True,
+                                                                  style={'display': 'inline-block',
+                                                                         'vertical-align': 'middle'}
+                                                              ),
+                                                              html.I(id='hr-pmc-icon', className='fa fa-heart',
+                                                                     style={'fontSize': '1.5rem',
+                                                                            'display': 'inline-block',
+                                                                            'vertical-align': 'middle',
+                                                                            'paddingLeft': '.25vw', }),
+
+                                                          ]),
+                                                 dbc.Tooltip(
+                                                     'Include heart rate data for stress scores.',
+                                                     target="hr-pmc"),
 
                                                  html.Div(id='atl-pmc', className='col-lg-12 col-sm-4',
                                                           style={'padding': '0', 'textAlign': 'start'},
