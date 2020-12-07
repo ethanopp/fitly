@@ -186,6 +186,8 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
                                                               datetime.now() - timedelta(days=90))
                                                       ).statement, con=engine)
 
+    current_ftp_w = app.session.query(stravaSummary).filter(stravaSummary.type.ilike(activity_type)).order_by(
+        stravaSummary.start_date_utc.desc()).first().ftp
     td_data_exists = len(TD_df_L90D) > 0
     # If training distribution data exists
     if td_data_exists:
@@ -201,21 +203,18 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
         TD_df_L90D['ftp_wkg'] = TD_df_L90D['ftp'] / (TD_df_L90D['weight'] * 0.453592)
 
         ### Calculations for L90D workouts based on todays weights for stryd comparisons ###
-        # Stryd uses "Current FTP" and "Current Weight" across all workouts for last 90 days
-        # To align with their percentiles, we need to use "current" metrics to compare against any workout within last 90 days
-        # Stryd also only computes based off of W, so need to hardcode percentils to W even when toggling W/kg in fitly
-        current_weight_kg = app.session.query(withings).order_by(withings.date_utc.desc()).first().weight * 0.453592
-        last_workout = TD_df_L90D[TD_df_L90D['date'] == TD_df_L90D['date'].max()]
-        current_ftp_w = last_workout.ftp.values[0]
-        endurance_df_mmp = TD_df_L90D.loc[TD_df_L90D[TD_df_L90D['mmp'] > (current_ftp_w / 2)].index.max()]
-        fatigue_df_mmp = TD_df_L90D.loc[TD_df_L90D[TD_df_L90D['mmp'] > current_ftp_w].index.max()]
+        # Stryd uses "Current FTP" and "Current Weight" across all workouts for last 90 days for their power curve
+        # To align with their percentiles, we use these metrics (pulled from api)
 
-        # For actual power curve chart, we will use ftp as of when the workout was done for a more accurate chart or PRs
-        workout_ftp = TD_df_L90D.ftp_wkg.values[0] if power_unit == 'watts_per_kg' else TD_df_L90D.ftp.values[0]
-        endurance_df = TD_df_L90D.loc[TD_df_L90D[TD_df_L90D[power_unit] > (workout_ftp / 2)].index.max()]
-        fatigue_df = TD_df_L90D.loc[TD_df_L90D[TD_df_L90D[power_unit] > workout_ftp].index.max()]
+        # For our actual power curve chart, we will use ftp as of when the workout was done for a more accurate chart
+        fatigue_df = TD_df_L90D.loc[TD_df_L90D[
+            TD_df_L90D[power_unit] > TD_df_L90D['ftp_wkg' if power_unit == 'watts_per_kg' else 'ftp']].index.max()]
+        fatigue_ftp = fatigue_df.ftp_wkg if power_unit == 'watts_per_kg' else fatigue_df.ftp
+        endurance_df = TD_df_L90D.loc[TD_df_L90D[TD_df_L90D[power_unit] > (
+                    TD_df_L90D['ftp_wkg' if power_unit == 'watts_per_kg' else 'ftp'] / 2)].index.max()]
+        endurance_ftp = endurance_df.ftp_wkg / 2 if power_unit == 'watts_per_kg' else endurance_df.ftp / 2
 
-        # Muscle power is just best 10 second power (weight/ftp do not matter)
+        # Muscle power is just best 10 second power
         muscle_power = TD_df_L90D.loc[10][power_unit]
 
         TD_df_at = pd.read_sql(
@@ -452,12 +451,12 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
         go.layout.Annotation(
             font={'size': 10, 'color': orange if fatigue_best else white},
             x=.1,
-            y=workout_ftp,
+            y=fatigue_ftp,
             xref="x",
             yref="y",
             text='''100% CP (L90D): <b>{:.2f}</b> W/kg'''.format(
-                workout_ftp) if power_unit == 'watts_per_kg' else '''100% CP (L90D): <b>{:.0f}</b> W'''.format(
-                workout_ftp),
+                fatigue_ftp) if power_unit == 'watts_per_kg' else '''100% CP (L90D): <b>{:.0f}</b> W'''.format(
+                fatigue_ftp),
             showarrow=True,
             arrowhead=1,
             arrowcolor='rgba(0,0,0,0)',
@@ -469,12 +468,12 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
         go.layout.Annotation(
             font={'size': 10, 'color': orange if endurance_best else white},
             x=.1,
-            y=workout_ftp / 2,
+            y=endurance_ftp,
             xref="x",
             yref="y",
             text='''50% CP (L90D): <b>{:.2f}</b> W/kg'''.format(
-                workout_ftp / 2) if power_unit == 'watts_per_kg' else '''50% CP (L90D): <b>{:.0f}</b> W'''.format(
-                workout_ftp / 2),
+                endurance_ftp) if power_unit == 'watts_per_kg' else '''50% CP (L90D): <b>{:.0f}</b> W'''.format(
+                endurance_ftp),
             showarrow=True,
             arrowhead=1,
             arrowcolor='rgba(0,0,0,0)',
@@ -497,7 +496,7 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
         ),
         # Fatigue Resistance
         dict(
-            type='line', y0=workout_ftp, y1=workout_ftp, xref='x', yref='y', x0=.9,
+            type='line', y0=fatigue_ftp, y1=fatigue_ftp, xref='x', yref='y', x0=.9,
             line=dict(
                 color="Grey",
                 width=1,
@@ -506,7 +505,7 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
         ),
         # Endurance
         dict(
-            type='line', y0=workout_ftp / 2, y1=workout_ftp / 2, xref='x', yref='y', x0=.9,
+            type='line', y0=endurance_ftp, y1=endurance_ftp, xref='x', yref='y', x0=.9,
             line=dict(
                 color="Grey",
                 width=1,
@@ -528,7 +527,8 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
                 xaxis='x2', yaxis='y2', customdata=['ignore'], x=[100], y=[''], width=[2],
                 marker=dict(color=light_blue),
                 text='Fitness: <b>{:.2f}</b> W/kg<br>Stryd Avg: <b>{:.2f}</b> W/kg<br>Percentile: <b>{:.0%}'.format(
-                    last_workout.ftp.values[0] / current_weight_kg, td["percentile"]["median_fitness"],
+                    td["attr"]["fitness"],  # Use value directly from stryd api call
+                    td["percentile"]["median_fitness"],
                     td["percentile"]["fitness"]),
                 hoverinfo='text', orientation='h'),
 
@@ -537,7 +537,8 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
                 xaxis='x3', yaxis='y2', customdata=['ignore'], x=[100], y=[''], width=[2],
                 marker=dict(color=light_blue),
                 text='Max 10 Sec Power: <b>{:.2f} </b>W/kg<br>Stryd Avg: <b>{:.2f}</b> W/kg<br>Percentile: <b>{:.0%}'.format(
-                    TD_df_at.loc[10]['mmp'] / current_weight_kg, td["percentile"]["median_muscle_power"],
+                    td["attr"]["muscle_power"],  # Use value directly from stryd api call
+                    td["percentile"]["median_muscle_power"],
                     td["percentile"]["muscle_power"]),
                 hoverinfo='text', orientation='h'),
 
@@ -545,8 +546,8 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
             go.Bar(
                 xaxis='x4', yaxis='y2', customdata=['ignore'], x=[100], y=[''], width=[2],
                 marker=dict(color=light_blue),
-                text='Longest 100% CP: <b>{:%H:%M:%S}</b> <br>Stryd Avg: <b>{}</b><br>Percentile: <b>{:.0%}'.format(
-                    fatigue_df_mmp['time_interval'],
+                text='Longest 100% CP: <b>{}</b> <br>Stryd Avg: <b>{}</b><br>Percentile: <b>{:.0%}'.format(
+                    timedelta(seconds=int(td["attr"]["fatigue_resistance"])),  # Use value directly from stryd api call
                     timedelta(seconds=int(td["percentile"]["median_fatigue_resistance"])),
                     td["percentile"]["fatigue_resistance"]),
                 hoverinfo='text', orientation='h'),
@@ -555,9 +556,10 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
             go.Bar(
                 xaxis='x5', yaxis='y2', customdata=['ignore'], x=[100], y=[''], width=[2],
                 marker=dict(color=light_blue),
-                text='Longest 50% CP: <b>{:%H:%M:%S}</b> <br>Stryd Avg: <b>{}</b><br>Percentile: <b>{:.0%}'.format(
-                    endurance_df_mmp['time_interval'],
-                    timedelta(seconds=int(td["percentile"]["median_endurance"])), td["percentile"]["endurance"]),
+                text='Longest 50% CP: <b>{}</b> <br>Stryd Avg: <b>{}</b><br>Percentile: <b>{:.0%}'.format(
+                    timedelta(seconds=int(td["attr"]["endurance"])),  # Use value directly from stryd api call
+                    timedelta(seconds=int(td["percentile"]["median_endurance"])),
+                    td["percentile"]["endurance"]),
                 hoverinfo='text', orientation='h'),
         ])
 
@@ -592,24 +594,25 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
         annotations.extend([
             go.layout.Annotation(
                 font={'size': 12, 'color': white}, x=50, y=1.2, xref="x2", yref="y2",
-                text='Fitness: {:.0f} W'.format(last_workout.ftp.values[0]),
+                text='Fitness: {:.0f} W'.format(current_ftp_w),
                 showarrow=False,
             ),
 
             go.layout.Annotation(
                 font={'size': 12, 'color': white}, x=50, y=1.2, xref="x3", yref="y2",
-                text='Muscle Power: {:.0f} W'.format(TD_df_at.loc[10]['mmp']),
+                text='Muscle Power: {:.0f} W'.format(TD_df_L90D.loc[10]['mmp']),
                 showarrow=False,
             ),
 
             go.layout.Annotation(
                 font={'size': 12, 'color': white}, x=50, y=1.2, xref="x4", yref="y2",
-                text='Fatigue Resistance: {:%H:%M:%S}'.format(fatigue_df_mmp['time_interval']),
+                text='Fatigue Resistance: {}'.format(timedelta(seconds=int(td["attr"]["fatigue_resistance"]))),
+
                 showarrow=False,
             ),
             go.layout.Annotation(
                 font={'size': 12, 'color': white}, x=50, y=1.2, xref="x5", yref="y2",
-                text='Endurance: {:%H:%M:%S}'.format(endurance_df_mmp['time_interval']),
+                text='Endurance: {}'.format(timedelta(seconds=int(td["attr"]["endurance"]))),
                 showarrow=False,
             ),
 
