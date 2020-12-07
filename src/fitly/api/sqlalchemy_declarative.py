@@ -43,19 +43,19 @@ class athlete(Base):
     hr_zone_threshold_3 = Column('hr_zone_threshold_3', Float())
     hr_zone_threshold_4 = Column('hr_zone_threshold_4', Float())
     pmc_switch_settings = Column('pmc_switch_settings', String(9999))
+    recovery_metric = Column('recovery_metric', String(10))
     peloton_auto_bookmark_ids = Column('peloton_auto_bookmark_ids', String(9999))
-    peloton_auto_bookmark_metric = Column('peloton_auto_bookmark_metric', String(10))
     use_run_power = Column('use_run_power', Boolean, default=True)
     use_cycle_power = Column('use_cycle_power', Boolean, default=True)
 
 
-class hrvWorkoutStepLog(Base):
-    __tablename__ = 'hrv_workout_step_log'
+class workoutStepLog(Base):
+    __tablename__ = 'workout_step_log'
     id = Column('id', Integer(), index=True, primary_key=True, autoincrement=True)
     athlete_id = Column('athlete_id', Integer())
     date = Column('date', Date())
-    hrv_workout_step = Column('hrv_workout_step', Integer())
-    hrv_workout_step_desc = Column('hrv_workout_step_desc', String(20))
+    workout_step = Column('workout_step', Integer())
+    workout_step_desc = Column('workout_step_desc', String(20))
     completed = Column('completed', Boolean, default=False)
     rationale = Column('rationale', String(255))
 

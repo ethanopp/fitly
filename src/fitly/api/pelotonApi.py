@@ -7,7 +7,7 @@ import decimal
 from datetime import datetime, timezone, date, timedelta
 from ..utils import config
 import pandas as pd
-from .sqlalchemy_declarative import hrvWorkoutStepLog, ouraReadinessSummary, athlete, stravaSummary
+from .sqlalchemy_declarative import workoutStepLog, athlete, stravaSummary
 from ..app import app
 import json
 import os
@@ -809,25 +809,13 @@ def get_bookmarks():
     return PelotonAPI._api_request(uri=uri).json()
 
 
-from ..pages.performance import readiness_score_recommendation
-
-
 def set_peloton_workout_recommendations():
-    athlete_peloton_settings = app.session.query(athlete.peloton_auto_bookmark_ids,
-                                                 athlete.peloton_auto_bookmark_metric).filter(
-        athlete.athlete_id == 1).first()
     # Query worktypes by effort level settings
-    athlete_bookmarks = json.loads(athlete_peloton_settings.peloton_auto_bookmark_ids)
-    # Query metric to use to check recommended effort
-    metric_recommendation = athlete_peloton_settings.peloton_auto_bookmark_metric
-    # Get recommended effort based on daily metrics score
-    if metric_recommendation == 'hrv':
-        # Get Recommendation for the day
-        effort_recommendation = app.session.query(hrvWorkoutStepLog.hrv_workout_step_desc).order_by(
-            hrvWorkoutStepLog.date.desc()).first().hrv_workout_step_desc
-    elif metric_recommendation == 'readiness':
-        effort_recommendation = readiness_score_recommendation(app.session.query(ouraReadinessSummary.score).order_by(
-            ouraReadinessSummary.report_date.desc()).first().score)
+    athlete_bookmarks = json.loads(app.session.query(athlete.peloton_auto_bookmark_ids).filter(
+        athlete.athlete_id == 1).first().peloton_auto_bookmark_ids)
+    # Get recommended effort based on workflow
+    effort_recommendation = app.session.query(workoutStepLog.workout_step_desc).order_by(
+        workoutStepLog.date.desc()).first().workout_step_desc
 
     app.session.remove()
 

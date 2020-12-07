@@ -76,8 +76,8 @@ def refresh_database(refresh_method='system', truncate=False, truncateDate=None)
                                 delete(ouraActivitySamples).where(ouraActivitySamples.timestamp_local >= truncateDate))
                             app.server.logger.debug('Truncating hrv_workout_step_log')
                             # Delete extra day back so hrv workflow can recalculate the 'completed_yesterday' flag
-                            app.session.execute(delete(hrvWorkoutStepLog).where(
-                                hrvWorkoutStepLog.date >= (truncateDate - timedelta(days=1))))
+                            app.session.execute(delete(workoutStepLog).where(
+                                workoutStepLog.date >= (truncateDate - timedelta(days=1))))
                             app.server.logger.debug('Truncating withings')
                             app.session.execute(delete(withings).where(withings.date_utc >= truncateDate))
                             app.session.commit()
@@ -103,7 +103,7 @@ def refresh_database(refresh_method='system', truncate=False, truncateDate=None)
                             app.server.logger.debug('Truncating oura_activity_samples')
                             app.session.execute(delete(ouraActivitySamples))
                             app.server.logger.debug('Truncating hrv_workout_step_log')
-                            app.session.execute(delete(hrvWorkoutStepLog))
+                            app.session.execute(delete(workoutStepLog))
                             app.server.logger.debug('Truncating withings')
                             app.session.execute(delete(withings))
                             app.server.logger.debug('Truncating fitbod')
@@ -191,9 +191,11 @@ def refresh_database(refresh_method='system', truncate=False, truncateDate=None)
                             if len(new_activities) > 0:
                                 for fitly_act in new_activities:
                                     fitly_act.stravaScrape(athlete_id=athlete_id)
-                            # Only run hrv training workflow if oura connection available to use hrv data
+                            # Only run hrv training workflow if oura connection available to use hrv data or readiness score
                             if oura_status == 'Successful':
-                                hrv_training_workflow(min_non_warmup_workout_time=min_non_warmup_workout_time)
+                                training_workflow(min_non_warmup_workout_time=min_non_warmup_workout_time,
+                                                  metric=app.session.query(athlete).filter(
+                                                      athlete.athlete_id == 1).first().recovery_metric)
 
                         app.server.logger.debug('stravaScrape() complete...')
                         strava_status = 'Successful'

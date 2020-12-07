@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 import numpy as np
-from ..api.sqlalchemy_declarative import ouraSleepSummary, withings, athlete, stravaSummary, \
-    fitbod, hrvWorkoutStepLog
+from ..api.sqlalchemy_declarative import ouraSleepSummary, ouraReadinessSummary, withings, athlete, stravaSummary, \
+    fitbod, workoutStepLog
 from sqlalchemy import func, cast, Date
 from sweat.io.models.dataframes import WorkoutDataFrame, Athlete
 from sweat.pdm import critical_power
@@ -691,7 +691,7 @@ class FitlyActivity(stravalib.model.Activity):
         self.df_samples.fillna(np.nan).to_sql('strava_samples', engine, if_exists='append', index=True)
 
 
-def hrv_training_workflow(min_non_warmup_workout_time, athlete_id=1):
+def training_workflow(min_non_warmup_workout_time, metric='hrv_baseline', athlete_id=1):
     '''
     Query db for oura hrv data, calculate rolling 7 day average, generate recommended workout and store in db.
     Once stored, continuously check if workout has been completed and fill in 'Compelted' field
@@ -700,29 +700,38 @@ def hrv_training_workflow(min_non_warmup_workout_time, athlete_id=1):
     # https://www.alancouzens.com/blog/Training_prescription_guided_by_HRV_in_cycling.pdf
 
     # Check if entire table is empty, if so the earliest hrv plan can start is after 30 days of hrv readings
+    # If using readiness score, just use first score available
     db_test = pd.read_sql(
-        sql=app.session.query(hrvWorkoutStepLog).filter(hrvWorkoutStepLog.athlete_id == athlete_id).statement,
+        sql=app.session.query(workoutStepLog).filter(workoutStepLog.athlete_id == athlete_id).statement,
         con=engine, index_col='date')
 
     if len(db_test) == 0:
-        min_oura_date = pd.to_datetime(
-            app.session.query(func.min(ouraSleepSummary.report_date))[0][0] + timedelta(29)).date()
+        if metric == 'hrv':
+            min_oura_date = pd.to_datetime(
+                app.session.query(func.min(ouraSleepSummary.report_date))[0][0] + timedelta(59)).date()
+        if metric == 'hrv_baseline':
+            min_oura_date = pd.to_datetime(
+                app.session.query(func.min(ouraSleepSummary.report_date))[0][0] + timedelta(29)).date()
+        elif metric == 'readiness':
+            min_oura_date = pd.to_datetime(
+                app.session.query(func.min(ouraReadinessSummary.report_date))[0][0]).date()
+
         db_test.at[min_oura_date, 'athlete_id'] = athlete_id
-        db_test.at[min_oura_date, 'hrv_workout_step'] = 0
-        db_test.at[min_oura_date, 'hrv_workout_step_desc'] = 'Low'
+        db_test.at[min_oura_date, 'workout_step'] = 0
+        db_test.at[min_oura_date, 'workout_step_desc'] = 'Low'
         db_test.at[min_oura_date, 'completed'] = 0
         db_test.at[min_oura_date, 'rationale'] = 'This is the first date hrv thresholds could be calculated'
-        db_test.to_sql('hrv_workout_step_log', engine, if_exists='append', index=True)
+        db_test.to_sql('workout_step_log', engine, if_exists='append', index=True)
 
     # Check if a step has already been inserted for today and if so check if workout has been completed yet
-    todays_plan = app.session.query(hrvWorkoutStepLog).filter(hrvWorkoutStepLog.athlete_id == athlete_id,
-                                                              hrvWorkoutStepLog.date == datetime.today().date()).first()
+    todays_plan = app.session.query(workoutStepLog).filter(workoutStepLog.athlete_id == athlete_id,
+                                                           workoutStepLog.date == datetime.today().date()).first()
 
     if todays_plan:
         # If not yet "completed" keep checking throughout day
         if todays_plan.completed == 0:
             # If rest day, mark as completed
-            if todays_plan.hrv_workout_step == 4 or todays_plan.hrv_workout_step == 5:
+            if todays_plan.workout_step == 4 or todays_plan.workout_step == 5:
                 todays_plan.completed = 1
                 app.session.commit()
             else:
@@ -737,21 +746,33 @@ def hrv_training_workflow(min_non_warmup_workout_time, athlete_id=1):
 
     # If plan not yet created for today, create it
     else:
-        hrv_df = get_hrv_df()
+        if metric == 'hrv':
+            metric_df = get_hrv_df()
+            metric_df['within_swc'] = metric_df['within_daily_swc']
+
+        elif metric == 'hrv_baseline':
+            metric_df = get_hrv_df()
+
+        elif metric == 'readiness':
+            metric_df = pd.read_sql(
+                sql=app.session.query(ouraReadinessSummary.report_date, ouraReadinessSummary.score).statement,
+                con=engine, index_col='report_date').sort_index(ascending=False)
+            metric_df['within_swc'] = True
+            metric_df.loc[metric_df['score'] < 70, 'within_swc'] = False
 
         # Wait for today's hrv to be loaded into cloud
-        if hrv_df.index.max() == datetime.today().date():  # or (datetime.now() - timedelta(hours=12)) > pd.to_datetime(datetime.today().date()):
+        if metric_df.index.max() == datetime.today().date():  # or (datetime.now() - timedelta(hours=12)) > pd.to_datetime(datetime.today().date()):
             step_log_df = pd.read_sql(
-                sql=app.session.query(hrvWorkoutStepLog.date, hrvWorkoutStepLog.hrv_workout_step,
-                                      hrvWorkoutStepLog.completed).filter(hrvWorkoutStepLog.athlete_id == 1).statement,
+                sql=app.session.query(workoutStepLog.date, workoutStepLog.workout_step,
+                                      workoutStepLog.completed).filter(workoutStepLog.athlete_id == 1).statement,
                 con=engine, index_col='date').sort_index(ascending=False)
 
             ### Modified version of flow chart to allow for additional MOD day in step 2 ###
             # Store the last value of step 2 to cycle between MOD->MOD->HIIT every 3rd time
             try:
                 last_hiit_mod = \
-                    step_log_df[(step_log_df['hrv_workout_step'].isin([21, 22, 23])) & (step_log_df['completed'] == 1)][
-                        'hrv_workout_step'].head(1).values[0]
+                    step_log_df[(step_log_df['workout_step'].isin([21, 22, 23])) & (step_log_df['completed'] == 1)][
+                        'workout_step'].head(1).values[0]
             except:
                 last_hiit_mod = 20
 
@@ -759,9 +780,9 @@ def hrv_training_workflow(min_non_warmup_workout_time, athlete_id=1):
 
             step_log_df = step_log_df[step_log_df.index == step_log_df.index.max()]
             # Store last step in variable for starting point in loop
-            last_db_step = step_log_df['hrv_workout_step'].iloc[0]
+            last_db_step = step_log_df['workout_step'].iloc[0]
             # Resample to today
-            step_log_df.at[pd.to_datetime(datetime.today().date()), 'hrv_workout_step'] = None
+            step_log_df.at[pd.to_datetime(datetime.today().date()), 'workout_step'] = None
             step_log_df.set_index(pd.to_datetime(step_log_df.index), inplace=True)
             step_log_df = step_log_df.resample('D').mean()
             # Remove first row from df so it does not get re inserted into db
@@ -790,7 +811,7 @@ def hrv_training_workflow(min_non_warmup_workout_time, athlete_id=1):
             # step_log_df = step_log_df.iloc[1:]
 
             # Merge dfs
-            df = pd.merge(step_log_df, hrv_df, how='left', right_index=True, left_index=True)
+            df = pd.merge(step_log_df, metric_df, how='left', right_index=True, left_index=True)
 
             last_step = last_db_step
             for i in df.index:
@@ -859,15 +880,15 @@ def hrv_training_workflow(min_non_warmup_workout_time, athlete_id=1):
                         current_step = 1 if within_swc else 4
 
                 df.at[i, 'completed'] = 1 if current_step == 4 or current_step == 5 else df.at[i, 'completed']
-                df.at[i, 'hrv_workout_step'] = current_step
+                df.at[i, 'workout_step'] = current_step
                 last_step = current_step
 
                 # Map descriptions and alternate every HIIT and Mod
-                df.at[i, 'hrv_workout_step_desc'] = \
+                df.at[i, 'workout_step_desc'] = \
                     {0: 'Low', 1: 'High', 21: 'Mod', 22: 'Mod', 23: 'HIIT', 3: 'Low', 4: 'Rest', 5: 'Rest', 6: 'Low'}[
-                        df.at[i, 'hrv_workout_step']]
+                        df.at[i, 'workout_step']]
 
-                if df.at[i, 'hrv_workout_step'] in [21, 22, 23] and df.at[i, 'completed'] == 1:
+                if df.at[i, 'workout_step'] in [21, 22, 23] and df.at[i, 'completed'] == 1:
                     next_hiit_mod = next_hiit_mod + 1 if next_hiit_mod != 23 else 21
 
                 df.at[i, 'rationale'] = rationale
@@ -876,9 +897,9 @@ def hrv_training_workflow(min_non_warmup_workout_time, athlete_id=1):
 
             df.reset_index(inplace=True)
             # Insert into db
-            df = df[['athlete_id', 'date', 'hrv_workout_step', 'hrv_workout_step_desc', 'completed', 'rationale']]
+            df = df[['athlete_id', 'date', 'workout_step', 'workout_step_desc', 'completed', 'rationale']]
             df['date'] = df['date'].dt.date
-            df.to_sql('hrv_workout_step_log', engine, if_exists='append', index=False)
+            df.to_sql('workout_step_log', engine, if_exists='append', index=False)
 
             if peloton_credentials_supplied:
                 set_peloton_workout_recommendations()

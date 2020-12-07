@@ -10,15 +10,14 @@ from ..api.stravaApi import strava_connected, get_strava_client, connect_strava_
 from ..api.api_withings import withings_connected, connect_withings_link, save_withings_token
 from ..api.pelotonApi import get_peloton_class_names
 from withings_api import WithingsAuth, AuthScope
-from ..api.sqlalchemy_declarative import stravaSummary, ouraSleepSummary, athlete, hrvWorkoutStepLog, \
-    dbRefreshStatus
+from ..api.sqlalchemy_declarative import stravaSummary, ouraSleepSummary, athlete, workoutStepLog, dbRefreshStatus
 from ..api.database import engine
 from ..api.datapull import refresh_database
 from sqlalchemy import delete
 import pandas as pd
 from dateutil.relativedelta import relativedelta
 from datetime import datetime
-from ..api.fitlyAPI import hrv_training_workflow
+from ..api.fitlyAPI import training_workflow
 from ..app import app
 from flask import current_app as server
 import re
@@ -226,32 +225,6 @@ def athlete_card():
         peloton_bookmark_settings = html.Div(
             children=[html.H5('Peloton Recommendation Auto Bookmarking', className='col-12 mb-2 mt-2'),
 
-                      html.Div(id='peloton-bookmark-metric-dropdown', className='row align-items-center mb-2 mt-2',
-                               children=[
-                                   html.H6('Recommendation Metric', className='col-5 mb-0'),
-                                   html.Div(className='text-center col-5', style={'paddingRight': 0, 'paddingLeft': 0},
-                                            children=[
-                                                dcc.Dropdown(
-                                                    id='peloton-bookmark-metric-dropdown-input',
-
-                                                    options=[
-                                                        {'label': 'HRV', 'value': 'hrv'},
-                                                        {'label': 'Readiness', 'value': 'readiness'}],
-                                                    value=athlete_info.peloton_auto_bookmark_metric,
-                                                    multi=False
-                                                )
-                                            ]),
-
-                                   html.Button(id='peloton-bookmark-metric-dropdown-input-submit',
-                                               className='col-2 fa fa-upload',
-                                               style={'display': 'inline-block', 'border': '0px'}),
-
-                                   html.I(id='peloton-bookmark-metric-dropdown-input-status',
-                                          className='col-2 fa fa-check',
-                                          style={'display': 'none', 'color': 'rgba(0,0,0,0)',
-                                                 'fontSize': '150%'})
-                               ]),
-
                       html.Div(className='row align-items-center mb-2 mt-2', children=[
                           html.Div(className='col-lg-6', children=[
                               dcc.Dropdown(
@@ -314,7 +287,36 @@ def athlete_card():
             generate_db_setting('rest-hr', 'Resting HR', athlete_info.resting_hr),
             generate_db_setting('ride-ftp', 'Ride FTP', athlete_info.ride_ftp),
             generate_db_setting('run-ftp', 'Run FTP', athlete_info.run_ftp),
-            peloton_bookmark_settings
+            html.Div(id='recovery-metric-dropdown', className='row align-items-center mb-2 mt-2',
+                     children=[
+                         html.H6('Recovery Metric', id='recovery-metric-label', className='col-5 mb-0'),
+                         html.Div(className='text-center col-5', style={'paddingRight': 0, 'paddingLeft': 0},
+                                  children=[
+                                      dcc.Dropdown(
+                                          id='recovery-metric-dropdown-input',
+
+                                          options=[
+                                              {'label': 'HRV', 'value': 'hrv'},
+                                              {'label': '7-Day HRV Baseline', 'value': 'hrv_baseline'},
+                                              {'label': 'Oura Readiness Score', 'value': 'readiness'}],
+                                          value=athlete_info.recovery_metric,
+                                          multi=False
+                                      )
+                                  ]),
+                         dbc.Tooltip(['Used for training workflow and peloton class bookmark recommendations'],
+                                     target='recovery-metric-dropdown'),
+
+                         html.Button(id='recovery-metric-dropdown-input-submit',
+                                     className='col-2 fa fa-upload',
+                                     style={'display': 'inline-block', 'border': '0px'}),
+
+                         html.I(id='recovery-metric-dropdown-input-status',
+                                className='col-2 fa fa-check',
+                                style={'display': 'none', 'color': 'rgba(0,0,0,0)',
+                                       'fontSize': '150%'})
+                     ]) if oura_credentials_supplied else html.Div(),
+
+            peloton_bookmark_settings,
 
         ])
     ])
@@ -603,8 +605,8 @@ def update_athlete_db_value(value, value_name):
     Output('hr-zone3-input-status', 'style'),
     Output('hr-zone4-input-submit', 'style'),
     Output('hr-zone4-input-status', 'style'),
-    Output('peloton-bookmark-metric-dropdown-input-submit', 'style'),
-    Output('peloton-bookmark-metric-dropdown-input-status', 'style'),
+    Output('recovery-metric-dropdown-input-submit', 'style'),
+    Output('recovery-metric-dropdown-input-status', 'style'),
 ],
     [
         Input('name-input-submit', 'n_clicks'),
@@ -637,7 +639,7 @@ def update_athlete_db_value(value, value_name):
         Input('hr-zone2-input-submit', 'n_clicks'),
         Input('hr-zone3-input-submit', 'n_clicks'),
         Input('hr-zone4-input-submit', 'n_clicks'),
-        Input('peloton-bookmark-metric-dropdown-input-submit', 'n_clicks'),
+        Input('recovery-metric-dropdown-input-submit', 'n_clicks'),
     ],
     [
         State('name-input', 'value'),
@@ -670,7 +672,7 @@ def update_athlete_db_value(value, value_name):
         State('hr-zone2-input', 'value'),
         State('hr-zone3-input', 'value'),
         State('hr-zone4-input', 'value'),
-        State('peloton-bookmark-metric-dropdown-input', 'value'),
+        State('recovery-metric-dropdown-input', 'value'),
     ])
 def save_athlete_settings(
         name_click, birthday_click, sex_click, weight_click, rest_hr_click, ride_ftp_click, run_ftp_click, wk_act_click,
@@ -723,7 +725,7 @@ def save_athlete_settings(
                        'hr-zone2-input-submit': 'hr_power_zone_threshold_2',
                        'hr-zone3-input-submit': 'hr_power_zone_threshold_3',
                        'hr-zone4-input-submit': 'hr_power_zone_threshold_4',
-                       'peloton-bookmark-metric-dropdown-input-submit': 'peloton_auto_bookmark_metric',
+                       'recovery-metric-dropdown-input-submit': 'recovery_metric',
                        }
 
         output_indexer = [
@@ -757,7 +759,7 @@ def save_athlete_settings(
             'hr_power_zone_threshold_2',
             'hr_power_zone_threshold_3',
             'hr_power_zone_threshold_4',
-            'peloton_auto_bookmark_metric'
+            'recovery_metric'
 
         ]
         values = {
@@ -791,7 +793,7 @@ def save_athlete_settings(
             'hr_power_zone_threshold_2': hr_zone2_value,
             'hr_power_zone_threshold_3': hr_zone3_value,
             'hr_power_zone_threshold_4': hr_zone4_value,
-            'peloton_auto_bookmark_metric': peloton_bookmark_metric_value
+            'recovery_metric': peloton_bookmark_metric_value
         }
 
         index1 = output_indexer.index(latest_dict[latest]) * 2
@@ -913,34 +915,44 @@ def refresh(n_clicks):
     return ''
 
 
-# Truncate hrv_workout_step_log (reset HRV Plan)
+# Truncate workout_step_log (reset HRV Plan)
 @app.callback(Output('truncate-hrv-status', 'children'),
-              [Input('truncate-hrv-button', 'n_clicks')],
+              [Input('truncate-hrv-button', 'n_clicks'),
+               Input('recovery-metric-dropdown-input-submit', 'n_clicks')],
               [State('truncate-date', 'value')])
-def reset_hrv_plan(n_clicks, hrv_date):
-    if n_clicks > 0:
-        hrv_date = datetime.strptime(hrv_date, '%Y-%m-%d').date()
-        app.server.logger.info('Resetting HRV workout plan workflow to step 0 on {}'.format(hrv_date))
-
+def reset_hrv_plan(n_clicks, metric_n_clicks, hrv_date):
+    ctx = dash.callback_context
+    if ctx.triggered:
+        latest = ctx.triggered[0]['prop_id'].split('.')[0]
         try:
-            app.session.execute(delete(hrvWorkoutStepLog).where(hrvWorkoutStepLog.date > hrv_date))
-            query = app.session.query(hrvWorkoutStepLog).filter(hrvWorkoutStepLog.date == hrv_date).first()
-            query.hrv_workout_step = 0
-            query.hrv_workout_step_desc = 'Low'
-            query.rationale = 'You manually restarted the hrv workout plan workflow today'
-            query.athlete_id = 1
-            query.completed = 0
-            app.session.commit()
-            min_non_warmup_workout_time = app.session.query(athlete).filter(
-                athlete.athlete_id == 1).first().min_non_warmup_workout_time
-            hrv_training_workflow(min_non_warmup_workout_time)
+            # If changing recovery metric, refresh entire workflow table
+            if latest == 'recovery-metric-dropdown-input-submit':
+                app.session.execute(delete(workoutStepLog))
+                app.session.commit()
+            # If using reset hrv plan, update based on date
+            if latest == 'truncate-hrv-button':
+                date = datetime.strptime(hrv_date, '%Y-%m-%d').date()
+                app.server.logger.info('Resetting HRV workout plan workflow to step 0 on {}'.format(date))
+                app.session.execute(delete(workoutStepLog).where(workoutStepLog.date > date))
+                query = app.session.query(workoutStepLog).filter(workoutStepLog.date == date).first()
+                query.workout_step = 0
+                query.workout_step_desc = 'Low'
+                query.rationale = 'You manually restarted the hrv workout plan workflow today'
+                query.athlete_id = 1
+                query.completed = 0
+                app.session.commit()
+            athlete_info = app.session.query(athlete).filter(
+                athlete.athlete_id == 1).first()
+            training_workflow(min_non_warmup_workout_time=athlete_info.min_non_warmup_workout_time,
+                              metric=athlete_info.recovery_metric)
+            app.session.remove()
             return html.H6('HRV Plan Reset!')
         except BaseException as e:
             app.session.rollback()
             app.server.logger.error('Error resetting hrv workout plan: {}'.format(e))
+            app.session.remove()
             return html.H6('Error Resetting HRV Plan')
 
-        app.session.remove()
     return ''
 
 

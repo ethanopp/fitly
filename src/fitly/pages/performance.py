@@ -10,9 +10,8 @@ import plotly.graph_objs as go
 from dash.dependencies import Input, Output, State
 from sqlalchemy import or_, delete, extract
 from ..app import app
-from ..api.sqlalchemy_declarative import athlete, stravaSummary, stravaSamples, \
-    hrvWorkoutStepLog, \
-    ouraSleepSummary, ouraReadinessSummary, annotations
+from ..api.sqlalchemy_declarative import athlete, stravaSummary, stravaSamples, workoutStepLog, ouraSleepSummary, \
+    ouraReadinessSummary, annotations
 from ..api.database import engine
 from ..utils import utc_to_local, config, oura_credentials_supplied
 from ..pages.power import power_curve, zone_chart
@@ -75,6 +74,9 @@ def get_hrv_df():
     hrv_df['stdev_rmssd_60_threshold'] = hrv_df['rmssd'].rolling(60, min_periods=0).std()
     hrv_df['swc_upper_60'] = hrv_df['rmssd_60'] + (hrv_df['stdev_rmssd_60_threshold'] * 1.5)
     hrv_df['swc_lower_60'] = hrv_df['rmssd_60'] - (hrv_df['stdev_rmssd_60_threshold'] * 1.5)
+    hrv_df['within_daily_swc'] = True
+    hrv_df.loc[(hrv_df['rmssd'] < hrv_df['swc_lower_60']) | (hrv_df['rmssd'] > hrv_df[
+        'swc_upper_60']), 'within_daily_swc'] = False
 
     # Threshold Flags
     # hrv_df['under_low_threshold'] = hrv_df['rmssd_7'] < hrv_df['swc_lower']
@@ -558,6 +560,16 @@ def recommendation_color(recommendaion_desc):
 
 def create_daily_recommendations(hrv, hrv_change, hrv7, hrv7_change, plan_rec):
     if plan_rec:
+        recovery_metric = app.session.query(athlete).filter(athlete.athlete_id == 1).first().recovery_metric
+        if recovery_metric == 'hrv':
+            recovery_metric_label = 'HRV'
+            recovery_metric_tooltip = 'Workflow steps based on daily rmssd changes within 60 day mean +/- 1.5 stdev'
+        elif recovery_metric == 'hrv_baseline':
+            recovery_metric_label = 'Baseline'
+            recovery_metric_tooltip = 'Workflow steps based on 7 day rmssd baseline changes within 30 day mean +/- .5 stdev'
+        elif recovery_metric == 'readiness':
+            recovery_metric_label = 'Readiness'
+            recovery_metric_tooltip = 'Workflow steps based on Oura readiness score > 70'
         data = plan_rec.replace('rec_', '').split('|')
         plan_step = int(float(data[0]))
         plan_recommendation = data[1]
@@ -591,7 +603,8 @@ def create_daily_recommendations(hrv, hrv_change, hrv7, hrv7_change, plan_rec):
             oura_recommendation, oura_rationale = 'N/A', 'N/A'
 
     else:
-        hrv, hrv_change, hrv_yesterday, hrv7, hrv7_change, hrv7_yesterday, plan_rationale, plan_recommendation, oura_recommendation, readiness_score, oura_rationale, swc_lower, swc_upper, spacing, plan_step = 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', None, None, None, None, None, None
+        hrv, hrv_change, hrv_yesterday, hrv7, hrv7_change, hrv7_yesterday, plan_rationale, plan_recommendation, oura_recommendation, recovery_metric_label, readiness_score, oura_rationale, swc_lower, swc_upper, spacing, plan_step = \
+            'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', None, None, None, None, None, None
 
     readiness_score = round(readiness_score) if readiness_score else 'N/A'
 
@@ -609,27 +622,93 @@ def create_daily_recommendations(hrv, hrv_change, hrv7, hrv7_change, plan_rec):
     else:
         hrv_vs_baseline_arrow, hrv_vs_baseline_color = '', ''
 
-    return html.Div(id='recommendation', style={'height': '100%', 'display': 'flex', 'flexDirection': 'column',
+    return html.Div(id='recommendation', style={'display': 'flex', 'flexDirection': 'column',
                                                 'justifyContent': 'space-between'},
                     children=[
                         html.Div(children=[
-                            html.H5('Oura Recommendation', className='col-lg-12'),
-                            html.H3(oura_recommendation, id='oura-rationale',
-                                    style={'color': recommendation_color(oura_recommendation)}),
-                            dbc.Tooltip(None if oura_recommendation == 'N/A' else oura_rationale,
-                                        target="oura-rationale"),
+                            html.H6(f'{recovery_metric_label} Recommendation', id='workflow-recommendation-title',
+                                    className='col-lg-12'),
+                            dbc.Tooltip(None if plan_recommendation == 'N/A' else recovery_metric_tooltip,
+                                        target="workflow-recommendation-title"),
+                            html.H3(plan_recommendation, className='col-lg-12', id='hrv-rationale',
+                                    style={'color': recommendation_color(plan_recommendation)}),
+                            dbc.Tooltip(None if plan_recommendation == 'N/A' else plan_rationale,
+                                        target="hrv-rationale", ),
                             html.Div(className='col-lg-12', children=[
-                                dcc.Graph(id='oura-gauge', className='col-lg-12',
+
+                                html.Img(src=f'../assets/images/hrv{plan_step}.png', height=200,
+                                         width=150) if plan_step is not None else html.Div(),
+                            ]),
+
+                            html.Div(children=[
+                                html.H6('Oura Readiness Score', className='col-lg-12'),
+                                # html.H3(oura_recommendation, id='oura-rationale',
+                                #         style={'color': recommendation_color(oura_recommendation)}),
+                                # dbc.Tooltip(None if oura_recommendation == 'N/A' else oura_rationale,
+                                #             target="oura-rationale"),
+                                html.Div(className='col-lg-12', children=[
+                                    dcc.Graph(id='oura-gauge', className='col-lg-12',
+                                              config={'displayModeBar': False},
+                                              figure={
+                                                  'data': [
+                                                      go.Bar(
+                                                          x=[70, 7, 8, 15],
+                                                          y=['dummy', 'dummy', 'dummy', 'dummy'],
+                                                          # text=df['movement_tooltip'],
+                                                          hoverinfo='none',
+                                                          marker={
+                                                              'color': [orange_faded, white, light_blue, teal]},
+                                                          orientation='h',
+                                                      ),
+                                                  ],
+                                                  'layout': go.Layout(
+                                                      height=45,
+                                                      # transition=dict(duration=transition),
+                                                      font=dict(
+                                                          size=10,
+                                                          color=white
+                                                      ),
+                                                      xaxis=dict(
+                                                          showticklabels=True,
+                                                          range=[0, 100],
+                                                          tickvals=[readiness_score],
+                                                      ),
+                                                      yaxis=dict(
+                                                          showticklabels=False,
+                                                          showgrid=False,
+                                                      ),
+                                                      showlegend=False,
+                                                      margin={'l': 0, 'b': 15, 't': 0, 'r': 0},
+                                                      hovermode='x'
+                                                  )
+                                              }
+                                              ) if oura_recommendation != 'N/A' else None
+                                ]),
+
+                            ]),
+                            html.Div(className='row text-center align-items-center', children=[
+                                html.H6("Today's HRV", className='col-lg-12'),
+                                #     html.Div(className='col-lg-12 text-center align-items-center mb-2', children=[
+                                #         html.H5(hrv, style={'display': 'inline'}),
+                            ]),
+                            html.Div(className='col-lg-12', children=[
+                                dcc.Graph(id='hrv-gauge', className='col-lg-12',
                                           config={'displayModeBar': False},
                                           figure={
                                               'data': [
                                                   go.Bar(
-                                                      x=[70, 7, 8, 15],
-                                                      y=['dummy', 'dummy', 'dummy', 'dummy'],
-                                                      # text=df['movement_tooltip'],
+                                                      x=[(swc_lower_60 - swc) + gague_spacing,
+                                                         gague_spacing * .2,
+                                                         gague_spacing * .8,
+                                                         gague_spacing,
+                                                         gague_spacing * .8,
+                                                         gague_spacing * .2,
+                                                         gague_spacing],
+                                                      y=['test', 'test', 'test', 'test', 'test', 'test', 'test'],
                                                       hoverinfo='none',
                                                       marker={
-                                                          'color': [orange_faded, white, light_blue, teal]},
+                                                          'color': [orange_faded, orange_faded, white, teal,
+                                                                    light_blue, orange_faded, orange_faded]},
                                                       orientation='h',
                                                   ),
                                               ],
@@ -642,129 +721,66 @@ def create_daily_recommendations(hrv, hrv_change, hrv7, hrv7_change, plan_rec):
                                                   ),
                                                   xaxis=dict(
                                                       showticklabels=True,
-                                                      range=[0, 100],
-                                                      tickvals=[readiness_score],
+                                                      range=[swc_lower_60 - swc,
+                                                             swc_upper_60 + swc],
+                                                      tickvals=[hrv],
                                                   ),
                                                   yaxis=dict(
                                                       showticklabels=False,
+                                                      # range=[0, df['met_1min'].max() if df['met_1min'].max() > 7 else 8],
+                                                      # tickvals=[1, 3, 7],
+                                                      # ticktext=['Low ', 'Med ', 'High '],
                                                       showgrid=False,
+
                                                   ),
                                                   showlegend=False,
                                                   margin={'l': 0, 'b': 15, 't': 0, 'r': 0},
                                                   hovermode='x'
                                               )
                                           }
-                                          ) if oura_recommendation != 'N/A' else None
+                                          ) if swc_lower and swc_upper else None
                             ]),
-
-                        ]),
-
-                        html.Div(children=[
-                            html.H5('HRV Recommendation', className='col-lg-12'),
-                            html.H3(plan_recommendation, className='col-lg-12', id='hrv-rationale',
-                                    style={'color': recommendation_color(plan_recommendation)}),
-                            dbc.Tooltip(None if plan_recommendation == 'N/A' else plan_rationale,
-                                        target="hrv-rationale", ),
-                            html.Div(className='col-lg-12', children=[
-
-                                html.Img(src=f'../assets/images/hrv{plan_step}.png', height=200,
-                                         width=150) if plan_step is not None else html.Div(),
+                            html.Div(className='row', children=[
+                                html.Div(className='col-lg-6', children=[
+                                    html.H6('Yesterday', className='col-lg-12 mb-0'),
+                                    html.Div(className='col-lg-12 text-center align-items-center mb-2', children=[
+                                        html.H5(hrv_yesterday, style={'display': 'inline'}),
+                                        html.I(className=f'{hrv_yesterday_arrow} text-center align-items-center',
+                                               style={'fontSize': '1rem',
+                                                      'display': 'inline',
+                                                      'paddingLeft': '.25vw',
+                                                      'color': hrv_yesterday_color}),
+                                    ]),
+                                ]),
+                                html.Div(className='col-lg-6', children=[
+                                    html.H6('Baseline', className='col-lg-12 mb-0'),
+                                    html.Div(className='col-lg-12 text-center align-items-center mb-2', children=[
+                                        html.H5(hrv7, style={'display': 'inline'}),
+                                        html.I(className=f'{hrv_vs_baseline_arrow} text-center align-items-center',
+                                               style={'fontSize': '1rem',
+                                                      'display': 'inline',
+                                                      'paddingLeft': '.25vw',
+                                                      'color': hrv_vs_baseline_color}),
+                                    ]),
+                                ]),
                             ]),
-
-                            html.Div(className='row text-center align-items-center', children=[
-                                html.H6("Today's HRV", className='col-lg-12 mb-0'),
-                                #     html.Div(className='col-lg-12 text-center align-items-center mb-2', children=[
-                                #         html.H5(hrv, style={'display': 'inline'}),
-                            ]),
-                            # html.Div(className='col-lg-6', children=[
-                            #     html.H6('Yesterday', className='col-lg-12 mb-0'),
-                            #     html.Div(className='col-lg-12 text-center align-items-center mb-2', children=[
-                            #         html.H5(hrv_yesterday, style={'display': 'inline'}),
-                            #         html.I(className=f'{hrv_yesterday_arrow} text-center align-items-center',
-                            #                style={'fontSize': '1rem',
-                            #                       'display': 'inline',
-                            #                       'paddingLeft': '.25vw',
-                            #                       'color': hrv_yesterday_color}),
-                            #     ]),
-                            # ]),
-                            # html.Div(className='col-lg-6', children=[
-                            #     html.H6('Baseline', className='col-lg-12 mb-0'),
-                            #     html.Div(className='col-lg-12 text-center align-items-center mb-2', children=[
-                            #         html.H5(hrv7, style={'display': 'inline'}),
-                            #         html.I(className=f'{hrv_vs_baseline_arrow} text-center align-items-center',
-                            #                style={'fontSize': '1rem',
-                            #                       'display': 'inline',
-                            #                       'paddingLeft': '.25vw',
-                            #                       'color': hrv_vs_baseline_color}),
-                            #     ]),
-                            # ]),
                             #
                             # ]),
 
-                            #     # html.Div(className='row text-center align-items-center', children=[
-                            #     #     html.H6('Baseline HRV', className='col-lg-12'),
-                            #     #     html.Div(className='col-lg-4', children=[
-                            #     #         html.P(f'Baseline {hrv7}')
-                            #     #     ]),
-                            #     #     html.Div(className='col-lg-4', children=[
-                            #     #         html.P(f'Yesterday {hrv7_yesterday}')
-                            #     #     ]),
-                            #     #     html.Div(className='col-lg-4', children=[
-                            #     #         html.P(f'Baseline {hrv7}')
-                            #     #     ]),
-                            #     # ])
+                            # html.Div(className='row text-center align-items-center', children=[
+                            #     html.H6('Baseline HRV', className='col-lg-12'),
+                            #     html.Div(className='col-lg-4', children=[
+                            #         html.P(f'Baseline {hrv7}')
+                            #     ]),
+                            #     html.Div(className='col-lg-4', children=[
+                            #         html.P(f'Yesterday {hrv7_yesterday}')
+                            #     ]),
+                            #     html.Div(className='col-lg-4', children=[
+                            #         html.P(f'Baseline {hrv7}')
+                            #     ]),
+                            # ])
                             #
                         ]),
-
-                        html.Div(className='col-lg-12', children=[
-                            dcc.Graph(id='hrv-gauge', className='col-lg-12',
-                                      config={'displayModeBar': False},
-                                      figure={
-                                          'data': [
-                                              go.Bar(
-                                                  x=[(swc_lower_60 - swc) + gague_spacing,
-                                                     gague_spacing * .2,
-                                                     gague_spacing * .8,
-                                                     gague_spacing,
-                                                     gague_spacing * .8,
-                                                     gague_spacing * .2,
-                                                     gague_spacing],
-                                                  y=['test', 'test', 'test', 'test', 'test', 'test', 'test'],
-                                                  hoverinfo='none',
-                                                  marker={
-                                                      'color': [orange_faded, orange_faded, white, teal,
-                                                                light_blue, orange_faded, orange_faded]},
-                                                  orientation='h',
-                                              ),
-                                          ],
-                                          'layout': go.Layout(
-                                              height=45,
-                                              # transition=dict(duration=transition),
-                                              font=dict(
-                                                  size=10,
-                                                  color=white
-                                              ),
-                                              xaxis=dict(
-                                                  showticklabels=True,
-                                                  range=[swc_lower_60 - swc,
-                                                         swc_upper_60 + swc],
-                                                  tickvals=[hrv],
-                                              ),
-                                              yaxis=dict(
-                                                  showticklabels=False,
-                                                  # range=[0, df['met_1min'].max() if df['met_1min'].max() > 7 else 8],
-                                                  # tickvals=[1, 3, 7],
-                                                  # ticktext=['Low ', 'Med ', 'High '],
-                                                  showgrid=False,
-
-                                              ),
-                                              showlegend=False,
-                                              margin={'l': 0, 'b': 15, 't': 0, 'r': 0},
-                                              hovermode='x'
-                                          )
-                                      }
-                                      ) if swc_lower and swc_upper else None
-                        ])
 
                     ])
 
@@ -1126,8 +1142,8 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
         index_col='report_date').sort_index(ascending=True)
 
     df_plan = pd.read_sql(
-        sql=app.session.query(hrvWorkoutStepLog.date, hrvWorkoutStepLog.hrv_workout_step,
-                              hrvWorkoutStepLog.hrv_workout_step_desc, hrvWorkoutStepLog.rationale).statement,
+        sql=app.session.query(workoutStepLog.date, workoutStepLog.workout_step,
+                              workoutStepLog.workout_step_desc, workoutStepLog.rationale).statement,
         con=engine,
         index_col='date').sort_index(ascending=True)
 
@@ -1293,8 +1309,8 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
         # Merge readiness for kpis
         actual = actual.merge(df_readiness, how='left', left_index=True, right_index=True)
 
-        actual['workout_plan'] = 'rec_' + actual['hrv_workout_step'].astype('str') + '|' + actual[
-            'hrv_workout_step_desc'] + '|' + \
+        actual['workout_plan'] = 'rec_' + actual['workout_step'].astype('str') + '|' + actual[
+            'workout_step_desc'] + '|' + \
                                  actual['rationale'] + '|' + actual[
                                      'score'].fillna(0).apply(
             readiness_score_recommendation) + '|' + actual['score'].fillna(0).astype('int').astype('str') + '|' + \
@@ -1830,7 +1846,7 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
 
         figure['layout']['yaxis3'] = dict(
             # domain=[.85, 1],
-            range=[actual['rmssd_7'].min() * -1.5, actual['rmssd_7'].max() * 1.05],
+            range=[actual['rmssd_7'].min() * -2.5, actual['rmssd_7'].max() * 1.05],
             showgrid=False,
             showticklabels=False,
             anchor='x',
