@@ -771,7 +771,7 @@ def create_daily_recommendations(hrv, hrv_change, hrv7, hrv7_change, plan_rec):
 
 def create_fitness_kpis(date, ctl, ramp, rr_min_threshold, rr_max_threshold, atl, tsb, hrv7):
     # TODO: Remove ramp rate?
-    if isinstance(atl, float) and isinstance(ctl, float):
+    if atl is not None and ctl is not None:
         ctl = round(ctl, 1) if ctl else 'N/A'
         tsb = round(tsb, 1) if tsb else 'N/A'
 
