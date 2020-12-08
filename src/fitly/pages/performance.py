@@ -1743,15 +1743,6 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
                 line={'color': 'rgba(220,220,220,.20)'},
             ),
             go.Scatter(
-                name='HRV SWC Flowchart (Lower)',
-                x=actual.index,
-                y=actual['swc_flowchart_lower'],
-                yaxis='y3',
-                mode='lines',
-                hoverinfo='none',
-                line={'color': 'rgba(100, 217, 236,.5)', 'shape': 'spline', 'dash': 'dot'},
-            ),
-            go.Scatter(
                 name='HRV 7 Day Avg',
                 x=actual.index,
                 y=actual['rmssd_7'],
@@ -1761,15 +1752,6 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
                       for (x, y) in zip(actual['rmssd_7'], actual['rmssd_7'].shift(1))],
                 hoverinfo='text',
                 line={'color': teal, 'shape': 'spline'},
-            ),
-            go.Scatter(
-                name='HRV SWC Flowchart (Upper)',
-                x=actual.index,
-                y=actual['swc_flowchart_upper'],
-                yaxis='y3',
-                mode='lines',
-                hoverinfo='none',
-                line={'color': 'rgba(100, 217, 236,.5)', 'shape': 'spline', 'dash': 'dot'},
             ),
             # Dummy scatter to store hrv plan recommendation so hovering data can be stored in hoverdata
             go.Scatter(
@@ -1781,6 +1763,35 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
                 marker={'color': 'rgba(0, 0, 0, 0)'}
             ),
         ])
+
+        # Only show workflow hrv thresholds if recovery metric is hrv based
+        if athlete_info.recovery_metric == 'hrv_baseline' or athlete_info.recovery_metric == 'hrv':
+            figure['data'].extend([
+                go.Scatter(
+                    name='HRV SWC Flowchart (Lower)',
+                    x=actual.index,
+                    y=actual[
+                        'swc_flowchart_lower' if athlete_info.recovery_metric == 'hrv_baseline' else 'swc_lower_60'],
+                    yaxis='y3',
+                    mode='lines',
+                    hoverinfo='none',
+                    line={
+                        'color': 'rgba(100, 217, 236,.5)' if athlete_info.recovery_metric == 'hrv_baseline' else 'rgba(220,220,220,.20)',
+                        'shape': 'spline', 'dash': 'dot'},
+                ),
+                go.Scatter(
+                    name='HRV SWC Flowchart (Upper)',
+                    x=actual.index,
+                    y=actual[
+                        'swc_flowchart_upper' if athlete_info.recovery_metric == 'hrv_baseline' else 'swc_upper_60'],
+                    yaxis='y3',
+                    mode='lines',
+                    hoverinfo='none',
+                    line={
+                        'color': 'rgba(100, 217, 236,.5)' if athlete_info.recovery_metric == 'hrv_baseline' else 'rgba(220,220,220,.20)',
+                        'shape': 'spline', 'dash': 'dot'},
+                )
+            ])
 
         ### Trends ###
 
@@ -1862,32 +1873,34 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
              "hrv_normalized_7_slope_trivial", "ctl_7_slope_trivial"]].apply(lambda x: detect_trend(*x), axis=1)
 
         # hrv_df.to_csv('trends.csv', sep=',') # Debugging
-        for trend in ['Coping well', 'Risk of accumulated fatigue', 'Maladaptation', 'Accumulated fatigue']:
-            actual.loc[actual['detected_trend'] == trend, trend] = actual['rmssd_7']
-
-            if trend == 'Coping well':
-                color = 'green'
-            if trend == 'Risk of accumulated fatigue':
-                color = 'yellow'
-            elif trend == 'Maladaptation':
-                color = 'orange'
-            elif trend == 'Accumulated fatigue':
-                color = 'red'
-
-            ### Detected Trends ###
-            figure['data'].append(
-                go.Scatter(
-                    name=trend,
-                    x=actual.index,
-                    y=actual[trend],
-                    text=actual['detected_trend'],
-                    yaxis='y3',
-                    mode='markers',
-                    hoverinfo='text',
-                    # marker={'size': 8},
-                    line={'color': color},
-                )
-            )
+        # TODO: Enable once trends are fixed
+        # for trend in ['Coping well', 'Risk of accumulated fatigue', 'Maladaptation', 'Accumulated fatigue']:
+        #     actual.loc[actual['detected_trend'] == trend, trend] = actual['rmssd_7']
+        #
+        #     if trend == 'Coping well':
+        #         color = 'green'
+        #     if trend == 'Risk of accumulated fatigue':
+        #         color = 'yellow'
+        #     elif trend == 'Maladaptation':
+        #         color = 'orange'
+        #     elif trend == 'Accumulated fatigue':
+        #         color = 'red'
+        #
+        #
+        #     ### Detected Trends ###
+        #     figure['data'].append(
+        #         go.Scatter(
+        #             name=trend,
+        #             x=actual.index,
+        #             y=actual[trend],
+        #             text=actual['detected_trend'],
+        #             yaxis='y3',
+        #             mode='markers',
+        #             hoverinfo='text',
+        #             # marker={'size': 8},
+        #             line={'color': color},
+        #         )
+        #     )
 
         figure['layout']['yaxis3'] = dict(
             # domain=[.85, 1],
