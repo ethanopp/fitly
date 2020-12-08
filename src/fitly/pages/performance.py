@@ -411,11 +411,12 @@ def get_layout(**kwargs):
                                  html.Div(className='row align-items-center text-center', children=[
                                      ### Title ###
                                      html.Div(className='col-lg-4', children=[
-                                         # TODO: Update with dbcMenu ?
                                          dbc.Select(
                                              id='growth-chart-metric-select',
                                              bs_size='sm',
                                              value='distance',
+                                             style={'height': '1.25rem', 'paddingTop': 0, 'paddingBottom': 0,
+                                                    'paddingRight': 0},
                                              options=[
                                                  {'label': 'Distance', 'value': 'distance'},
                                                  {'label': 'Duration', 'value': 'elapsed_time'},
@@ -765,7 +766,7 @@ def create_daily_recommendations(hrv, hrv_change, hrv7, hrv7_change, plan_rec):
                             html.Div(className='row', children=[
                                 html.Div(className='col-lg-6', children=[
                                     html.H6('Yesterday', className='col-lg-12 mb-0'),
-                                    html.Div(className='col-lg-12 text-center align-items-center mb-2', children=[
+                                    html.Div(className='col-lg-12 text-center align-items-center mb-0', children=[
                                         html.H5(hrv_yesterday, style={'display': 'inline'}),
                                         html.I(className=f'{hrv_yesterday_arrow} text-center align-items-center',
                                                style={'fontSize': '1rem',
@@ -776,7 +777,7 @@ def create_daily_recommendations(hrv, hrv_change, hrv7, hrv7_change, plan_rec):
                                 ]),
                                 html.Div(className='col-lg-6', children=[
                                     html.H6('Baseline', className='col-lg-12 mb-0'),
-                                    html.Div(className='col-lg-12 text-center align-items-center mb-2', children=[
+                                    html.Div(className='col-lg-12 text-center align-items-center mb-0', children=[
                                         html.H5(hrv7, style={'display': 'inline'}),
                                         html.I(className=f'{hrv_vs_baseline_arrow} text-center align-items-center',
                                                style={'fontSize': '1rem',
@@ -1074,8 +1075,9 @@ def create_growth_chart(metric):
                 mode='lines',
                 text=text,
                 hoverinfo='x+text',
-                customdata=['{}'.format(f'cy|{metric}|{year}' if index == 0 else f'ly|{metric}|{year}' if index == 1 else None) for x
-                            in df.index],
+                customdata=[
+                    '{}'.format(f'cy|{metric}|{year}' if index == 0 else f'ly|{metric}|{year}' if index == 1 else None)
+                    for x in df.index],
                 line={'shape': 'spline', 'color': colors[index]},
                 # Default to only CY and PY shown
                 # visible=True if index < 2 else 'legendonly'
@@ -2479,8 +2481,8 @@ def update_growth_kpis(hoverData):
                 ly = point['customdata'].split('|')[2]
                 ly_metric = point['y']
 
-        return create_growth_kpis(date=hoverData['points'][0]['x'], cy=cy, cy_metric=cy_metric, ly=ly, ly_metric=ly_metric,
-                                  metric=metric)
+        return create_growth_kpis(date=hoverData['points'][0]['x'], cy=cy, cy_metric=cy_metric, ly=ly,
+                                  ly_metric=ly_metric, metric=metric)
 
 
 @app.callback(
