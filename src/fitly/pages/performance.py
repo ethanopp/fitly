@@ -99,7 +99,6 @@ def get_hrv_df():
 
 
 def get_layout(**kwargs):
-    growth_figure, growth_hoverData = create_growth_chart()
     athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1).first()
     pmc_switch_settings = json.loads(athlete_info.pmc_switch_settings)
     use_power = True if athlete_info.use_run_power or athlete_info.use_cycle_power else False
@@ -408,12 +407,35 @@ def get_layout(**kwargs):
             html.Div(id='growth-container', className='col-lg-4',
                      children=[
                          dbc.Card([
-                             dbc.CardHeader(html.Div(id='growth-header')),
+                             dbc.CardHeader(
+                                 html.Div(className='row align-items-center text-center', children=[
+                                     ### Title ###
+                                     html.Div(className='col-lg-4', children=[
+                                         # TODO: Update with dbcMenu ?
+                                         dbc.Select(
+                                             id='growth-chart-metric-select',
+                                             bs_size='sm',
+                                             value='distance',
+                                             options=[
+                                                 {'label': 'Distance', 'value': 'distance'},
+                                                 {'label': 'Duration', 'value': 'elapsed_time'},
+                                                 {'label': 'High Intensity', 'value': 'high_intensity_seconds'},
+                                                 {'label': 'hrSS', 'value': 'hrss'},
+                                                 {'label': 'Low Intensity', 'value': 'low_intensity_seconds'},
+                                                 {'label': 'Med Intensity', 'value': 'med_intensity_seconds'},
+                                                 {'label': 'TRIMP', 'value': 'trimp'},
+                                                 {'label': 'PSS', 'value': 'tss'},
+                                             ],
+                                         )
+                                     ]),
+
+                                     html.Div(id='growth-header', className='col-lg-8')
+                                 ]),
+
+                             ),
                              dbc.CardBody([
                                  dcc.Graph(id='growth-chart', config={'displayModeBar': False},
-                                           style={'height': '100%'},
-                                           figure=growth_figure,
-                                           hoverData=growth_hoverData)
+                                           style={'height': '100%'})
                              ])
                          ]),
                      ]),
@@ -435,7 +457,7 @@ def get_layout(**kwargs):
                                          {'name': 'Mileage', 'id': 'distance'},
                                          {'name': 'PSS', 'id': 'tss'},
                                          {'name': 'HRSS', 'id': 'hrss'},
-                                         {'name': 'TRIMP', 'id': 'trimp'},
+                                         # {'name': 'TRIMP', 'id': 'trimp'},
                                          {'name': 'NP', 'id': 'weighted_average_power'},
                                          {'name': 'IF', 'id': 'relative_intensity'},
                                          {'name': 'EF', 'id': 'efficiency_factor'},
@@ -952,50 +974,59 @@ def create_activity_table(date=None):
         # return html.H3('No workouts found for {}'.format(date.strftime("%b %d, %Y")), style={'textAlign': 'center'})
 
 
-def create_growth_kpis(date, cy_tss, ly_tss, target):
-    goal_diff = '' if (not cy_tss or not target) else round(cy_tss - target)
-    ly_diff = '' if (not cy_tss or not ly_tss) else round(cy_tss - ly_tss)
-    ly_color = orange if ly_diff != '' and cy_tss < ly_tss else white
-    cy_color = orange if goal_diff != '' and cy_tss < target else teal
+def create_growth_kpis(date, cy_metric, ly_metric, metric):
+    cy_title, ly_title = 'CY: N/A', 'LY: N/A'
+    if cy_metric and metric in ['elapsed_time', 'high_intensity_seconds', 'low_intensity_seconds',
+                                'med_intensity_seconds']:
+        cy_title = 'CY: {}'.format(timedelta(seconds=cy_metric))
+    if ly_metric and metric in ['elapsed_time', 'high_intensity_seconds', 'low_intensity_seconds',
+                                'med_intensity_seconds']:
+        ly_title = 'LY: {}'.format(timedelta(seconds=ly_metric))
+    if cy_metric and metric == 'distance':
+        cy_title = 'CY: {:.1f} mi.'.format(cy_metric)
+    if ly_metric and metric == 'distance':
+        ly_title = 'LY: {:.1f} mi.'.format(ly_metric)
 
-    return (
-        html.Div(className='row text-left', children=[
-            ### TSS Title ###
-            html.Div(className='col-lg-4', children=[
-                html.Div(children=[
-                    html.H5('Stress Score', className='mt-0 mb-0 d-inline-block',
-                            style={'color': 'rgba(220, 220, 220, 1)'}),
-                ]),
+    if cy_metric and metric in ['hrss', 'trimp', 'tss']:
+        cy_title = 'CY: {:.0f}'.format(cy_metric)
+    if ly_metric and metric in ['hrss', 'trimp', 'tss']:
+        ly_title = 'LY: {:.0f}'.format(ly_metric)
+    if cy_metric and ly_metric:
+        cy_color = orange if cy_metric < ly_metric else teal
+    else:
+        cy_color = white
+    return html.Div(className='row', children=[
+        ### Current Year ###
+        html.Div(id='target-change-kpi', className='col-lg-6', children=[
+            html.Div(children=[
+                html.H6(cy_title, className='mt-0 mb-0 d-inline-block',
+                        style={'color': cy_color}),
             ]),
-            ### ▲ Target ###
-            html.Div(id='target-change-kpi', className='col-lg-4', children=[
-                html.Div(children=[
-                    html.H5('△ Goal {}'.format(goal_diff), className='mt-0 mb-0 d-inline-block',
-                            style={'color': cy_color}),
-                ]),
-            ]),
-
-            ### YOY ▲ ###
-            html.Div(id='atl-kpi', className='col-lg-4', children=[
-                html.Div(children=[
-                    html.H5('△ YOY {}'.format(ly_diff), className='mt-0 mb-0 d-inline-block',
-                            style={'color': ly_color}),
-                ]),
+        ]),
+        ### Last Year ###
+        html.Div(id='atl-kpi', className='col-lg-6', children=[
+            html.Div(children=[
+                html.H6(ly_title, className='mt-0 mb-0 d-inline-block',
+                        style={'color': white}),
             ]),
         ])
-    )
+    ])
 
 
-def create_growth_chart():
-    weekly_tss_goal = app.session.query(athlete).filter(athlete.athlete_id == 1).first().weekly_tss_goal
+def create_growth_chart(metric):
+    '''
+
+    :param metric: Allowed values from strava summary table [hrss, tss, trimp, distance, elapsed_time, high_intensity_seconds, med_intensity_seconds, low_intensity_seconds]
+    :return:
+    '''
+
+    # weekly_tss_goal = app.session.query(athlete).filter(athlete.athlete_id == 1).first().weekly_tss_goal
 
     athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1).first()
     use_power = True if athlete_info.use_run_power or athlete_info.use_cycle_power else False
-    metric = 'tss' if use_power else 'trimp'
-    metric_table_obj = stravaSummary.tss if use_power else stravaSummary.trimp
 
     df = pd.read_sql(
-        sql=app.session.query(stravaSummary.start_date_utc, metric_table_obj, stravaSummary.activity_id).filter(
+        sql=app.session.query(stravaSummary).filter(
             stravaSummary.elapsed_time > athlete_info.min_non_warmup_workout_time,
             or_(
                 extract('year', stravaSummary.start_date_utc) == datetime.utcnow().year,
@@ -1026,17 +1057,25 @@ def create_growth_chart():
     colors = [teal, white, light_blue, dark_blue]
 
     # Plot latest line first
-    index, current_date, curr_tss, ly_tss, target = 0, None, None, None, None
+    index, current_date, cy_metric, ly_metric, target = 0, None, None, None, None
     for year in list(df.columns)[::-1]:
+        if metric in ['elapsed_time', 'high_intensity_seconds', 'low_intensity_seconds', 'med_intensity_seconds']:
+            text = ['{}: <b>{}'.format(str(year), timedelta(seconds=x)) for x in df[year].cumsum().fillna(0)]
+        elif metric == 'distance':
+            text = ['{}: <b>{:.1f} mi'.format(str(year), x) for x in df[year].cumsum().fillna(0)]
+        elif metric in ['hrss', 'trimp', 'tss']:
+            text = ['{}: <b>{:.0f}'.format(str(year), x) for x in df[year].cumsum().fillna(0)]
+
         data.append(
             go.Scatter(
                 name=str(year),
                 x=df.index,
-                y=round(df[year].cumsum()),
+                y=df[year].cumsum(),
                 mode='lines',
-                text=['{}: <b>{:.0f}'.format(str(year), x) for x in df[year].cumsum()],
+                text=text,
                 hoverinfo='x+text',
-                customdata=['{}'.format('cy' if index == 0 else 'ly' if index == 1 else None) for x in df.index],
+                customdata=['{}'.format(f'cy|{metric}' if index == 0 else f'ly|{metric}' if index == 1 else None) for x
+                            in df.index],
                 line={'shape': 'spline', 'color': colors[index]},
                 # Default to only CY and PY shown
                 visible=True if index < 2 else 'legendonly'
@@ -1047,35 +1086,37 @@ def create_growth_chart():
             temp_df = df[~np.isnan(df[year])]
             temp_df[year] = temp_df[year].cumsum()
             current_date = temp_df.index.max()
-            curr_tss = temp_df.loc[current_date][year]
+            cy_metric = temp_df.loc[current_date][year]
         if index == 1:
             temp_df[year] = temp_df[year].cumsum()
-            ly_tss = temp_df.loc[current_date][year]
+            ly_metric = temp_df.loc[current_date][year]
         index += 1
 
     # Multiply by 40 weeks in the year (roughly 3 week on 1 off)
-    df['daily_tss_goal'] = (weekly_tss_goal * 52) / 365
-    temp_df['daily_tss_goal'] = df['daily_tss_goal'].cumsum()
-    target = temp_df.loc[current_date]['daily_tss_goal']
+    # df['daily_tss_goal'] = (weekly_tss_goal * 52) / 365
+    # temp_df['daily_tss_goal'] = df['daily_tss_goal'].cumsum()
+    # target = temp_df.loc[current_date]['daily_tss_goal']
 
-    data.append(
-        go.Scatter(
-            name='SS Goal',
-            x=df.index,
-            y=df['daily_tss_goal'].cumsum(),
-            mode='lines',
-            customdata=['target' for x in df.index],
-            hoverinfo='x',
-            line={'dash': 'dot',
-                  'color': 'rgba(127, 127, 127, .35)',
-                  'width': 2},
-            # showlegend=False
-        )
-    )
+    # data.append(
+    #     go.Scatter(
+    #         name='SS Goal',
+    #         x=df.index,
+    #         y=df['daily_tss_goal'].cumsum(),
+    #         mode='lines',
+    #         customdata=['target' for x in df.index],
+    #         hoverinfo='x',
+    #         line={'dash': 'dot',
+    #               'color': 'rgba(127, 127, 127, .35)',
+    #               'width': 2},
+    #         # showlegend=False
+    #     )
+    # )
 
-    hoverData = dict(points=[{'x': current_date, 'y': curr_tss, 'customdata': 'cy'},
-                             {'x': current_date, 'y': ly_tss, 'customdata': 'ly'},
-                             {'x': current_date, 'y': target, 'customdata': 'target'}])
+    hoverData = dict(points=[
+        {'x': current_date, 'y': cy_metric, 'customdata': f'cy|{metric}'},
+        {'x': current_date, 'y': ly_metric, 'customdata': f'ly|{metric}'},
+        # {'x': current_date, 'y': target, 'customdata': 'target'}
+    ])
 
     figure = {
         'data': data,
@@ -2407,15 +2448,15 @@ def refresh_fitness_chart(ride_switch, run_switch, all_switch, power_switch, hr_
                                                        all_status=all_status)
 
 
-# # Create Growth Chart
-# @app.callback(
-#     [Output('growth-chart', 'figure'),
-#      Output('growth-chart', 'hoverData')],
-#     [Input('performance-page-load-dummy', 'children')]
-# )
-# def update_fitness_table(dummy_for_page_load):
-#     figure, hoverData = create_growth_chart()
-#     return figure, hoverData
+# Create Growth Chart
+@app.callback(
+    [Output('growth-chart', 'figure'),
+     Output('growth-chart', 'hoverData')],
+    [Input('growth-chart-metric-select', 'value')]
+)
+def update_fitness_table(growth_chart_metric):
+    figure, hoverData = create_growth_chart(metric=growth_chart_metric)
+    return figure, hoverData
 
 
 # Growth Chart KPIs
@@ -2423,22 +2464,19 @@ def refresh_fitness_chart(ride_switch, run_switch, all_switch, power_switch, hr_
     Output('growth-header', 'children'),
     [Input('growth-chart', 'hoverData')])
 def update_growth_kpis(hoverData):
-    cy_tss, ly_tss, target, target_date, cy_date = None, None, None, None, None
+    cy_metric, ly_metric, cy_date, metric = None, None, None, None
     if hoverData is not None:
         for point in hoverData['points']:
-            if point['customdata'] == 'target':
-                target = point['y']
-                target_date = point['x']
-            elif point['customdata'] == 'cy':
-                cy_tss = point['y']
+            if 'cy' in point['customdata']:
+                metric = point['customdata'].split('|')[1]
+                cy_metric = point['y']
                 cy_date = point['x']
-            elif point['customdata'] == 'ly':
-                ly_tss = point['y']
+            elif 'ly' in point['customdata']:
+                metric = point['customdata'].split('|')[1]
+                ly_metric = point['y']
 
-        if cy_date != target_date:
-            cy_tss = None
-
-        return create_growth_kpis(date=hoverData['points'][0]['x'], cy_tss=cy_tss, ly_tss=ly_tss, target=target)
+        return create_growth_kpis(date=hoverData['points'][0]['x'], cy_metric=cy_metric, ly_metric=ly_metric,
+                                  metric=metric)
 
 
 @app.callback(
