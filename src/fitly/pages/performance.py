@@ -539,7 +539,7 @@ oura_low_threshold = 70
 def training_zone(form):
     if form:
         if 25 < form:
-            return 'N/A'
+            return 'No Fitness'
         elif 5 < form <= 25:
             return 'Performance'
         elif -10 < form <= 5:
