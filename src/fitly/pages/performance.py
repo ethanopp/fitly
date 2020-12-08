@@ -1543,8 +1543,8 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
             ),
 
             go.Scatter(
-                name='N/A',
-                text=['N/A' if x == pmd.index.max() else '' for x in
+                name='No Fitness',
+                text=['No Fitness' if x == pmd.index.max() else '' for x in
                       pmd.index],
                 textposition='top left',
                 x=pmd.index,
