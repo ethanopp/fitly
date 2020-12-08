@@ -974,23 +974,23 @@ def create_activity_table(date=None):
         # return html.H3('No workouts found for {}'.format(date.strftime("%b %d, %Y")), style={'textAlign': 'center'})
 
 
-def create_growth_kpis(date, cy_metric, ly_metric, metric):
-    cy_title, ly_title = 'CY: N/A', 'LY: N/A'
+def create_growth_kpis(date, cy, cy_metric, ly, ly_metric, metric):
+    cy_title, ly_title = f'{cy}: N/A', f'{ly}: N/A'
     if cy_metric and metric in ['elapsed_time', 'high_intensity_seconds', 'low_intensity_seconds',
                                 'med_intensity_seconds']:
-        cy_title = 'CY: {}'.format(timedelta(seconds=cy_metric))
+        cy_title = '{}: {}'.format(cy, timedelta(seconds=cy_metric))
     if ly_metric and metric in ['elapsed_time', 'high_intensity_seconds', 'low_intensity_seconds',
                                 'med_intensity_seconds']:
-        ly_title = 'LY: {}'.format(timedelta(seconds=ly_metric))
+        ly_title = '{}: {}'.format(ly, timedelta(seconds=ly_metric))
     if cy_metric and metric == 'distance':
-        cy_title = 'CY: {:.1f} mi.'.format(cy_metric)
+        cy_title = '{}: {:.1f} mi.'.format(cy, cy_metric)
     if ly_metric and metric == 'distance':
-        ly_title = 'LY: {:.1f} mi.'.format(ly_metric)
+        ly_title = '{}: {:.1f} mi.'.format(ly, ly_metric)
 
     if cy_metric and metric in ['hrss', 'trimp', 'tss']:
-        cy_title = 'CY: {:.0f}'.format(cy_metric)
+        cy_title = '{}: {:.0f}'.format(cy, cy_metric)
     if ly_metric and metric in ['hrss', 'trimp', 'tss']:
-        ly_title = 'LY: {:.0f}'.format(ly_metric)
+        ly_title = '{}: {:.0f}'.format(ly, ly_metric)
     if cy_metric and ly_metric:
         cy_color = orange if cy_metric < ly_metric else teal
     else:
@@ -1028,9 +1028,9 @@ def create_growth_chart(metric):
     df = pd.read_sql(
         sql=app.session.query(stravaSummary).filter(
             stravaSummary.elapsed_time > athlete_info.min_non_warmup_workout_time,
-            or_(
-                extract('year', stravaSummary.start_date_utc) == datetime.utcnow().year,
-                extract('year', stravaSummary.start_date_utc) == (datetime.utcnow().year - 1))
+            # or_(
+            #     extract('year', stravaSummary.start_date_utc) == datetime.utcnow().year,
+            #     extract('year', stravaSummary.start_date_utc) == (datetime.utcnow().year - 1))
         ).statement, con=engine, index_col='start_date_utc').sort_index(ascending=True)
 
     app.session.remove()
@@ -1074,11 +1074,11 @@ def create_growth_chart(metric):
                 mode='lines',
                 text=text,
                 hoverinfo='x+text',
-                customdata=['{}'.format(f'cy|{metric}' if index == 0 else f'ly|{metric}' if index == 1 else None) for x
+                customdata=['{}'.format(f'cy|{metric}|{year}' if index == 0 else f'ly|{metric}|{year}' if index == 1 else None) for x
                             in df.index],
                 line={'shape': 'spline', 'color': colors[index]},
                 # Default to only CY and PY shown
-                visible=True if index < 2 else 'legendonly'
+                # visible=True if index < 2 else 'legendonly'
             )
         )
         # Store current data points for hoverdata kpi initial values
@@ -1087,9 +1087,11 @@ def create_growth_chart(metric):
             temp_df[year] = temp_df[year].cumsum()
             current_date = temp_df.index.max()
             cy_metric = temp_df.loc[current_date][year]
+            cy = year
         if index == 1:
             temp_df[year] = temp_df[year].cumsum()
             ly_metric = temp_df.loc[current_date][year]
+            ly = year
         index += 1
 
     # Multiply by 40 weeks in the year (roughly 3 week on 1 off)
@@ -1113,8 +1115,8 @@ def create_growth_chart(metric):
     # )
 
     hoverData = dict(points=[
-        {'x': current_date, 'y': cy_metric, 'customdata': f'cy|{metric}'},
-        {'x': current_date, 'y': ly_metric, 'customdata': f'ly|{metric}'},
+        {'x': current_date, 'y': cy_metric, 'customdata': f'cy|{metric}|{cy}'},
+        {'x': current_date, 'y': ly_metric, 'customdata': f'ly|{metric}|{ly}'},
         # {'x': current_date, 'y': target, 'customdata': 'target'}
     ])
 
@@ -2469,13 +2471,15 @@ def update_growth_kpis(hoverData):
         for point in hoverData['points']:
             if 'cy' in point['customdata']:
                 metric = point['customdata'].split('|')[1]
+                cy = point['customdata'].split('|')[2]
                 cy_metric = point['y']
                 cy_date = point['x']
             elif 'ly' in point['customdata']:
                 metric = point['customdata'].split('|')[1]
+                ly = point['customdata'].split('|')[2]
                 ly_metric = point['y']
 
-        return create_growth_kpis(date=hoverData['points'][0]['x'], cy_metric=cy_metric, ly_metric=ly_metric,
+        return create_growth_kpis(date=hoverData['points'][0]['x'], cy=cy, cy_metric=cy_metric, ly=ly, ly_metric=ly_metric,
                                   metric=metric)
 
 
