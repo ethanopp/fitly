@@ -28,10 +28,14 @@ def get_layout(**kwargs):
             html.Div(className='row align-items-center text-center', children=[
                 html.Div(className='col-lg-12 mt-2 mb-2', children=[
                     html.Div(id='lifting-date-buttons', children=[
-                        dbc.Button('All Time', id='all-button', color='primary', style={'marginRight': '1vw'}),
-                        dbc.Button('Year to Date', id='ytd-button', color='primary', style={'marginRight': '1vw'}),
-                        dbc.Button('Last 6 Months', id='l6m-button', color='primary', style={'marginRight': '1vw'}),
-                        dbc.Button('Last 6 Weeks', id='l6w-button', color='primary', style={'marginRight': '1vw'}),
+                        dbc.Button('All Time', id='all-button', color='primary', size='sm',
+                                   style={'marginRight': '1vw'}),
+                        dbc.Button('Year to Date', id='ytd-button', color='primary', size='sm',
+                                   style={'marginRight': '1vw'}),
+                        dbc.Button('Last 6 Months', id='l6m-button', color='primary', size='sm',
+                                   style={'marginRight': '1vw'}),
+                        dbc.Button('Last 6 Weeks', id='l6w-button', color='primary', size='sm',
+                                   style={'marginRight': '1vw'}),
                     ]),
                 ]),
             ]),
