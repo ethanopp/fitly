@@ -123,7 +123,7 @@ def generate_cycle_power_zone_card():
     cycle_power_zone_threshold_6 = athlete_info.cycle_power_zone_threshold_6
 
     return dbc.Card([
-        dbc.CardHeader([dbc.Row([html.H4(className='col-8 text-left', children='Cycling Power Zones'),
+        dbc.CardHeader([dbc.Row([html.H4(className='col-8 text-left mb-0', children='Cycling Power Zones'),
                                  html.Div(className='col-4', children=[daq.BooleanSwitch(
                                      id='use-cycle-power-switch',
                                      on=use_cycle_power,
@@ -182,7 +182,7 @@ def generate_run_power_zone_card():
     run_power_zone_threshold_4 = athlete_info.run_power_zone_threshold_4
 
     return dbc.Card([
-        dbc.CardHeader([dbc.Row([html.H4(className='col-9 text-left', children='Running Power Zones'),
+        dbc.CardHeader([dbc.Row([html.H4(className='col-9 text-left mb-0', children='Running Power Zones'),
                                  html.Div(className='col-3', children=[daq.BooleanSwitch(
                                      id='use-run-power-switch',
                                      on=use_run_power,
@@ -278,7 +278,7 @@ def athlete_card():
         peloton_bookmark_settings = html.Div()
 
     return dbc.Card(id='athlete-card', className=color, children=[
-        dbc.CardHeader(html.H4(className='text-left', children='Athlete')),
+        dbc.CardHeader(html.H4(className='text-left mb-0', children='Athlete')),
         dbc.CardBody([
             generate_db_setting('name', 'Name', athlete_info.name),
             generate_db_setting('birthday', 'Birthday', athlete_info.birthday, input_type='date'),
@@ -347,7 +347,7 @@ def generate_hr_zone_card():
     z4 = round((hrr * hr_zone_threshold_4) + rhr)
 
     return dbc.Card([
-        dbc.CardHeader(html.H4(className='text-left', children='Heart Rate Zones')),
+        dbc.CardHeader(html.H4(className='text-left mb-0', children='Heart Rate Zones')),
         dbc.CardBody([
             html.H5('Based of Resting Heart Rate: {}'.format(rhr)),
             generate_db_setting('hr-zone1', 'Z1: <= {:.0f}'.format(z1), hr_zone_threshold_1),
@@ -384,7 +384,7 @@ def goal_parameters():
     use_readiness = True if athlete_info.weekly_workout_goal == 99 else False
     use_hrv = True if athlete_info.weekly_workout_goal == 100 else False
     return dbc.Card([
-        dbc.CardHeader(html.H4(className='text-left', children='Goals')),
+        dbc.CardHeader(html.H4(className='text-left mb-0', children='Goals')),
         dbc.CardBody(className='align-items-center text-center', children=[
             generate_db_setting(id='min-workout-time-goal', title='Min. Activity Minutes',
                                 value=athlete_info.min_non_warmup_workout_time / 60),
@@ -453,7 +453,7 @@ def generate_settings_dashboard():
                      html.Div(id='data sources', className='col-lg-3',
                               children=[
                                   dbc.Card(className='mb-2', children=[
-                                      dbc.CardHeader(html.H4(className='text-left', children='App Connections')),
+                                      dbc.CardHeader(html.H4(className='text-left mb-0', children='App Connections')),
                                       dbc.CardBody(children=html.Div(id='api-connections'))
                                   ]),
                               ]),
@@ -465,7 +465,7 @@ def generate_settings_dashboard():
         html.Div(id='settings-shelf-2', className='row align-items-start text-center mt-2', children=[
             html.Div(id='database-container', className='col-lg-4', children=[
                 dbc.Card(className='mb-2', children=[
-                    dbc.CardHeader(html.H4(className='text-left', children='Database')),
+                    dbc.CardHeader(html.H4(className='text-left mb-0', children='Database')),
                     dbc.CardBody(children=[
                         html.Div(className='col-12 mb-2', children=[
                             dbc.Button('Refresh', color='primary', size='sm',
@@ -497,8 +497,8 @@ def generate_settings_dashboard():
             html.Div(id='logs-container', className='col-lg-12',
                      children=[
                          dbc.Card(style={'height': '25vh'}, children=[
-                             dbc.CardHeader(className='text-left d-inline-block',
-                                            children=[html.H4('Logs', className='d-inline-block mr-2'),
+                             dbc.CardHeader(className='align-items-center text-left d-inline-block',
+                                            children=[html.H4('Logs', className='d-inline-block mr-2 mb-0'),
                                                       dbc.Button('Info', id='info-log-button', n_clicks=0,
                                                                  className='mr-2', color='primary', size='sm'),
                                                       dbc.Button('Error', id='error-log-button', n_clicks=0,
