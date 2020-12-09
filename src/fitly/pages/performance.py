@@ -1,3 +1,4 @@
+import dash
 from datetime import datetime, timedelta
 import dash_bootstrap_components as dbc
 import dash_core_components as dcc
@@ -101,7 +102,9 @@ def get_hrv_df():
 def get_layout(**kwargs):
     athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1).first()
     pmc_switch_settings = json.loads(athlete_info.pmc_switch_settings)
-    use_power = True if athlete_info.use_run_power or athlete_info.use_cycle_power else False
+    use_run_power = True if athlete_info.use_run_power else False
+    use_cycle_power = True if athlete_info.use_cycle_power else False
+    use_power = True if use_run_power or use_cycle_power else False
     app.session.remove()
     return html.Div([
         # Dummy div for simultaneous callbacks on page load
@@ -408,26 +411,35 @@ def get_layout(**kwargs):
                      children=[
                          dbc.Card([
                              dbc.CardHeader(
-                                 html.Div(className='row align-items-center text-center', children=[
+                                 html.Div(className='row align-items-center text-left', children=[
                                      ### Title ###
-                                     html.Div(className='col-lg-4', children=[
-                                         dbc.Select(
-                                             id='growth-chart-metric-select',
-                                             bs_size='sm',
-                                             value='distance',
-                                             style={'height': '1.25rem', 'paddingTop': 0, 'paddingBottom': 0,
-                                                    'paddingRight': 0},
-                                             options=[
-                                                 {'label': 'Distance', 'value': 'distance'},
-                                                 {'label': 'Duration', 'value': 'elapsed_time'},
-                                                 {'label': 'High Intensity', 'value': 'high_intensity_seconds'},
-                                                 {'label': 'hrSS', 'value': 'hrss'},
-                                                 {'label': 'Low Intensity', 'value': 'low_intensity_seconds'},
-                                                 {'label': 'Med Intensity', 'value': 'med_intensity_seconds'},
-                                                 {'label': 'TRIMP', 'value': 'trimp'},
-                                                 {'label': 'PSS', 'value': 'tss'},
+                                     html.Div(className='col-lg-4 ml-0 mr-0', children=[
+                                         dbc.DropdownMenu(
+                                             [
+
+                                                 dbc.DropdownMenuItem("Running", header=True),
+                                                 dbc.DropdownMenuItem("Distance", id="run|distance"),
+                                                 dbc.DropdownMenuItem("Duration", id="run|elapsed_time"),
+                                                 dbc.DropdownMenuItem("hrSS", id="run|hrss"),
+                                                 dbc.DropdownMenuItem("Trimp", id="run|trimp"),
+
+                                                 dbc.DropdownMenuItem("Stress Score",
+                                                                      id="run|tss") if use_run_power else None,
+                                                 dbc.DropdownMenuItem(divider=True),
+                                                 dbc.DropdownMenuItem("Cycling", header=True),
+                                                 dbc.DropdownMenuItem("Distance", id="ride|distance"),
+                                                 dbc.DropdownMenuItem("Duration", id="ride|elapsed_time"),
+                                                 dbc.DropdownMenuItem("hrSS", id="ride|hrss"),
+                                                 dbc.DropdownMenuItem("Trimp", id="ride|trimp"),
+
+                                                 dbc.DropdownMenuItem("Stress Score",
+                                                                      id="ride|tss") if use_cycle_power else None,
                                              ],
-                                         )
+                                             label="Run Distance",
+                                             bs_size='sm',
+                                             className="mb-0",
+                                             id='growth-chart-metric-select',
+                                         ),
                                      ]),
 
                                      html.Div(id='growth-header', className='col-lg-8')
@@ -839,7 +851,7 @@ def create_fitness_kpis(date, ctl, ramp, rr_min_threshold, rr_max_threshold, atl
         ### Date KPI ###
         html.Div(className='col-lg-2', children=[
             html.Div(children=[
-                html.H6('{}'.format(datetime.strptime(date, '%Y-%m-%d').strftime("%b %d, %Y")),
+                html.H5('{}'.format(datetime.strptime(date, '%Y-%m-%d').strftime("%b %d, %Y")),
                         className='d-inline-block',
                         style={'fontWeight': 'bold', 'color': 'rgb(220, 220, 220)', 'marginTop': '0',
                                'marginBottom': '0'}),
@@ -1014,7 +1026,7 @@ def create_growth_kpis(date, cy, cy_metric, ly, ly_metric, metric):
     ])
 
 
-def create_growth_chart(metric):
+def create_metric_trend_chart(metric, sport='all'):
     '''
 
     :param metric: Allowed values from strava summary table [hrss, tss, trimp, distance, elapsed_time, high_intensity_seconds, med_intensity_seconds, low_intensity_seconds]
@@ -1026,13 +1038,20 @@ def create_growth_chart(metric):
     athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1).first()
     use_power = True if athlete_info.use_run_power or athlete_info.use_cycle_power else False
 
-    df = pd.read_sql(
-        sql=app.session.query(stravaSummary).filter(
-            stravaSummary.elapsed_time > athlete_info.min_non_warmup_workout_time,
-            # or_(
-            #     extract('year', stravaSummary.start_date_utc) == datetime.utcnow().year,
-            #     extract('year', stravaSummary.start_date_utc) == (datetime.utcnow().year - 1))
-        ).statement, con=engine, index_col='start_date_utc').sort_index(ascending=True)
+    if sport != 'all':
+        df = pd.read_sql(
+            sql=app.session.query(stravaSummary).filter(
+                stravaSummary.elapsed_time > athlete_info.min_non_warmup_workout_time,
+                stravaSummary.type.like(sport),
+            ).statement, con=engine, index_col='start_date_utc').sort_index(ascending=True)
+    else:
+        df = pd.read_sql(
+            sql=app.session.query(stravaSummary).filter(
+                stravaSummary.elapsed_time > athlete_info.min_non_warmup_workout_time,
+                # or_(
+                #     extract('year', stravaSummary.start_date_utc) == datetime.utcnow().year,
+                #     extract('year', stravaSummary.start_date_utc) == (datetime.utcnow().year - 1))
+            ).statement, con=engine, index_col='start_date_utc').sort_index(ascending=True)
 
     app.session.remove()
 
@@ -1080,7 +1099,7 @@ def create_growth_chart(metric):
                     for x in df.index],
                 line={'shape': 'spline', 'color': colors[index]},
                 # Default to only CY and PY shown
-                # visible=True if index < 2 else 'legendonly'
+                visible=True if index < 2 else 'legendonly'
             )
         )
         # Store current data points for hoverdata kpi initial values
@@ -2466,14 +2485,38 @@ def refresh_fitness_chart(ride_switch, run_switch, all_switch, power_switch, hr_
 
 
 # Create Growth Chart
+# Create Growth Chart
 @app.callback(
     [Output('growth-chart', 'figure'),
-     Output('growth-chart', 'hoverData')],
-    [Input('growth-chart-metric-select', 'value')]
+     Output('growth-chart', 'hoverData'),
+     Output('growth-chart-metric-select', 'label')],
+    [
+        Input('run|distance', 'n_clicks'),
+        Input('run|elapsed_time', 'n_clicks'),
+        Input('run|hrss', 'n_clicks'),
+        Input('run|trimp', 'n_clicks'),
+
+        Input('ride|distance', 'n_clicks'),
+        Input('ride|elapsed_time', 'n_clicks'),
+        Input('ride|hrss', 'n_clicks'),
+        Input('ride|trimp', 'n_clicks'),
+    ]
 )
-def update_fitness_table(growth_chart_metric):
-    figure, hoverData = create_growth_chart(metric=growth_chart_metric)
-    return figure, hoverData
+def update_trend_chart(*args):
+    ctx = dash.callback_context
+
+    if not ctx.triggered:
+        sport = "run"
+        metric = 'distance'
+    else:
+        select = ctx.triggered[0]["prop_id"].split(".")[0].split('|')
+        sport = select[0]
+        metric = select[1]
+
+    label = (sport + ' ' + metric.replace('elapsed_time', 'duration')).title().replace('_', ' ').replace('Cycling',
+                                                                                                         'Ride')
+    figure, hoverData = create_metric_trend_chart(sport=sport, metric=metric)
+    return figure, hoverData, label
 
 
 # Growth Chart KPIs
@@ -2481,7 +2524,7 @@ def update_fitness_table(growth_chart_metric):
     Output('growth-header', 'children'),
     [Input('growth-chart', 'hoverData')])
 def update_growth_kpis(hoverData):
-    cy_metric, ly_metric, cy_date, metric = None, None, None, None
+    cy, cy_metric, ly, ly_metric, cy_date, metric = None, None, None, None, None, None
     if hoverData is not None:
         for point in hoverData['points']:
             if 'cy' in point['customdata']:
