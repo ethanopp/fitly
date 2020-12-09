@@ -421,19 +421,17 @@ def get_layout(**kwargs):
                                                  dbc.DropdownMenuItem("Distance", id="run|distance"),
                                                  dbc.DropdownMenuItem("Duration", id="run|elapsed_time"),
                                                  dbc.DropdownMenuItem("hrSS", id="run|hrss"),
+                                                 dbc.DropdownMenuItem("Stress Score", id="run|tss"),
                                                  dbc.DropdownMenuItem("Trimp", id="run|trimp"),
 
-                                                 dbc.DropdownMenuItem("Stress Score",
-                                                                      id="run|tss") if use_run_power else None,
                                                  dbc.DropdownMenuItem(divider=True),
                                                  dbc.DropdownMenuItem("Cycling", header=True),
                                                  dbc.DropdownMenuItem("Distance", id="ride|distance"),
                                                  dbc.DropdownMenuItem("Duration", id="ride|elapsed_time"),
                                                  dbc.DropdownMenuItem("hrSS", id="ride|hrss"),
+                                                 dbc.DropdownMenuItem("Stress Score", id="ride|tss"),
                                                  dbc.DropdownMenuItem("Trimp", id="ride|trimp"),
 
-                                                 dbc.DropdownMenuItem("Stress Score",
-                                                                      id="ride|tss") if use_cycle_power else None,
                                              ],
                                              label="Run Distance",
                                              bs_size='sm',
@@ -2495,11 +2493,12 @@ def refresh_fitness_chart(ride_switch, run_switch, all_switch, power_switch, hr_
         Input('run|elapsed_time', 'n_clicks'),
         Input('run|hrss', 'n_clicks'),
         Input('run|trimp', 'n_clicks'),
-
+        Input('run|tss', 'n_clicks'),
         Input('ride|distance', 'n_clicks'),
         Input('ride|elapsed_time', 'n_clicks'),
         Input('ride|hrss', 'n_clicks'),
         Input('ride|trimp', 'n_clicks'),
+        Input('ride|tss', 'n_clicks'),
     ]
 )
 def update_trend_chart(*args):
