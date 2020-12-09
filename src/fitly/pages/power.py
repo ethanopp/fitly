@@ -853,6 +853,7 @@ def zone_chart(activity_id=None, metric='power_zone', chart_id='power-zone-chart
                     text=label,
                     hoverinfo='none',
                     textposition='auto',
+                    width=.5,
                     marker={'color': [
                         'rgb(250, 47, 76)',
                         'rgb(250, 82, 104)',
