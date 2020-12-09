@@ -35,7 +35,7 @@ def create_power_curve_kpis(interval, all, L90D, l6w, last, pr):
         html.Div(className='row align-items-center text-center', children=[
             ### Interval KPI ###
             html.Div(className='col-auto', children=[
-                html.H4(id='power-curve-title', className='mb-2',
+                html.H4(id='power-curve-title', className='mb-0',
                         children='Power Curve {}'.format(timedelta(seconds=interval))),
             ]),
             dbc.Tooltip(
@@ -47,7 +47,7 @@ def create_power_curve_kpis(interval, all, L90D, l6w, last, pr):
                 target="power-curve-title"),
 
             ### All KPI ###
-            html.Div(id='all-kpi', className='col-auto mb-2', children=[
+            html.Div(id='all-kpi', className='col-auto mb-0', children=[
                 html.H5('All Time {}'.format(all),
                         style={'display': 'inline-block',  # 'fontWeight': 'bold',
                                'color': white, 'backgroundColor': dark_blue, 'marginTop': '0',
@@ -55,25 +55,25 @@ def create_power_curve_kpis(interval, all, L90D, l6w, last, pr):
                                'borderRadius': '.3rem'}),
             ]),
             ### L90D KPI ###
-            html.Div(id='L90D-kpi', className='col-auto mb-2', children=[
+            html.Div(id='L90D-kpi', className='col-auto mb-0', children=[
                 html.H5('L90D {}'.format(L90D if pr == '' else pr),
                         style={'display': 'inline-block',  # 'fontWeight': 'bold',
-                               'color': white, 'backgroundColor': light_blue if pr == '' else orange,
+                               'color': 'rgb(46,46,46)', 'backgroundColor': white if pr == '' else orange,
                                'marginTop': '0',
                                'marginBottom': '0',
                                'borderRadius': '.3rem'}),
             ]),
             ### L6W KPI ###
-            html.Div(id='l6w-kpi', className='col-auto mb-2', children=[
+            html.Div(id='l6w-kpi', className='col-auto mb-0', children=[
                 html.H5('L6W {}'.format(l6w),
                         style={'display': 'inline-block',  # 'fontWeight': 'bold',
-                               'color': 'rgb(46,46,46)', 'backgroundColor': white, 'marginTop': '0',
+                               'color': white, 'backgroundColor': light_blue, 'marginTop': '0',
                                'marginBottom': '0',
                                'borderRadius': '.3rem'}),
             ]),
             ### Last KPI ###
-            html.Div(id='last-kpi', className='col-auto mb-2', children=[
-                html.H5('Workout {}'.format(last),
+            html.Div(id='last-kpi', className='col-auto mb-0', children=[
+                html.H5('L30D {}'.format(last),
                         style={'display': 'inline-block',  # 'fontWeight': 'bold',
                                'color': 'rgb(46,46,46)', 'backgroundColor': teal, 'marginTop': '0',
                                'marginBottom': '0',
@@ -211,7 +211,7 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
             TD_df_L90D[power_unit] > TD_df_L90D['ftp_wkg' if power_unit == 'watts_per_kg' else 'ftp']].index.max()]
         fatigue_ftp = fatigue_df.ftp_wkg if power_unit == 'watts_per_kg' else fatigue_df.ftp
         endurance_df = TD_df_L90D.loc[TD_df_L90D[TD_df_L90D[power_unit] > (
-                    TD_df_L90D['ftp_wkg' if power_unit == 'watts_per_kg' else 'ftp'] / 2)].index.max()]
+                TD_df_L90D['ftp_wkg' if power_unit == 'watts_per_kg' else 'ftp'] / 2)].index.max()]
         endurance_ftp = endurance_df.ftp_wkg / 2 if power_unit == 'watts_per_kg' else endurance_df.ftp / 2
 
         # Muscle power is just best 10 second power
@@ -235,7 +235,7 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
     # 1 second intervals from 0-60 seconds
     interval_lengths = [i for i in range(1, 61)]
     # 5 second intervals from 1:15 - 20:00 mins
-    interval_lengths += [i for i in range(75, 1201, 5)]
+    interval_lengths += [i for i in range(65, 1201, 5)]
     # 30 second intervals for everything after 20 mins
     interval_lengths += [i for i in range(1230, (int(math.floor(max_interval / 10.0)) * 10) + 1, 30)]
 
@@ -280,15 +280,17 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
         last_id = app.session.query(stravaSummary.activity_id).filter(stravaSummary.type.ilike(activity_type)).order_by(
             stravaSummary.start_date_utc.desc()).first()[0]
 
-    recent_best_interval_df = pd.read_sql(
+    L30D_best_interval_df = pd.read_sql(
         sql=app.session.query(
             func.max(stravaBestSamples.mmp).label('mmp'), stravaBestSamples.activity_id,
             stravaBestSamples.interval, stravaBestSamples.time_interval,
             stravaBestSamples.date, stravaBestSamples.timestamp_local, stravaBestSamples.watts_per_kg,
-        ).group_by(stravaBestSamples.interval).filter(stravaBestSamples.activity_id == last_id,
-                                                      stravaBestSamples.interval.in_(interval_lengths),
+        ).group_by(stravaBestSamples.interval).filter(stravaBestSamples.interval.in_(interval_lengths),
+                                                      stravaBestSamples.type.ilike(activity_type),
+                                                      stravaBestSamples.timestamp_local >= (
+                                                              datetime.now() - timedelta(days=30))
                                                       ).statement, con=engine, index_col='interval')
-    recent_best_interval_df['act_name'] = recent_best_interval_df['activity_id'].map(act_dict['act_name'])
+    L30D_best_interval_df['act_name'] = L30D_best_interval_df['activity_id'].map(act_dict['act_name'])
 
     first_workout_date = app.session.query(func.min(stravaSummary.start_date_utc)).first()[0]
 
@@ -305,8 +307,8 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
             L90D_best_interval_df) > 0 else 0), 'customdata': 'x_x_L90D'},
         {'y': ((L6W_best_interval_df.loc[60]['watts_per_kg']) if len(
             L6W_best_interval_df) > 0 else 0), 'customdata': 'x_x_l6w'},
-        {'y': ((recent_best_interval_df.loc[60]['watts_per_kg']) if len(
-            recent_best_interval_df) > 0 else 0), 'customdata': 'x_x_w'}
+        {'y': ((L30D_best_interval_df.loc[60]['watts_per_kg']) if len(
+            L30D_best_interval_df) > 0 else 0), 'customdata': 'x_x_w'}
     ]} if power_unit == 'watts_per_kg' else {'points': [
         {'x': 60,
          'y': (round(all_best_interval_df.loc[60]['mmp']) if len(all_best_interval_df) > 0 else 0),
@@ -315,20 +317,32 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
             L90D_best_interval_df) > 0 else 0), 'customdata': 'x_x_L90D'},
         {'y': (round(L6W_best_interval_df.loc[60]['mmp']) if len(
             L6W_best_interval_df) > 0 else 0), 'customdata': 'x_x_l6w'},
-        {'y': (round(recent_best_interval_df.loc[60]['mmp']) if len(
-            recent_best_interval_df) > 0 else 0), 'customdata': 'x_x_w'}
+        {'y': (round(L30D_best_interval_df.loc[60]['mmp']) if len(
+            L30D_best_interval_df) > 0 else 0), 'customdata': 'x_x_w'}
     ]}
 
-    # Check if value L90D values are all time bests
-    # Make 2nd line for L90D PR and highlight orange and remove points from L90D df to avoid duplicate tooltips
-    pr_df = L90D_best_interval_df.copy()
-    # If less than 90 days of data, everything is a PR
-    if first_workout_date < (datetime.now() - timedelta(days=90)):
-        for i in pr_df.index:
-            if pr_df.at[i, power_unit] == all_best_interval_df.at[i, power_unit]:
+    # We only want to show 1 line with all different colors, so loop through each df and remove points where not max
+    # Replace all_time with l90D
+    for i in all_best_interval_df.index:
+        if i in L90D_best_interval_df.index:
+            if L90D_best_interval_df.at[i, power_unit] >= all_best_interval_df.at[i, power_unit]:
+                all_best_interval_df.at[i, power_unit] = None
+            else:
+                L90D_best_interval_df.at[i, power_unit] = None
+    # Replace L90D with L6W
+    for i in L90D_best_interval_df.index:
+        if i in L6W_best_interval_df.index:
+            if L6W_best_interval_df.at[i, power_unit] >= L90D_best_interval_df.at[i, power_unit]:
                 L90D_best_interval_df.at[i, power_unit] = None
             else:
-                pr_df.at[i, power_unit] = None
+                L6W_best_interval_df.at[i, power_unit] = None
+    # Replace L6W with L30D
+    for i in L6W_best_interval_df.index:
+        if i in L30D_best_interval_df.index:
+            if L30D_best_interval_df.at[i, power_unit] >= L6W_best_interval_df.at[i, power_unit]:
+                L6W_best_interval_df.at[i, power_unit] = None
+            else:
+                L30D_best_interval_df.at[i, power_unit] = None
 
     tooltip = '''{}<br>{}<br>{:.2f} W/kg''' if power_unit == 'watts_per_kg' else '''{}<br>{}<br>{:.0f} W'''
 
@@ -368,7 +382,7 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
                 '{}_{}_L90D'.format(L90D_best_interval_df.loc[x]['activity_id'], int(x))
                 for x in L90D_best_interval_df.index],
             hoverinfo='text',
-            line={'shape': 'spline', 'color': light_blue},
+            line={'shape': 'spline', 'color': white},
         ),
         go.Scatter(
             name='L6W',
@@ -387,47 +401,26 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
                 '{}_{}_l6w'.format(L6W_best_interval_df.loc[x]['activity_id'], int(x))
                 for x in L6W_best_interval_df.index],
             hoverinfo='text',
-            line={'shape': 'spline', 'color': white},
+            line={'shape': 'spline', 'color': light_blue},
         ),
         go.Scatter(
-            name='Workout',
-            x=recent_best_interval_df.index,
-            y=recent_best_interval_df[power_unit],
+            name='L30D',
+            x=L30D_best_interval_df.index,
+            y=L30D_best_interval_df[power_unit],
             mode='lines',
             # text=['{:.0f}'.format(L90D_best_interval_df.loc[i]['mmp']) for i in
             #       L90D_best_interval_df.index],
             text=[
                 tooltip.format(
-                    recent_best_interval_df.loc[i]['act_name'],
-                    recent_best_interval_df.loc[i].date,
-                    recent_best_interval_df.loc[i][power_unit])
-                for i in recent_best_interval_df.index],
+                    L30D_best_interval_df.loc[i]['act_name'],
+                    L30D_best_interval_df.loc[i].date,
+                    L30D_best_interval_df.loc[i][power_unit])
+                for i in L30D_best_interval_df.index],
             customdata=[
-                '{}_{}_w'.format(recent_best_interval_df.loc[x]['activity_id'], int(x))
-                for x in recent_best_interval_df.index],
+                '{}_{}_w'.format(L30D_best_interval_df.loc[x]['activity_id'], int(x))
+                for x in L30D_best_interval_df.index],
             hoverinfo='text',
             line={'shape': 'spline', 'color': teal},
-        ),
-        go.Scatter(
-            name='PR L90D',
-            x=pr_df.index,
-            y=pr_df[power_unit],
-            mode='lines',
-            # text=['{:.0f}'.format(L90D_best_interval_df.loc[i]['mmp']) for i in
-            #       L90D_best_interval_df.index],
-            text=[
-                tooltip.format(
-                    pr_df.loc[i]['act_name'],
-                    pr_df.loc[i].date,
-                    pr_df.loc[i][power_unit])
-                for i in pr_df.index],
-            customdata=[
-                '{}_{}_pr'.format(pr_df.loc[x]['activity_id'], int(x))
-                for x in pr_df.index],
-            hoverinfo='text',
-            line={'shape': 'spline', 'color': orange},
-            connectgaps=False,
-
         )
     ]
     annotations = [
@@ -1211,7 +1204,7 @@ def get_layout(**kwargs):
                          ]),
                          html.Div(className='col-lg-4', children=[
                              dbc.Card(children=[
-                                 dbc.CardHeader(html.H4(id='ftp-current')),
+                                 dbc.CardHeader(html.H4(id='ftp-current', className='mb-0')),
                                  dbc.Tooltip(
                                      'Functional Threshold Power (FTP) is the highest average power you can sustain for 1 hour, measured in watts. FTP is used to determine training zones when using a power meter and to measure improvement.',
                                      target="ftp-current", ),
@@ -1227,10 +1220,10 @@ def get_layout(**kwargs):
                     html.Div(className='col', children=[
                         html.H6('Power Profiles by'),
                         html.Div(id='power-profile-buttons', className='col', children=[
-                            dbc.Button('Day', id='day-button', color='primary', size='md'),
-                            dbc.Button('Week', id='week-button', color='primary', size='md'),
-                            dbc.Button('Month', id='month-button', color='primary', size='md'),
-                            dbc.Button('Year', id='year-button', color='primary', size='md'),
+                            dbc.Button('Day', id='day-button', color='primary', size='sm'),
+                            dbc.Button('Week', id='week-button', color='primary', size='sm'),
+                            dbc.Button('Month', id='month-button', color='primary', size='sm'),
+                            dbc.Button('Year', id='year-button', color='primary', size='sm'),
                         ]),
                     ]),
                 ]),
@@ -1238,7 +1231,7 @@ def get_layout(**kwargs):
             html.Div(id='power-profiles', className='row', children=[
                 html.Div(className='col-lg-3', children=[
                     dbc.Card(id='power-profile-5', children=[
-                        dbc.CardHeader(html.H4('5 Second Max Power')),
+                        dbc.CardHeader(html.H4('5 Second Max Power', className='mb-0')),
                         dbc.CardBody(dcc.Graph(
                             id='power-profile-5-chart',
                             config={'displayModeBar': False},
@@ -1247,7 +1240,7 @@ def get_layout(**kwargs):
                         )])]),
                 html.Div(className='col-lg-3', children=[
                     dbc.Card(id='power-profile-60', children=[
-                        dbc.CardHeader(html.H4('1 Minute Max Power')),
+                        dbc.CardHeader(html.H4('1 Minute Max Power', className='mb-0')),
                         dbc.CardBody(dcc.Graph(
                             id='power-profile-60-chart',
                             config={'displayModeBar': False},
@@ -1256,7 +1249,7 @@ def get_layout(**kwargs):
                         )])]),
                 html.Div(className='col-lg-3', children=[
                     dbc.Card(id='power-profile-300', children=[
-                        dbc.CardHeader(html.H4('5 Minute Max Power')),
+                        dbc.CardHeader(html.H4('5 Minute Max Power', className='mb-0')),
                         dbc.CardBody(dcc.Graph(
                             id='power-profile-300-chart',
                             config={'displayModeBar': False},
@@ -1265,7 +1258,7 @@ def get_layout(**kwargs):
                         )])]),
                 html.Div(className='col-lg-3', children=[
                     dbc.Card(id='power-profile-1200', children=[
-                        dbc.CardHeader(html.H4('20 Minute Max Power')),
+                        dbc.CardHeader(html.H4('20 Minute Max Power', className='mb-0')),
                         dbc.CardBody(dcc.Graph(
                             id='power-profile-1200-chart',
                             config={'displayModeBar': False},
