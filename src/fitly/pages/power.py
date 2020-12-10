@@ -276,9 +276,9 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
 
     # Pull max power from all intervals from latest workout
 
-    if last_id is None:
-        last_id = app.session.query(stravaSummary.activity_id).filter(stravaSummary.type.ilike(activity_type)).order_by(
-            stravaSummary.start_date_utc.desc()).first()[0]
+    # if last_id is None:
+    #     last_id = app.session.query(stravaSummary.activity_id).filter(stravaSummary.type.ilike(activity_type)).order_by(
+    #         stravaSummary.start_date_utc.desc()).first()[0]
 
     L30D_best_interval_df = pd.read_sql(
         sql=app.session.query(
@@ -291,6 +291,17 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
                                                               datetime.now() - timedelta(days=30))
                                                       ).statement, con=engine, index_col='interval')
     L30D_best_interval_df['act_name'] = L30D_best_interval_df['activity_id'].map(act_dict['act_name'])
+
+    if last_id:
+        recent_best_interval_df = pd.read_sql(
+            sql=app.session.query(
+                func.max(stravaBestSamples.mmp).label('mmp'), stravaBestSamples.activity_id,
+                stravaBestSamples.interval, stravaBestSamples.time_interval,
+                stravaBestSamples.date, stravaBestSamples.timestamp_local, stravaBestSamples.watts_per_kg,
+            ).group_by(stravaBestSamples.interval).filter(stravaBestSamples.activity_id == last_id,
+                                                          stravaBestSamples.interval.in_(interval_lengths),
+                                                          ).statement, con=engine, index_col='interval')
+        recent_best_interval_df['act_name'] = recent_best_interval_df['activity_id'].map(act_dict['act_name'])
 
     first_workout_date = app.session.query(func.min(stravaSummary.start_date_utc)).first()[0]
 
@@ -423,6 +434,26 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
             line={'shape': 'spline', 'color': teal},
         )
     ]
+    if last_id:
+        data.append(
+            go.Scatter(
+                name='Workout',
+                x=recent_best_interval_df.index,
+                y=recent_best_interval_df[power_unit],
+                mode='lines',
+                text=[
+                    tooltip.format(
+                        recent_best_interval_df.loc[i]['act_name'],
+                        recent_best_interval_df.loc[i].date,
+                        recent_best_interval_df.loc[i][power_unit])
+                    for i in recent_best_interval_df.index],
+                customdata=[
+                    '{}_{}_w'.format(recent_best_interval_df.loc[x]['activity_id'], int(x))
+                    for x in recent_best_interval_df.index],
+                hoverinfo='text',
+                line={'shape': 'spline', 'color': orange},
+            )
+        )
     annotations = [
         # Muscle Power
         go.layout.Annotation(
@@ -798,7 +829,7 @@ def create_ftp_chart(activity_type='ride', power_unit='watts'):
     return ftp_current, figure
 
 
-def zone_chart(activity_id=None, metric='power_zone', chart_id='power-zone-chart'):
+def zone_chart(activity_id=None, metric='power_zone', chart_id='power-zone-chart', height=400):
     # If activity_id passed, filter only that workout, otherwise show distribution across last 6 weeks
 
     if activity_id:
@@ -828,7 +859,7 @@ def zone_chart(activity_id=None, metric='power_zone', chart_id='power-zone-chart
 
     pz_df[metric] = pz_df[metric].map(zone_map)
 
-    label = ['Time: ' + '{}'.format(timedelta(seconds=seconds)) + '<br>' + '% of Total: ' + '<b>{0:.0f}'.format(
+    label = ['Time: ' + '<b>{}</b>'.format(timedelta(seconds=seconds)) + '<br>' + '% of Total: ' + '<b>{0:.0f}'.format(
         percentage * 100) + '%'
              for seconds, percentage in zip(list(pz_df['seconds']), list(pz_df['Percent of Total']))]
 
@@ -843,8 +874,9 @@ def zone_chart(activity_id=None, metric='power_zone', chart_id='power-zone-chart
                     y=pz_df[metric],
                     x=pz_df['Percent of Total'],
                     orientation='h',
-                    text=label,
-                    hoverinfo='none',
+                    text=['{0:.0f}'.format(percentage * 100) + '%' for percentage in list(pz_df['Percent of Total'])],
+                    hovertext=label,
+                    hoverinfo='text',
                     textposition='auto',
                     width=.5,
                     marker={'color': [
@@ -862,6 +894,7 @@ def zone_chart(activity_id=None, metric='power_zone', chart_id='power-zone-chart
                 font=dict(
                     color='rgb(220,220,220)'
                 ),
+                height=height,
                 # annotations=[
                 #     dict(
                 #         text="Power Zones",
@@ -886,7 +919,7 @@ def zone_chart(activity_id=None, metric='power_zone', chart_id='power-zone-chart
                     autorange='reversed',
                     showgrid=False,
                 ),
-                margin={'l': 45, 'b': 0, 't': 25, 'r': 0},
+                margin={'l': 45, 'b': 0, 't': 0, 'r': 0},
 
             )
         }
