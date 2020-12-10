@@ -3,6 +3,9 @@ import datetime
 import pandas as pd
 from ..app import app
 from ..utils import config
+from .sqlalchemy_declarative import strydSummary
+from ..api.database import engine
+from sqlalchemy import func
 
 
 def auth_stryd_session():
@@ -24,7 +27,7 @@ def auth_stryd_session():
 ##############################
 ## get the list of workouts ##
 ##############################
-def get_stryd_df_summary():
+def pull_stryd_data():
     sessionID = auth_stryd_session()
     today = datetime.datetime.now() + datetime.timedelta(
         days=1)  # Pass tomorrow's date to ensure no issues with timezones
@@ -36,11 +39,56 @@ def get_stryd_df_summary():
 
     responseData = requests.get(url, headers=headers, params=jsonData)
     df = pd.DataFrame(responseData.json()['activities'])  # returns summary data for each workout
-    df['timestamp'] = df['timestamp'].apply(datetime.datetime.fromtimestamp)
-    df.set_index(pd.to_datetime(df['timestamp']), inplace=True)
+    df.rename(columns={
+        "timestamp": "start_date_local",
+        "ftp": "stryd_ftp",
+        "stress": "rss"},
+        inplace=True)
+
+    df['start_date_local'] = df['start_date_local'].apply(datetime.datetime.fromtimestamp)
+    df.set_index(pd.to_datetime(df['start_date_local']), inplace=True)
+
     # Specify which columns from stryd we want to bring over
-    df = df[['ftp', 'stress']]
-    df.rename(columns={"ftp": "stryd_ftp", "stress": "RSS"}, inplace=True)
+    df = df[['stryd_ftp',
+             'total_elevation_gain',
+             'total_elevation_loss',
+             'max_elevation',
+             'min_elevation',
+             'average_cadence',
+             'max_cadence',
+             'min_cadence',
+             'average_stride_length',
+             'max_stride_length',
+             'min_stride_length',
+             'average_ground_time',
+             'max_ground_time',
+             'min_ground_time',
+             'average_oscillation',
+             'max_oscillation',
+             'min_oscillation',
+             'average_leg_spring',
+             'rss',
+             'max_vertical_stiffness',
+             'stryds',
+             'elevation',
+             'temperature',
+             'humidity',
+             'windBearing',
+             'windSpeed',
+             'windGust',
+             'dewPoint']]
+
+    # Filter df for only new records not yet in DB
+    last_styrd_date = app.session.query(func.max(strydSummary.start_date_local))[0][0]
+    if last_styrd_date:
+        df = df[df.index > last_styrd_date]
+    if len(df) > 0:
+        app.server.logger.info('New stryd workouts found!')
+        # Insert into db
+        df.to_sql('stryd_summary', engine, if_exists='append', index=True)
+        app.session.commit()
+    app.session.remove()
+
     return df
 
 

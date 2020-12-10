@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 import numpy as np
 from ..api.sqlalchemy_declarative import ouraSleepSummary, ouraReadinessSummary, withings, athlete, stravaSummary, \
-    fitbod, workoutStepLog
+    strydSummary, fitbod, workoutStepLog
 from sqlalchemy import func, cast, Date
 from sweat.io.models.dataframes import WorkoutDataFrame, Athlete
 from sweat.pdm import critical_power
@@ -11,7 +11,6 @@ import stravalib
 from ..api.stravaApi import get_strava_client
 from stravalib import unithelper
 from ..api.pelotonApi import peloton_mapping_df, roundTime, set_peloton_workout_recommendations
-from ..api.strydAPI import get_stryd_df_summary
 from dateutil.relativedelta import relativedelta
 from ..app import app
 from .database import engine
@@ -48,24 +47,6 @@ def get_peloton_cache(act_start_date_utc):
             peloton_mapping_df().to_csv(pelton_cache_dir, sep=',')
 
     return pd.read_csv(pelton_cache_dir)
-
-
-def get_stryd_cache(act_start_date_local):
-    stryd_cache_dir = os.path.join(os.getcwd(), 'stryd-cache.csv')
-    # Check if there is already a file
-    cache_exists = os.path.isfile(stryd_cache_dir)
-    # Parse through max date
-    if not cache_exists:
-        app.server.logger.debug('Fetching new stryd cache')
-        get_stryd_df_summary().to_csv(stryd_cache_dir, sep=',')
-    else:
-        # If latest workout is more than 15 minutes newer than max workout in cache, refresh the cache
-        if (pd.to_datetime(act_start_date_local).tz_localize(None) - pd.to_datetime(
-                pd.read_csv(stryd_cache_dir)['timestamp']).max()).total_seconds() > (60 * 15):
-            app.server.logger.debug('Fetching new stryd cache')
-            get_stryd_df_summary().to_csv(stryd_cache_dir, sep=',')
-
-    return pd.read_csv(stryd_cache_dir)
 
 
 class FitlyActivity(stravalib.model.Activity):
@@ -219,13 +200,23 @@ class FitlyActivity(stravalib.model.Activity):
         if 'run' in self.type.lower() or 'walk' in self.type.lower():
             # If stryd credentials in config, grab ftp
             if stryd_credentials_supplied:
-                stryd_df = get_stryd_cache(self.start_date_local)
-                stryd_df['timestamp'] = pd.to_datetime(stryd_df['timestamp'])
+                stryd_df = pd.read_sql(
+                    sql=app.session.query(strydSummary).statement,
+                    con=engine).sort_index(ascending=False)
                 start = roundTime(self.start_date_local)
                 # Save stryd df for current workout to instance to use metrics later and avoid having to hit API again
                 self.stryd_metrics = stryd_df[
-                    (stryd_df['timestamp'] >= (start - timedelta(minutes=5))) & (
-                            stryd_df['timestamp'] <= (start + timedelta(minutes=5)))]
+                    (stryd_df['start_date_local'] >= (start - timedelta(minutes=5))) & (
+                            stryd_df['start_date_local'] <= (start + timedelta(minutes=5)))]
+
+                # If we match a strava workout to stryd workout, insert strava activity id into stryd table
+                if len(self.stryd_metrics) > 0:
+                    stryd_workout = app.session.query(strydSummary).filter(
+                        strydSummary.start_date_local == pd.to_datetime(self.stryd_metrics['start_date_local'].values[0]))
+                    stryd_workout.update({'strava_activity_id': self.id})
+                    app.session.commit()
+                    app.session.remove()
+
                 try:
                     self.ftp = self.stryd_metrics.iloc[0].stryd_ftp
                     if self.ftp == 0:
@@ -380,7 +371,7 @@ class FitlyActivity(stravalib.model.Activity):
 
             # Use Stryd RSS instead of TrainingPeaks calculation for RSS
             if len(self.stryd_metrics) > 0:
-                self.tss = self.stryd_metrics.iloc[0].RSS
+                self.tss = self.stryd_metrics.iloc[0].rss
             else:
                 self.tss = stress_score(self.wap, self.ftp, activity_length)
             self.variability_index = self.wap / self.df_samples['watts'].mean()

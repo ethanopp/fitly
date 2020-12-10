@@ -161,6 +161,40 @@ class stravaSummary(Base):
     weight = Column('weight', Float())
 
 
+class strydSummary(Base):
+    __tablename__ = 'stryd_summary'
+    start_date_local = Column('start_date_local', DateTime(), index=True, primary_key=True)
+    strava_activity_id = Column('strava_activity_id', BigInteger())
+    stryd_ftp = Column('stryd_ftp', Float())
+    total_elevation_gain = Column('total_elevation_gain', Float())
+    total_elevation_loss = Column('total_elevation_loss', Float())
+    max_elevation = Column('max_elevation', Float())
+    min_elevation = Column('min_elevation', Float())
+    average_cadence = Column('average_cadence', Integer())
+    max_cadence = Column('max_cadence', Integer())
+    min_cadence = Column('min_cadence', Integer())
+    average_stride_length = Column('average_stride_length', Float())
+    max_stride_length = Column('max_stride_length', Float())
+    min_stride_length = Column('min_stride_length', Float())
+    average_ground_time = Column('average_ground_time', Float())
+    max_ground_time = Column('max_ground_time', Integer())
+    min_ground_time = Column('min_ground_time', Integer())
+    average_oscillation = Column('average_oscillation', Float())
+    max_oscillation = Column('max_oscillation', Float())
+    min_oscillation = Column('min_oscillation', Float())
+    average_leg_spring = Column('average_leg_spring', Float())
+    max_vertical_stiffness = Column('max_vertical_stiffness', Float())
+    rss = Column('rss', Float())
+    stryds = Column('stryds', Float())
+    elevation = Column('elevation', Float())
+    temperature = Column('temperature', Float())
+    humidity = Column('humidity', Integer())
+    windBearing = Column('windBearing', Integer())
+    windSpeed = Column('windSpeed', Float())
+    windGust = Column('windGust', Float())
+    dewPoint = Column('dewPoint', Float())
+
+
 ##### Oura Tables #####
 class ouraReadinessSummary(Base):
     __tablename__ = 'oura_readiness_summary'

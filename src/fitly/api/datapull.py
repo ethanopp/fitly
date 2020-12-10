@@ -3,6 +3,7 @@ from ..api.ouraAPI import pull_oura_data
 from ..api.api_withings import pull_withings_data
 from ..api.fitbodAPI import pull_fitbod_data
 from ..api.pelotonApi import get_peloton_class_names
+from ..api.strydAPI import pull_stryd_data
 from ..api.sqlalchemy_declarative import *
 from sqlalchemy import func, delete
 import datetime
@@ -59,6 +60,9 @@ def refresh_database(refresh_method='system', truncate=False, truncateDate=None)
                             app.server.logger.debug('Truncating strava_best_samples')
                             app.session.execute(
                                 delete(stravaBestSamples).where(stravaBestSamples.timestamp_local >= truncateDate))
+                            app.server.logger.debug('Truncating stryd_summary')
+                            app.session.execute(
+                                delete(strydSummary).where(strydSummary.start_date_local >= truncateDate))
                             app.server.logger.debug('Truncating oura_readiness_summary')
                             app.session.execute(
                                 delete(ouraReadinessSummary).where(ouraReadinessSummary.report_date >= truncateDate))
@@ -156,6 +160,11 @@ def refresh_database(refresh_method='system', truncate=False, truncateDate=None)
                         oura_status = str(e)
                 else:
                     oura_status = 'No Credentials'
+
+                ### Pull Stryd Data ###
+                if stryd_credentials_supplied:
+                    app.server.logger.info('Pulling stryd data...')
+                    pull_stryd_data()
 
                 ### Pull Strava Data ###
 
