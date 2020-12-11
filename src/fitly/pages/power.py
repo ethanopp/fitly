@@ -829,7 +829,7 @@ def create_ftp_chart(activity_type='ride', power_unit='watts'):
     return ftp_current, figure
 
 
-def zone_chart(activity_id=None, metric='power_zone', chart_id='power-zone-chart', height=400):
+def zone_chart(activity_id=None, metric='power_zone', chart_id='power-zone-chart', days_back=42, height=400):
     # If activity_id passed, filter only that workout, otherwise show distribution across last 6 weeks
 
     if activity_id:
@@ -837,10 +837,11 @@ def zone_chart(activity_id=None, metric='power_zone', chart_id='power-zone-chart
             sql=app.session.query(stravaSamples).filter(stravaSamples.activity_id == activity_id).statement,
             con=engine,
             index_col=['timestamp_local'])
+
     else:
         df_samples = pd.read_sql(
             sql=app.session.query(stravaSamples).filter(
-                stravaSamples.timestamp_local >= (datetime.now() - timedelta(days=42))).statement,
+                stravaSamples.timestamp_local >= (datetime.now() - timedelta(days=days_back))).statement,
             con=engine,
             index_col=['timestamp_local'])
 
@@ -919,7 +920,7 @@ def zone_chart(activity_id=None, metric='power_zone', chart_id='power-zone-chart
                     autorange='reversed',
                     showgrid=False,
                 ),
-                margin={'l': 45, 'b': 0, 't': 0, 'r': 0},
+                margin={'l': 45, 'b': 0, 't': 25, 'r': 0},
 
             )
         }
