@@ -829,7 +829,8 @@ def create_ftp_chart(activity_type='ride', power_unit='watts'):
     return ftp_current, figure
 
 
-def zone_chart(activity_id=None, metric='power_zone', chart_id='power-zone-chart', days_back=42, height=400):
+def zone_chart(activity_id=None, sport='Run', metrics=['hr_zone', 'power_zone'], chart_id='zone-chart', days=90,
+               height=400):
     # If activity_id passed, filter only that workout, otherwise show distribution across last 6 weeks
 
     if activity_id:
@@ -840,29 +841,68 @@ def zone_chart(activity_id=None, metric='power_zone', chart_id='power-zone-chart
 
     else:
         df_samples = pd.read_sql(
-            sql=app.session.query(stravaSamples).filter(
-                stravaSamples.timestamp_local >= (datetime.now() - timedelta(days=days_back))).statement,
+            sql=app.session.query(stravaSamples).filter(stravaSamples.type.like(sport),
+                                                        stravaSamples.timestamp_local >= (datetime.now() - timedelta(
+                                                            days=days))).statement,
             con=engine,
             index_col=['timestamp_local'])
 
     app.session.remove()
+    data = []
+    for metric in metrics:
+        zone_df = df_samples.groupby(metric).size().reset_index(name='counts')
+        zone_df['seconds'] = zone_df['counts']
+        zone_df['Percent of Total'] = (zone_df['seconds'] / zone_df['seconds'].sum())
+        zone_df = zone_df.sort_index(ascending=False)
 
-    pz_df = df_samples.groupby(metric).size().reset_index(name='counts')
-    pz_df['seconds'] = pz_df['counts']
-    pz_df['Percent of Total'] = (pz_df['seconds'] / pz_df['seconds'].sum())
-    pz_df = pz_df.sort_index(ascending=False)
+        # zone_map = {1: 'Active Recovery', 2: 'Endurance', 3: 'Tempo', 4: 'Threshold', 5: 'VO2 Max',
+        #             6: 'Anaerobic', 7: 'Neuromuscular'}
 
-    # zone_map = {1: 'Active Recovery', 2: 'Endurance', 3: 'Tempo', 4: 'Threshold', 5: 'VO2 Max',
-    #             6: 'Anaerobic', 7: 'Neuromuscular'}
+        zone_map = {1: 'Zone 1', 2: 'Zone 2', 3: 'Zone 3', 4: 'Zone 4', 5: 'Zone 5',
+                    6: 'Zone 6', 7: 'Zone 7'}
 
-    zone_map = {1: 'Zone 1', 2: 'Zone 2', 3: 'Zone 3', 4: 'Zone 4', 5: 'Zone 5',
-                6: 'Zone 6', 7: 'Zone 7'}
+        zone_df[metric] = zone_df[metric].map(zone_map)
 
-    pz_df[metric] = pz_df[metric].map(zone_map)
+        label = [
+            'Time: ' + '<b>{}</b>'.format(timedelta(seconds=seconds)) + '<br>' + '% of Total: ' + '<b>{0:.0f}'.format(
+                percentage * 100) + '%'
+            for seconds, percentage in zip(list(zone_df['seconds']), list(zone_df['Percent of Total']))]
 
-    label = ['Time: ' + '<b>{}</b>'.format(timedelta(seconds=seconds)) + '<br>' + '% of Total: ' + '<b>{0:.0f}'.format(
-        percentage * 100) + '%'
-             for seconds, percentage in zip(list(pz_df['seconds']), list(pz_df['Percent of Total']))]
+        if metric == 'hr_zone':
+            colors = [
+                'rgb(174, 18, 58)',
+                'rgb(204, 35, 60)',
+                'rgb(227, 62, 67)',
+                'rgb(242, 98, 80)',
+                'rgb(248, 130, 107)',
+                'rgb(252, 160, 142)',
+                'rgb(255, 190, 178)'
+            ]
+        elif metric == 'power_zone':
+            colors = [
+                'rgb(44, 89, 113)',
+                'rgb(49, 112, 151)',
+                'rgb(53, 137, 169)',
+                'rgb(69, 162, 185)',
+                'rgb(110, 184, 197)',
+                'rgb(147, 205, 207)',
+                'rgb(188, 228, 216)'
+            ]
+
+        data.append(
+            go.Bar(
+                name='HR' if metric == 'hr_zone' else 'Power',
+                y=zone_df[metric],
+                x=zone_df['Percent of Total'],
+                orientation='h',
+                text=['{0:.0f}'.format(percentage * 100) + '%' for percentage in list(zone_df['Percent of Total'])],
+                hovertext=label,
+                hoverinfo='text',
+                textposition='auto',
+                width=.4,
+                marker={'color': colors},
+            )
+        )
 
     return dcc.Graph(
         id=chart_id, style={'height': '100%'},
@@ -870,27 +910,7 @@ def zone_chart(activity_id=None, metric='power_zone', chart_id='power-zone-chart
             'displayModeBar': False
         },
         figure={
-            'data': [
-                go.Bar(
-                    y=pz_df[metric],
-                    x=pz_df['Percent of Total'],
-                    orientation='h',
-                    text=['{0:.0f}'.format(percentage * 100) + '%' for percentage in list(pz_df['Percent of Total'])],
-                    hovertext=label,
-                    hoverinfo='text',
-                    textposition='auto',
-                    width=.5,
-                    marker={'color': [
-                        'rgb(250, 47, 76)',
-                        'rgb(250, 82, 104)',
-                        'rgb(250, 116, 133)',
-                        'rgb(251, 150, 162)',
-                        'rgb(255, 187, 194)',
-                        'rgb(255, 221, 224)',
-                        'rgb(232, 236, 240)'
-                    ]},
-                )
-            ],
+            'data': data,
             'layout': go.Layout(
                 font=dict(
                     color='rgb(220,220,220)'
@@ -919,6 +939,16 @@ def zone_chart(activity_id=None, metric='power_zone', chart_id='power-zone-chart
                 yaxis=dict(
                     autorange='reversed',
                     showgrid=False,
+
+                ),
+                showlegend=True,
+                hovermode='closest',
+                legend=dict(
+                    # x=.5,
+                    # y=1.1,
+                    bgcolor='rgba(0,0,0,0)',
+                    xanchor='center',
+                    # orientation='h',
                 ),
                 margin={'l': 45, 'b': 0, 't': 0, 'r': 0},
 

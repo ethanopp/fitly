@@ -12,91 +12,32 @@ from dash.dependencies import Input, Output, State
 from sqlalchemy import or_, delete, extract
 from ..app import app
 from ..api.sqlalchemy_declarative import athlete, stravaSummary, stravaSamples, workoutStepLog, ouraSleepSummary, \
-    ouraReadinessSummary, annotations
+    strydSummary, ouraReadinessSummary, annotations
 from ..api.database import engine
-from ..utils import utc_to_local, config, oura_credentials_supplied
+from ..utils import utc_to_local, config, oura_credentials_supplied, stryd_credentials_supplied
 from ..pages.power import power_curve, zone_chart
 import re
 import json
+import operator
 
 transition = int(config.get('dashboard', 'transition'))
 
+ctl_color = 'rgb(171, 131, 186)'
+atl_color = 'rgb(245,226,59)'
+tsb_color = 'rgb(193, 125, 55)'
+tsb_fill_color = 'rgba(193, 125, 55, .5)'
+ftp_color = 'rgb(100, 217, 236)'
+white = config.get('oura', 'white')
+teal = config.get('oura', 'teal')
+light_blue = config.get('oura', 'light_blue')
+dark_blue = config.get('oura', 'dark_blue')
+orange = config.get('oura', 'orange')
+orange_faded = 'rgba(217,100,43,.75)'
 
-def detect_trend(rmssd_7_slope_trivial, hr_lowest_7_slope_trivial, cv_rmssd_7_slope_trivial,
-                 hrv_normalized_7_slope_trivial, ctl_7_slope_trivial):
-    if rmssd_7_slope_trivial >= 0 and hr_lowest_7_slope_trivial <= 0 and cv_rmssd_7_slope_trivial < 0:
-        return 'Coping well'
-    elif rmssd_7_slope_trivial < 0 and hr_lowest_7_slope_trivial < 0 \
-            and ctl_7_slope_trivial >= 0:  # E.O Customization
-        return 'Risk of accumulated fatigue'
-    elif hr_lowest_7_slope_trivial > 0 and cv_rmssd_7_slope_trivial > 0:
-        return 'Maladaptation'
-    elif rmssd_7_slope_trivial < 0 and hr_lowest_7_slope_trivial > 0 and cv_rmssd_7_slope_trivial < 0 \
-            and ctl_7_slope_trivial > 0:  # E.O Customization:
-        return 'Accumulated fatigue'
-    else:
-        return 'No Relevant Trends'
-
-
-def get_hrv_df():
-    hrv_df = pd.read_sql(
-        sql=app.session.query(ouraSleepSummary.report_date, ouraSleepSummary.summary_date, ouraSleepSummary.rmssd,
-                              ouraSleepSummary.hr_average, ouraSleepSummary.hr_lowest).statement,
-        con=engine, index_col='report_date').sort_index(ascending=True)
-    trimp_df = pd.read_sql(sql=app.session.query(stravaSummary.start_day_local, stravaSummary.trimp).statement,
-                           con=engine, index_col='start_day_local').sort_index(ascending=True)
-    app.session.remove()
-    trimp_df.index = pd.to_datetime(trimp_df.index)
-    hrv_df = pd.merge(hrv_df, trimp_df, how='left', left_index=True, right_index=True)
-    # Calculate HRV metrics
-    hrv_df.set_index(pd.to_datetime(hrv_df.index), inplace=True)
-    hrv_df = hrv_df.resample('D').mean()
-
-    # Hrv baseline
-    hrv_df['rmssd_7'] = hrv_df['rmssd'].rolling(7, min_periods=0).mean()
-    hrv_df['rmssd_7_yesterday'] = hrv_df['rmssd_7'].shift(1)
-
-    hrv_df['rmssd_30'] = hrv_df['rmssd'].rolling(30, min_periods=0).mean()
-    hrv_df['stdev_rmssd_30_threshold'] = hrv_df['rmssd'].rolling(30, min_periods=0).std()
-
-    # Normal value (SWC) thresholds for 7 day hrv baseline trends
-    hrv_df['swc_upper'] = hrv_df['rmssd_30'] + hrv_df['stdev_rmssd_30_threshold']
-    hrv_df['swc_lower'] = hrv_df['rmssd_30'] - hrv_df['stdev_rmssd_30_threshold']
-
-    # Normal value (SWC) thresholds for 7 day hrv baseline trends to guide workflow steps
-    hrv_df['swc_flowchart_upper'] = hrv_df['rmssd_30'] + (hrv_df['stdev_rmssd_30_threshold'] * .5)
-    hrv_df['swc_flowchart_lower'] = hrv_df['rmssd_30'] - (hrv_df['stdev_rmssd_30_threshold'] * .5)
-    hrv_df['within_swc'] = True
-    hrv_df.loc[(hrv_df['rmssd_7'] < hrv_df['swc_flowchart_lower']) | (hrv_df['rmssd_7'] > hrv_df[
-        'swc_flowchart_upper']), 'within_swc'] = False
-
-    # Normal value thresholds (SWC) for daily rmssd
-    hrv_df['rmssd_60'] = hrv_df['rmssd'].rolling(60, min_periods=0).mean()
-    hrv_df['stdev_rmssd_60_threshold'] = hrv_df['rmssd'].rolling(60, min_periods=0).std()
-    hrv_df['swc_upper_60'] = hrv_df['rmssd_60'] + (hrv_df['stdev_rmssd_60_threshold'] * 1.5)
-    hrv_df['swc_lower_60'] = hrv_df['rmssd_60'] - (hrv_df['stdev_rmssd_60_threshold'] * 1.5)
-    hrv_df['within_daily_swc'] = True
-    hrv_df.loc[(hrv_df['rmssd'] < hrv_df['swc_lower_60']) | (hrv_df['rmssd'] > hrv_df[
-        'swc_upper_60']), 'within_daily_swc'] = False
-
-    # Threshold Flags
-    # hrv_df['under_low_threshold'] = hrv_df['rmssd_7'] < hrv_df['swc_lower']
-    # hrv_df['under_low_threshold_yesterday'] = hrv_df['under_low_threshold'].shift(1)
-    # hrv_df['over_upper_threshold'] = hrv_df['rmssd_7'] > hrv_df['swc_upper']
-    # hrv_df['over_upper_threshold_yesterday'] = hrv_df['over_upper_threshold'].shift(1)
-    # for i in hrv_df.index:
-    #     if hrv_df.at[i, 'under_low_threshold_yesterday'] == False and hrv_df.at[
-    #         i, 'under_low_threshold'] == True:
-    #         hrv_df.at[i, 'lower_threshold_crossed'] = True
-    #     else:
-    #         hrv_df.at[i, 'lower_threshold_crossed'] = False
-    #     if hrv_df.at[i, 'over_upper_threshold_yesterday'] == False and hrv_df.at[
-    #         i, 'over_upper_threshold'] == True:
-    #         hrv_df.at[i, 'upper_threshold_crossed'] = True
-    #     else:
-    #         hrv_df.at[i, 'upper_threshold_crossed'] = False
-
-    return hrv_df
+# Oura readiness ranges for recommendation
+oura_high_threshold = 85
+oura_med_threshold = 77
+oura_low_threshold = 70
 
 
 def get_layout(**kwargs):
@@ -227,11 +168,11 @@ def get_layout(**kwargs):
                                                style={'height': '100%'},
                                                config={'displayModeBar': False}),
                                      # Switches
-                                     html.Div(id='pmc-controls', className='col-lg-1',
+                                     html.Div(id='pmc-controls', className='col-lg-1 text-left',
                                               style={'display': 'flex', 'justifyContent': 'space-between'}, children=[
                                              html.Div(className='row', children=[
-                                                 html.Div(className='col-lg-12 col-sm-4',
-                                                          style={'padding': '0', 'textAlign': 'start'},
+                                                 html.Div(className='col-lg-12 col-3',
+                                                          style={'padding': '0', 'alignSelf': 'center'},
                                                           children=[
                                                               html.Button(id="open-annotation-modal-button",
                                                                           className='fa fa-comment-alt',
@@ -245,8 +186,9 @@ def get_layout(**kwargs):
                                                      'Chart Annotations',
                                                      target="open-annotation-modal-button"),
 
-                                                 html.Div(id='run-pmc', className='col-lg-12 col-sm-4',
-                                                          style={'padding': '0', 'textAlign': 'start'},
+                                                 html.Div(id='run-pmc',
+                                                          className='col-lg-12 col-3 align-items-center',
+                                                          style={'padding': '0', 'alignSelf': 'center'},
                                                           children=[
                                                               daq.BooleanSwitch(
                                                                   id='run-pmc-switch',
@@ -264,8 +206,8 @@ def get_layout(**kwargs):
                                                  dbc.Tooltip(
                                                      'Include running workouts in Fitness trend.',
                                                      target="run-pmc"),
-                                                 html.Div(id='ride-pmc', className='col-lg-12 col-sm-4',
-                                                          style={'padding': '0', 'textAlign': 'start'},
+                                                 html.Div(id='ride-pmc', className='col-lg-12 col-3',
+                                                          style={'padding': '0', 'alignSelf': 'center'},
                                                           children=[
                                                               daq.BooleanSwitch(
                                                                   id='ride-pmc-switch',
@@ -284,8 +226,8 @@ def get_layout(**kwargs):
                                                      'Include cycling workouts in Fitness trend.',
                                                      target="ride-pmc"),
 
-                                                 html.Div(id='all-pmc', className='col-lg-12 col-sm-4',
-                                                          style={'padding': '0', 'textAlign': 'start'},
+                                                 html.Div(id='all-pmc', className='col-lg-12 col-3',
+                                                          style={'padding': '0', 'alignSelf': 'center'},
                                                           children=[
                                                               daq.BooleanSwitch(
                                                                   id='all-pmc-switch',
@@ -303,8 +245,8 @@ def get_layout(**kwargs):
                                                  dbc.Tooltip(
                                                      'Include all other workouts in Fitness trend.',
                                                      target="all-pmc"),
-                                                 html.Div(id='power-pmc', className='col-lg-12 col-sm-4',
-                                                          style={'padding': '0', 'textAlign': 'start'},
+                                                 html.Div(id='power-pmc', className='col-lg-12 col-3',
+                                                          style={'padding': '0', 'alignSelf': 'center'},
                                                           children=[
                                                               daq.BooleanSwitch(
                                                                   id='power-pmc-switch',
@@ -324,8 +266,8 @@ def get_layout(**kwargs):
                                                  dbc.Tooltip(
                                                      'Include power data for stress scores.',
                                                      target="power-pmc"),
-                                                 html.Div(id='hr-pmc', className='col-lg-12 col-sm-4',
-                                                          style={'padding': '0', 'textAlign': 'start'},
+                                                 html.Div(id='hr-pmc', className='col-lg-12 col-3',
+                                                          style={'padding': '0', 'alignSelf': 'center'},
                                                           children=[
                                                               daq.BooleanSwitch(
                                                                   id='hr-pmc-switch',
@@ -344,8 +286,8 @@ def get_layout(**kwargs):
                                                      'Include heart rate data for stress scores.',
                                                      target="hr-pmc"),
 
-                                                 html.Div(id='atl-pmc', className='col-lg-12 col-sm-4',
-                                                          style={'padding': '0', 'textAlign': 'start'},
+                                                 html.Div(id='atl-pmc', className='col-lg-12 col-3',
+                                                          style={'padding': '0', 'alignSelf': 'center'},
                                                           children=[
                                                               daq.BooleanSwitch(
                                                                   id='atl-pmc-switch',
@@ -367,93 +309,147 @@ def get_layout(**kwargs):
                                              ]),
                                          ]),
 
-                                     html.Div(id='workout-distribution-table', className='col-lg-3',
-                                              style={'display': 'none'},  # TODO: Remove to show workout distributions
-                                              children=[
-                                                  dash_table.DataTable(
-                                                      id='workout-type-distributions',
-                                                      columns=[{'name': 'Activity', 'id': 'workout'},
-                                                               {'name': '%', 'id': 'Percent of Total'}],
-                                                      style_as_list_view=True,
-                                                      fixed_rows={'headers': True, 'data': 0},
-                                                      style_header={'backgroundColor': 'rgba(0,0,0,0)',
-                                                                    'borderBottom': '1px solid rgb(220, 220, 220)',
-                                                                    'borderTop': '0px',
-                                                                    # 'textAlign': 'center',
-                                                                    'fontWeight': 'bold',
-                                                                    'fontFamily': '"Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif',
-                                                                    },
-                                                      style_cell={
-                                                          'backgroundColor': 'rgba(0,0,0,0)',
-                                                          'color': 'rgb(220, 220, 220)',
-                                                          'borderBottom': '1px solid rgb(73, 73, 73)',
-                                                          'textOverflow': 'ellipsis',
-                                                          'maxWidth': 25,
-                                                          'fontFamily': '"Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif',
-                                                      },
-                                                      style_cell_conditional=[
-                                                          {
-                                                              'if': {'column_id': c},
-                                                              'textAlign': 'center'
-                                                          } for c in ['workout', 'Percent of Total']
-                                                      ],
-
-                                                      page_action="none",
-                                                  )
-
-                                              ]),
-
                                  ]),
                              ]),
                          ]),
                      ]),
-            html.Div(id='growth-container', className='col-lg-4',
-                     children=[
-                         dbc.Card([
-                             dbc.CardHeader(
-                                 html.Div(className='row align-items-center text-left', children=[
-                                     ### Title ###
-                                     html.Div(className='col-lg-4 ml-0 mr-0', children=[
-                                         dbc.DropdownMenu(
-                                             [
+            html.Div(id='trend-containers', className='col-lg-4', children=[
 
-                                                 dbc.DropdownMenuItem("Running", header=True),
-                                                 dbc.DropdownMenuItem("Distance", id="run|distance"),
-                                                 dbc.DropdownMenuItem("Duration", id="run|elapsed_time"),
-                                                 dbc.DropdownMenuItem("hrSS", id="run|hrss"),
-                                                 dbc.DropdownMenuItem("Stress Score", id="run|tss"),
-                                                 dbc.DropdownMenuItem("Trimp", id="run|trimp"),
+                html.Div(className='row mb-2', children=[
+                    html.Div(className='col-lg-12', children=[
+                        dbc.Card([
+                            dbc.CardHeader(className='align-items-center text-left', children=[
+                                html.H6('90 Day Performance', className='mb-0',
+                                        style={'display': 'inline-block'}),
 
-                                                 dbc.DropdownMenuItem(divider=True),
-                                                 dbc.DropdownMenuItem("Cycling", header=True),
-                                                 dbc.DropdownMenuItem("Distance", id="ride|distance"),
-                                                 dbc.DropdownMenuItem("Duration", id="ride|elapsed_time"),
-                                                 dbc.DropdownMenuItem("hrSS", id="ride|hrss"),
-                                                 dbc.DropdownMenuItem("Stress Score", id="ride|tss"),
-                                                 dbc.DropdownMenuItem("Trimp", id="ride|trimp"),
+                            ]),
+                            dbc.CardBody([
+                                html.Div(className='row align-items-center', style={'paddingBottom': '1.25rem'},
+                                         children=[
 
-                                             ],
-                                             label="Run Distance",
-                                             bs_size='sm',
-                                             className="mb-0",
-                                             id='growth-chart-metric-select',
-                                         ),
-                                     ]),
+                                             html.Div(className='col-12 align-items-center',
+                                                      style={'height': '1.875rem'}, children=[
 
-                                     html.Div(id='growth-header', className='col-lg-8')
-                                 ]),
+                                                     dbc.DropdownMenu(children=
+                                                     [
+                                                         dbc.DropdownMenuItem("All",
+                                                                              id="performance-time-selector-all",
+                                                                              n_clicks_timestamp=0),
+                                                         dbc.DropdownMenuItem("YTD",
+                                                                              # id=f"{datetime.now().strftime('%j')}"),
+                                                                              id='performance-time-selector-ytd',
+                                                                              n_clicks_timestamp=0),
+                                                         dbc.DropdownMenuItem("L90D",
+                                                                              id="performance-time-selector-l90d",
+                                                                              n_clicks_timestamp=1),
+                                                         dbc.DropdownMenuItem("L6W",
+                                                                              id='performance-time-selector-l6w',
+                                                                              n_clicks_timestamp=0),
+                                                         dbc.DropdownMenuItem("L30D",
+                                                                              id="performance-time-selector-l30d",
+                                                                              n_clicks_timestamp=0),
+                                                     ],
+                                                         label="L90D",
+                                                         bs_size='sm',
+                                                         className="mb-0",
+                                                         id='performance-time-selector',
+                                                         style={'display': 'inline-block', 'paddingRight': '2vw'},
+                                                     ),
+                                                     html.I(id='l90d-running-icon', className='fa fa-running',
+                                                            style={'fontSize': '1.5rem', 'display': 'inline-block'}),
+                                                     daq.ToggleSwitch(id='performance-activity-type-toggle',
+                                                                      className='mr-2 ml-2',
+                                                                      style={'display': 'inline-block'}, value=False),
 
-                             ),
-                             dbc.CardBody([
-                                 dcc.Graph(id='growth-chart', config={'displayModeBar': False},
-                                           style={'height': '100%'})
-                             ])
-                         ]),
-                     ]),
+                                                     html.I(id='l90d-bicycle-icon', className='fa fa-bicycle',
+                                                            style={'fontSize': '1.5rem', 'display': 'inline-block'}),
+                                                     dbc.Tooltip('Analyze cycling activities',
+                                                                 target="l90d-bicycle-icon"),
+                                                     dbc.Tooltip('Toggle activity type',
+                                                                 target="performance-activity-type-toggle"),
+                                                     dbc.Tooltip('Analyze running activities',
+                                                                 target="l90d-running-icon"),
+                                                 ]),
+
+                                             # sport_filter_icons(id='zones'),
+                                             dbc.Spinner(color='info', children=[
+                                                 html.Div(id='l90d-zones', className='col-lg-6 col-12'),
+                                             ]),
+                                             # populated by callback
+                                             dbc.Spinner(color='info', children=[
+                                                 html.Div(id='workout-distribution-table', className='col-lg-6 col-12',
+                                                          children=[
+                                                              dash_table.DataTable(
+                                                                  id='workout-type-distributions',
+                                                                  columns=[{'name': 'Activity', 'id': 'workout'},
+                                                                           {'name': '%', 'id': 'Percent of Total'}],
+                                                                  style_as_list_view=True,
+                                                                  fixed_rows={'headers': True, 'data': 0},
+                                                                  style_table={'height': '200px', 'overflowY': 'auto'},
+                                                                  style_header={'backgroundColor': 'rgba(0,0,0,0)',
+                                                                                'borderBottom': '1px solid rgb(220, 220, 220)',
+                                                                                'borderTop': '0px',
+                                                                                # 'textAlign': 'center',
+                                                                                'fontWeight': 'bold',
+                                                                                'fontFamily': '"Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif',
+                                                                                },
+                                                                  style_cell={
+                                                                      'backgroundColor': 'rgba(0,0,0,0)',
+                                                                      'color': 'rgb(220, 220, 220)',
+                                                                      'borderBottom': '1px solid rgb(73, 73, 73)',
+                                                                      'textOverflow': 'ellipsis',
+                                                                      'maxWidth': 25,
+                                                                      'fontFamily': '"Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif',
+                                                                  },
+                                                                  style_cell_conditional=[
+                                                                      {
+                                                                          'if': {'column_id': c},
+                                                                          'textAlign': 'center'
+                                                                      } for c in ['workout', 'Percent of Total']
+                                                                  ],
+
+                                                                  page_action="none",
+                                                              )
+
+                                                          ]),
+                                             ]),
+                                         ]),
+                                html.Div(className='row', children=[
+
+                                    html.Div(className='col-lg-12', children=[
+
+                                        html.Div(className='row', children=[
+                                            # sport_filter_icons(id='trends'),
+                                            html.Div(className='col-11', children=[
+
+                                                # Generated by callback
+                                                dbc.Spinner(color='info', children=[
+                                                    dcc.Graph(id='trend-chart', config={'displayModeBar': False})
+                                                ]),
+                                            ]),
+
+                                            html.Div(id='trend-controls', className='col-1',
+                                                     style={'display': 'flex',
+                                                            'justifyContent': 'space-between'},
+                                                     children=get_trend_controls()),
+                                        ]),
+
+                                    ]),
+
+                                ]),
+
+                            ])
+                        ])
+                    ]),
+
+                ]),
+
+            ]),
+
         ]),
 
         html.Div(className='row', children=[
-            html.Div(className='col-lg-12', children=[
+            html.Div(className='col-lg-8', children=[
                 dbc.Card([
                     dbc.CardBody([
                         html.Div(className='col-lg-12', style={'overflow': 'hidden'},
@@ -469,10 +465,10 @@ def get_layout(**kwargs):
                                          {'name': 'PSS', 'id': 'tss'},
                                          {'name': 'HRSS', 'id': 'hrss'},
                                          # {'name': 'TRIMP', 'id': 'trimp'},
-                                         {'name': 'NP', 'id': 'weighted_average_power'},
-                                         {'name': 'IF', 'id': 'relative_intensity'},
-                                         {'name': 'EF', 'id': 'efficiency_factor'},
-                                         {'name': 'VI', 'id': 'variability_index'},
+                                         # {'name': 'NP', 'id': 'weighted_average_power'},
+                                         # {'name': 'IF', 'id': 'relative_intensity'},
+                                         # {'name': 'EF', 'id': 'efficiency_factor'},
+                                         # {'name': 'VI', 'id': 'variability_index'},
                                          {'name': 'FTP', 'id': 'ftp'},
                                          {'name': 'activity_id', 'id': 'activity_id'}
                                      ] if use_power else [{'name': 'Date', 'id': 'date'},
@@ -522,28 +518,284 @@ def get_layout(**kwargs):
                                  ),
                     ]), ]),
             ]),
+
+            html.Div(id='growth-container', className='col-lg-4',
+                     children=[
+                         dbc.Card([
+                             dbc.CardHeader(
+                                 html.Div(className='row align-items-center text-left', children=[
+                                     ### Title ###
+                                     html.Div(className='col-lg-4 ml-0 mr-0', children=[
+                                         dbc.DropdownMenu(
+                                             [
+
+                                                 dbc.DropdownMenuItem("Running", header=True),
+                                                 dbc.DropdownMenuItem("Distance", id="run|distance"),
+                                                 dbc.DropdownMenuItem("Duration", id="run|elapsed_time"),
+                                                 dbc.DropdownMenuItem("hrSS", id="run|hrss"),
+                                                 dbc.DropdownMenuItem("Stress Score", id="run|tss"),
+                                                 dbc.DropdownMenuItem("Trimp", id="run|trimp"),
+
+                                                 dbc.DropdownMenuItem(divider=True),
+                                                 dbc.DropdownMenuItem("Cycling", header=True),
+                                                 dbc.DropdownMenuItem("Distance", id="ride|distance"),
+                                                 dbc.DropdownMenuItem("Duration", id="ride|elapsed_time"),
+                                                 dbc.DropdownMenuItem("hrSS", id="ride|hrss"),
+                                                 dbc.DropdownMenuItem("Stress Score", id="ride|tss"),
+                                                 dbc.DropdownMenuItem("Trimp", id="ride|trimp"),
+
+                                             ],
+                                             label="Run Distance",
+                                             bs_size='sm',
+                                             className="mb-0",
+                                             id='growth-chart-metric-select',
+                                         ),
+                                     ]),
+
+                                     html.Div(id='growth-header', className='col-lg-8')
+                                 ]),
+
+                             ),
+                             dbc.CardBody([
+                                 dcc.Graph(id='growth-chart', config={'displayModeBar': False},
+                                           # style={'height': '90%'}
+                                           )
+                             ])
+                         ]),
+                     ]),
         ]),
 
         html.Div(id='modal-activity-id-type-metric', style={'display': 'none'}),
     ])
 
 
-ctl_color = 'rgb(171, 131, 186)'
-atl_color = 'rgb(245,226,59)'
-tsb_color = 'rgb(193, 125, 55)'
-tsb_fill_color = 'rgba(193, 125, 55, .5)'
-ftp_color = 'rgb(100, 217, 236)'
-white = config.get('oura', 'white')
-teal = config.get('oura', 'teal')
-light_blue = config.get('oura', 'light_blue')
-dark_blue = config.get('oura', 'dark_blue')
-orange = config.get('oura', 'orange')
-orange_faded = 'rgba(217,100,43,.75)'
+def detect_trend(rmssd_7_slope_trivial, hr_lowest_7_slope_trivial, cv_rmssd_7_slope_trivial,
+                 hrv_normalized_7_slope_trivial, ctl_7_slope_trivial):
+    if rmssd_7_slope_trivial >= 0 and hr_lowest_7_slope_trivial <= 0 and cv_rmssd_7_slope_trivial < 0:
+        return 'Coping well'
+    elif rmssd_7_slope_trivial < 0 and hr_lowest_7_slope_trivial < 0 \
+            and ctl_7_slope_trivial >= 0:  # E.O Customization
+        return 'Risk of accumulated fatigue'
+    elif hr_lowest_7_slope_trivial > 0 and cv_rmssd_7_slope_trivial > 0:
+        return 'Maladaptation'
+    elif rmssd_7_slope_trivial < 0 and hr_lowest_7_slope_trivial > 0 and cv_rmssd_7_slope_trivial < 0 \
+            and ctl_7_slope_trivial > 0:  # E.O Customization:
+        return 'Accumulated fatigue'
+    else:
+        return 'No Relevant Trends'
 
-# Oura readiness ranges for recommendation
-oura_high_threshold = 85
-oura_med_threshold = 77
-oura_low_threshold = 70
+
+def get_hrv_df():
+    hrv_df = pd.read_sql(
+        sql=app.session.query(ouraSleepSummary.report_date, ouraSleepSummary.summary_date, ouraSleepSummary.rmssd,
+                              ouraSleepSummary.hr_average, ouraSleepSummary.hr_lowest).statement,
+        con=engine, index_col='report_date').sort_index(ascending=True)
+    trimp_df = pd.read_sql(sql=app.session.query(stravaSummary.start_day_local, stravaSummary.trimp).statement,
+                           con=engine, index_col='start_day_local').sort_index(ascending=True)
+    app.session.remove()
+    trimp_df.index = pd.to_datetime(trimp_df.index)
+    hrv_df = pd.merge(hrv_df, trimp_df, how='left', left_index=True, right_index=True)
+    # Calculate HRV metrics
+    hrv_df.set_index(pd.to_datetime(hrv_df.index), inplace=True)
+    hrv_df = hrv_df.resample('D').mean()
+
+    # Hrv baseline
+    hrv_df['rmssd_7'] = hrv_df['rmssd'].rolling(7, min_periods=0).mean()
+    hrv_df['rmssd_7_yesterday'] = hrv_df['rmssd_7'].shift(1)
+
+    hrv_df['rmssd_30'] = hrv_df['rmssd'].rolling(30, min_periods=0).mean()
+    hrv_df['stdev_rmssd_30_threshold'] = hrv_df['rmssd'].rolling(30, min_periods=0).std()
+
+    # Normal value (SWC) thresholds for 7 day hrv baseline trends
+    hrv_df['swc_upper'] = hrv_df['rmssd_30'] + hrv_df['stdev_rmssd_30_threshold']
+    hrv_df['swc_lower'] = hrv_df['rmssd_30'] - hrv_df['stdev_rmssd_30_threshold']
+
+    # Normal value (SWC) thresholds for 7 day hrv baseline trends to guide workflow steps
+    hrv_df['swc_flowchart_upper'] = hrv_df['rmssd_30'] + (hrv_df['stdev_rmssd_30_threshold'] * .5)
+    hrv_df['swc_flowchart_lower'] = hrv_df['rmssd_30'] - (hrv_df['stdev_rmssd_30_threshold'] * .5)
+    hrv_df['within_swc'] = True
+    hrv_df.loc[(hrv_df['rmssd_7'] < hrv_df['swc_flowchart_lower']) | (hrv_df['rmssd_7'] > hrv_df[
+        'swc_flowchart_upper']), 'within_swc'] = False
+
+    # Normal value thresholds (SWC) for daily rmssd
+    hrv_df['rmssd_60'] = hrv_df['rmssd'].rolling(60, min_periods=0).mean()
+    hrv_df['stdev_rmssd_60_threshold'] = hrv_df['rmssd'].rolling(60, min_periods=0).std()
+    hrv_df['swc_upper_60'] = hrv_df['rmssd_60'] + (hrv_df['stdev_rmssd_60_threshold'] * 1.5)
+    hrv_df['swc_lower_60'] = hrv_df['rmssd_60'] - (hrv_df['stdev_rmssd_60_threshold'] * 1.5)
+    hrv_df['within_daily_swc'] = True
+    hrv_df.loc[(hrv_df['rmssd'] < hrv_df['swc_lower_60']) | (hrv_df['rmssd'] > hrv_df[
+        'swc_upper_60']), 'within_daily_swc'] = False
+
+    # Threshold Flags
+    # hrv_df['under_low_threshold'] = hrv_df['rmssd_7'] < hrv_df['swc_lower']
+    # hrv_df['under_low_threshold_yesterday'] = hrv_df['under_low_threshold'].shift(1)
+    # hrv_df['over_upper_threshold'] = hrv_df['rmssd_7'] > hrv_df['swc_upper']
+    # hrv_df['over_upper_threshold_yesterday'] = hrv_df['over_upper_threshold'].shift(1)
+    # for i in hrv_df.index:
+    #     if hrv_df.at[i, 'under_low_threshold_yesterday'] == False and hrv_df.at[
+    #         i, 'under_low_threshold'] == True:
+    #         hrv_df.at[i, 'lower_threshold_crossed'] = True
+    #     else:
+    #         hrv_df.at[i, 'lower_threshold_crossed'] = False
+    #     if hrv_df.at[i, 'over_upper_threshold_yesterday'] == False and hrv_df.at[
+    #         i, 'over_upper_threshold'] == True:
+    #         hrv_df.at[i, 'upper_threshold_crossed'] = True
+    #     else:
+    #         hrv_df.at[i, 'upper_threshold_crossed'] = False
+
+    return hrv_df
+
+
+def get_trend_controls(selected='average-heartrate', sport='Run'):
+    athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1).first()
+    use_run_power = True if athlete_info.use_run_power else False
+    use_cycle_power = True if athlete_info.use_cycle_power else False
+    metrics = {'average-watts': {'fa fa-bolt': 'Power (w)'},
+               'average-heartrate': {'fa fa-heartbeat': 'Heartrate'},
+               'tss': {'fa fa-tachometer-alt': 'Stress (tss)'},
+               'distance': {'fa fa-arrows-alt-h': 'Distance (mi)'},
+               'elapsed-time': {'fa fa-clock': 'Duration (min)'},
+               'average-speed': {'fa fa-flag-checkered': 'Speed'},
+               'average-ground-time': {'fa fa-road': 'Ground contact time'},
+               'average-oscillation': {'fa fa-arrows-alt-v': 'Vertical Oscillation'},
+               'average-leg-spring': {'fa fa-frog': 'Leg Spring Stiffness (LSS)'}
+               }
+    hide = []
+
+    if sport == 'Run':
+        if not use_run_power:
+            hide.extend(['average-watts', 'tss'])
+        if not stryd_credentials_supplied:
+            hide.extend(['average-ground-time', 'average-oscillation', 'average-leg-spring'])
+
+    elif sport == 'Ride':
+        hide.extend(['average-ground-time', 'average-oscillation', 'average-leg-spring'])
+        if not use_cycle_power:
+            hide.extend(['average-watts', 'tss'])
+
+    controls = []
+    for metric in metrics.keys():
+        style = {'padding': '0', 'alignSelf': 'center', 'display': 'none'} if metric in hide else {'padding': '0',
+                                                                                                   'alignSelf': 'center'}
+        is_selected = True if selected.replace('_', '-') == metric else False
+        controls.append(
+            html.Div(className='col-lg-12 align-items-center',
+                     style=style,
+                     children=[
+                         html.I(id=f'{metric}-trend-button',
+                                className=list(metrics[metric].keys())[0],
+                                n_clicks_timestamp=1 if is_selected else 0,
+                                style={'fontSize': '1rem',
+                                       'color': teal if is_selected else white,
+                                       'vertical-align': 'middle',
+                                       'bgColor': 'rgba(0,0,0,0)',
+                                       'border': 'none'}),
+
+                     ]),
+        )
+        controls.append(dbc.Tooltip(list(metrics[metric].values())[0], target=f'{metric}-trend-button'), )
+
+    return html.Div(className='row', children=controls)
+
+
+def get_trend_chart(metric, sport='Run', days=90):
+    date = datetime.now().date() - timedelta(days=days)
+    df = pd.read_sql(
+        sql=app.session.query(stravaSummary).filter(stravaSummary.start_date_utc >= date).filter(
+            stravaSummary.type.like(sport)).statement, con=engine)
+    stryd_df = pd.read_sql(
+        sql=app.session.query(strydSummary).filter(strydSummary.start_date_local >= date).statement, con=engine)
+    app.session.remove()
+    df = df.merge(stryd_df, how='left', left_on='activity_id', right_on='strava_activity_id')
+    df = df.set_index('start_date_local_x')
+    # Remove nulls so slope can calculate
+    df = df[df[metric].notna()]
+
+    if len(df) > 1:
+        slope, intercept = np.polyfit(df.reset_index().index, df[metric], 1)
+    else:
+        slope, intercept = 0, 0
+
+    df[metric + '_trend'] = (df.reset_index().index * slope) + intercept
+
+    data = [go.Scatter(
+        name=metric.title(),
+        x=df.index,
+        y=df[metric],
+        yaxis='y',
+        # text=['{}: <b>{:.1f}'.format(metric.title().replace('_', ' '), x) for x in df[metric]],
+        text=['{}: <b>{:.1f}'.format(metric.title().replace('_', ' '), x) for x in df[metric]],
+        hoverinfo='text',
+        mode='markers',
+        line={'dash': 'dot',
+              'color': teal,
+              'width': 2},
+        showlegend=False,
+        marker={'size': 5},
+    ),
+        go.Scatter(
+            name='{} Trend'.format(metric.title()),
+            x=df.index,
+            y=df[metric + '_trend'],
+            yaxis='y',
+            hoverinfo='none',
+            mode='lines',
+            line={'color': white,
+                  'width': 3},
+            showlegend=False,
+        ),
+        # go.Scatter(
+        #     name='Average',
+        #     x=df.index,
+        #     y=[df[metric].mean() for x in df.index],
+        #     mode='lines+text',
+        #     text=[
+        #         'Avg: <b>{:.0f}'.format(
+        #             df[metric].mean()) if x == df.index.max() else ''
+        #         for x
+        #         in
+        #         df.index],
+        #     textfont=dict(
+        #         size=11,
+        #         color='rgb(150,150,150)'
+        #     ),
+        #     textposition='top left',
+        #     hoverinfo='none',
+        #     # opacity=0.7,
+        #     line={'dash': 'dot', 'color': 'rgb(150,150,150)', 'width': 1},
+        #     showlegend=False,
+        # )
+    ]
+
+    figure = {
+        'data': data,
+        'layout': go.Layout(
+            title=metric.title().replace('_', ' '),
+            height=200,
+            font=dict(
+                size=10,
+                color=white
+            ),
+            xaxis=dict(
+                showline=True,
+                color=white,
+                showticklabels=True,
+                showgrid=False,
+                # tickvals=df.index,
+                tickformat='%b %d',
+            ),
+            yaxis=dict(
+                showticklabels=True,
+                showgrid=False,
+                color=white,
+                tickformat=',d',
+            ),
+            showlegend=False,
+            margin={'l': 20, 'b': 20, 't': 20, 'r': 20},
+        )
+    }
+
+    return figure
 
 
 def training_zone(form):
@@ -849,7 +1101,7 @@ def create_fitness_kpis(date, ctl, ramp, rr_min_threshold, rr_max_threshold, atl
         ### Date KPI ###
         html.Div(className='col-lg-2', children=[
             html.Div(children=[
-                html.H5('{}'.format(datetime.strptime(date, '%Y-%m-%d').strftime("%b %d, %Y")),
+                html.H6('{}'.format(datetime.strptime(date, '%Y-%m-%d').strftime("%b %d, %Y")),
                         className='d-inline-block',
                         style={'fontWeight': 'bold', 'color': 'rgb(220, 220, 220)', 'marginTop': '0',
                                'marginBottom': '0'}),
@@ -1024,7 +1276,7 @@ def create_growth_kpis(date, cy, cy_metric, ly, ly_metric, metric):
     ])
 
 
-def create_metric_trend_chart(metric, sport='all'):
+def create_yoy_chart(metric, sport='all'):
     '''
 
     :param metric: Allowed values from strava summary table [hrss, tss, trimp, distance, elapsed_time, high_intensity_seconds, med_intensity_seconds, low_intensity_seconds]
@@ -1649,7 +1901,7 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
                 showticklabels=True,
                 tickformat='%b %d',
                 # Specify range to get rid of auto x-axis padding when using scatter markers
-                range=[pmd.index.max() - timedelta(days=41 + forecast_days),
+                range=[pmd.index.max() - timedelta(days=89 + forecast_days),
                        pmd.index.max()],
                 # default L6W
                 rangeselector=dict(
@@ -1666,6 +1918,10 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
                              label='YTD',
                              step='year',
                              stepmode='todate'),
+                        dict(count=89 + forecast_days,
+                             label='L90D',
+                             step='day',
+                             stepmode='backward'),
                         dict(count=41 + forecast_days,
                              label='L6W',
                              step='day',
@@ -1674,10 +1930,7 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
                              label='L30D',
                              step='day',
                              stepmode='backward'),
-                        dict(count=6 + forecast_days,
-                             label='L7D',
-                             step='day',
-                             stepmode='backward')
+
                     ]),
                     xanchor='center',
                     font=dict(
@@ -1932,37 +2185,39 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
     return figure, hoverData
 
 
-def workout_distribution(run_status, ride_status, all_status):
+def workout_distribution(sport='Run', days=90):
     min_non_warmup_workout_time = app.session.query(athlete).filter(
         athlete.athlete_id == 1).first().min_non_warmup_workout_time
 
     df_summary = pd.read_sql(
         sql=app.session.query(stravaSummary).filter(
-            stravaSummary.start_date_utc >= datetime.utcnow() - timedelta(days=42),
+            stravaSummary.start_date_utc >= datetime.utcnow() - timedelta(days=days),
+            stravaSummary.type.like(sport),
             stravaSummary.elapsed_time > min_non_warmup_workout_time,
             or_(stravaSummary.low_intensity_seconds > 0, stravaSummary.med_intensity_seconds > 0,
                 stravaSummary.high_intensity_seconds > 0)
         ).statement,
         con=engine, index_col='start_date_utc')
 
+    athlete_bookmarks = json.loads(app.session.query(athlete.peloton_auto_bookmark_ids).filter(
+        athlete.athlete_id == 1).first().peloton_auto_bookmark_ids)
+
     app.session.remove()
-
-    # Generate list of all workout types for when the 'all' boolean is selected
-    workout_types = get_workout_types(df_summary, run_status, ride_status, all_status)
-
-    df_summary = df_summary[df_summary['type'].isin(workout_types)]
 
     # Clean up workout names for training discribution table (% of total)
     df_summary['workout'] = 'Other'
 
-    # Parse instructor name and time from peloton titles
-    # df_summary['workout'] = df_summary['name'].apply(
-    #     lambda x: re.findall(r'\d+?\smin\s(.*)\swith', x)[0] if re.search(r'\d+?\smin\s(.*)\swith', x) else x).astype(
-    #     'str')
+    class_names = []
+    for x in athlete_bookmarks.keys():
+        for y in athlete_bookmarks[x].keys():
+            for class_type in json.loads(athlete_bookmarks[x][y]):
+                new_class = re.findall(r'min\s(.*)\s', class_type)[0]
+                if new_class not in class_names:
+                    class_names.append(new_class)
 
-    class_names = ['Power Zone Max', 'Power Zone Endurance', 'Power Zone', 'Endurance', 'Recovery', 'Speed',
-                   'Intervals', 'HIIT',
-                   'Progression', 'Race Prep', 'Tabata', 'Hills', 'Long', 'Fun', 'Tempo']  # , '5k', '10k', 'Marathon']
+    # class_names = ['Power Zone Max', 'Power Zone Endurance', 'Power Zone', 'Endurance', 'Recovery', 'Speed',
+    #                'Intervals', 'HIIT',
+    #                'Progression', 'Race Prep', 'Tabata', 'Hills', 'Long', 'Fun', 'Tempo']  # , '5k', '10k', 'Marathon']
     for name in class_names:
         for i in df_summary.index:
             if name.lower() in df_summary.loc[i]['name'].lower():
@@ -2013,57 +2268,6 @@ def workout_distribution(run_status, ride_status, all_status):
     df_temp['Percent of Total'] = (df_temp['total_intensity_seconds'] / df_temp[
         'total_intensity_seconds'].sum()) * 100
     df_temp['Percent of Total'] = df_temp['Percent of Total'].apply(lambda x: '{:.0f}%'.format(x))
-
-    html.Div(id='{}-container'.format('total_intensity_seconds'), className='row',
-             style={'overflow': 'hidden', 'height': '100%'},
-             children=[
-                 html.H6(id='{}-title'.format('total_intensity_seconds'),
-                         # children=['{}'.format(intensity.split('_')[0].capitalize())],
-                         children=['Workouts'],
-                         className='col',
-                         style={'height': '10%'}),
-                 # dbc.Tooltip('{} intensity workout distribution over the last 6 weeks.'.format('High' if intensity == 'high_intensity_seconds' else 'Low'),
-                 dbc.Tooltip('Workout distribution over the last 6 weeks.',
-                             target='{}-title'.format('total_intensity_seconds'), ),
-
-                 html.Div(id='{}-table'.format('total_intensity_seconds'), className='col',
-                          style={'overflow': 'scroll', 'height': '90%'},
-                          children=[
-                              dash_table.DataTable(
-                                  columns=[{'name': 'Activity', 'id': 'workout'},
-                                           {'name': '%', 'id': 'Percent of Total'}
-                                           ],
-                                  data=df_temp.sort_values(ascending=False,
-                                                           by=['total_intensity_seconds']).to_dict(
-                                      'records'),
-                                  style_as_list_view=True,
-                                  fixed_rows={'headers': True, 'data': 0},
-                                  style_header={'backgroundColor': 'rgb(66, 66, 66)',
-                                                'borderBottom': '1px solid rgb(220, 220, 220)',
-                                                'borderTop': '0px',
-                                                'textAlign': 'left',
-                                                'fontWeight': 'bold',
-                                                'fontFamily': '"Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif',
-                                                },
-                                  style_cell={
-                                      'backgroundColor': 'rgb(66, 66, 66)',
-                                      'color': 'rgb(220, 220, 220)',
-                                      'borderBottom': '1px solid rgb(73, 73, 73)',
-                                      'textOverflow': 'ellipsis',
-                                      'maxWidth': 25,
-                                      'fontFamily': '"Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif',
-                                  },
-                                  style_cell_conditional=[
-                                      {
-                                          'if': {'column_id': c},
-                                          'textAlign': 'center'
-                                      } for c in ['workout', 'Percent of Total']
-                                  ],
-
-                                  page_action="none",
-                              )
-                          ])
-             ])
 
     return df_temp.sort_values(ascending=False, by=['total_intensity_seconds']).to_dict('records')
 
@@ -2448,8 +2652,7 @@ def update_fitness_kpis(hoverData):
 # PMD Boolean Switches
 @app.callback(
     [Output('pm-chart', 'figure'),
-     Output('pm-chart', 'hoverData'),
-     Output('workout-type-distributions', 'data')],
+     Output('pm-chart', 'hoverData')],
     [Input('ride-pmc-switch', 'on'),
      Input('run-pmc-switch', 'on'),
      Input('all-pmc-switch', 'on'),
@@ -2478,32 +2681,124 @@ def refresh_fitness_chart(ride_switch, run_switch, all_switch, power_switch, hr_
                                                  all_status=all_status, power_status=power_status, hr_status=hr_status,
                                                  atl_status=atl_status)
 
-    return pmc_figure, hoverData, workout_distribution(ride_status=ride_status, run_status=run_status,
-                                                       all_status=all_status)
+    return pmc_figure, hoverData
 
 
-# Create Growth Chart
-# Create Growth Chart
+# Zone and distribution callback for sport/date fitlers. Also update date label with callback here
+@app.callback(
+    [Output('performance-time-selector', 'label'),
+     Output('l90d-running-icon', 'style'),
+     Output('l90d-bicycle-icon', 'style'),
+     Output('l90d-zones', 'children'),
+     Output('workout-type-distributions', 'data')],
+    [Input('performance-activity-type-toggle', 'value'),
+     Input('performance-time-selector-all', 'n_clicks_timestamp'),
+     Input('performance-time-selector-ytd', 'n_clicks_timestamp'),
+     Input('performance-time-selector-l90d', 'n_clicks_timestamp'),
+     Input('performance-time-selector-l6w', 'n_clicks_timestamp'),
+     Input('performance-time-selector-l30d', 'n_clicks_timestamp')]
+)
+def update_icon(*args):
+    inputs = dash.callback_context.inputs
+    sport = 'Run' if not inputs['performance-activity-type-toggle.value'] else 'Ride'
+    # Create dict of just date buttons
+    [inputs.pop(x) for x in list(inputs.keys()) if 'performance-time-selector' not in x]
+    date_days = {'all': 99999, 'ytd': int(datetime.now().strftime('%j')), 'l90d': 90, 'l6w': 42, 'l30d': 30}
+    last_click = max(inputs.items(), key=operator.itemgetter(1))[0].split('.')[0].replace(
+        'performance-time-selector-', '')
+    days = date_days[last_click]
+    label = last_click.upper()
+    if sport == 'Run':
+        run_style = {'fontSize': '1.5rem', 'display': 'inline-block', 'vertical-align': 'middle', 'color': teal}
+        ride_style = {'fontSize': '1.5rem', 'display': 'inline-block', 'vertical-align': 'middle'}
+    else:
+        run_style = {'fontSize': '1.5rem', 'display': 'inline-block', 'vertical-align': 'middle'}
+        ride_style = {'fontSize': '1.5rem', 'display': 'inline-block', 'vertical-align': 'middle', 'color': teal}
+
+    return label, run_style, ride_style, zone_chart(days=days, sport=sport, height=200), workout_distribution(
+        sport=sport, days=days)
+
+
+# Trend chart callback for sport/date fitlers
+@app.callback(
+    [Output('trend-chart', 'figure'),
+     Output('trend-controls', 'children'), ],
+    [Input('average-watts-trend-button', 'n_clicks_timestamp'),
+     Input('average-heartrate-trend-button', 'n_clicks_timestamp'),
+     Input('tss-trend-button', 'n_clicks_timestamp'),
+     Input('distance-trend-button', 'n_clicks_timestamp'),
+     Input('elapsed-time-trend-button', 'n_clicks_timestamp'),
+     Input('average-speed-trend-button', 'n_clicks_timestamp'),
+     Input('average-ground-time-trend-button', 'n_clicks_timestamp'),
+     Input('average-oscillation-trend-button', 'n_clicks_timestamp'),
+     Input('average-leg-spring-trend-button', 'n_clicks_timestamp'),
+     Input('performance-activity-type-toggle', 'value'),
+     Input('performance-time-selector-all', 'n_clicks_timestamp'),
+     Input('performance-time-selector-ytd', 'n_clicks_timestamp'),
+     Input('performance-time-selector-l90d', 'n_clicks_timestamp'),
+     Input('performance-time-selector-l6w', 'n_clicks_timestamp'),
+     Input('performance-time-selector-l30d', 'n_clicks_timestamp')],
+    [State('average-watts-trend-button', 'n_clicks_timestamp'),
+     State('average-heartrate-trend-button', 'n_clicks_timestamp'),
+     State('tss-trend-button', 'n_clicks_timestamp'),
+     State('distance-trend-button', 'n_clicks_timestamp'),
+     State('elapsed-time-trend-button', 'n_clicks_timestamp'),
+     State('average-speed-trend-button', 'n_clicks_timestamp'),
+     State('average-ground-time-trend-button', 'n_clicks_timestamp'),
+     State('average-oscillation-trend-button', 'n_clicks_timestamp'),
+     State('average-leg-spring-trend-button', 'n_clicks_timestamp'),
+     State('performance-activity-type-toggle', 'value'),
+     State('performance-time-selector-all', 'n_clicks_timestamp'),
+     State('performance-time-selector-ytd', 'n_clicks_timestamp'),
+     State('performance-time-selector-l90d', 'n_clicks_timestamp'),
+     State('performance-time-selector-l6w', 'n_clicks_timestamp'),
+     State('performance-time-selector-l30d', 'n_clicks_timestamp')]
+)
+def update_trend_chart(*args):
+    ctx = dash.callback_context
+    sport = 'Run' if ctx.states['performance-activity-type-toggle.value'] == False else 'Ride'
+
+    # Since the sport/date toggle can be the last trigger, we need to look at timestamp of date buttons and valueu of sport toggle to determine which date/sport to be using
+
+    # Create dict of just date buttons
+    date_buttons = ctx.states.copy()
+    [date_buttons.pop(x) for x in list(date_buttons.keys()) if 'performance-time-selector' not in x]
+    date_days = {'all': 99999, 'ytd': int(datetime.now().strftime('%j')), 'l90d': 90, 'l6w': 42, 'l30d': 30}
+    days = date_days[max(date_buttons.items(), key=operator.itemgetter(1))[0].split('.')[0].replace(
+        'performance-time-selector-', '')]
+
+    if ctx.triggered:
+        # Pop date buttons from main dict
+        [ctx.states.pop(x) for x in list(ctx.states.keys()) if 'performance-time-selector' in x]
+        # Remove sport toggle from dict, then get max of all timestamps
+        ctx.states.pop('performance-activity-type-toggle.value')
+        metric = max(ctx.states.items(), key=operator.itemgetter(1))[0].split(".")[0].replace('-trend-button',
+                                                                                              '').replace('-', '_')
+    else:
+        metric = 'average_heartrate'
+
+    figure = get_trend_chart(metric=metric, sport=sport, days=days)
+    return figure, get_trend_controls(sport=sport, selected=metric)
+
+
+# Create YOY Chart
 @app.callback(
     [Output('growth-chart', 'figure'),
      Output('growth-chart', 'hoverData'),
      Output('growth-chart-metric-select', 'label')],
-    [
-        Input('run|distance', 'n_clicks'),
-        Input('run|elapsed_time', 'n_clicks'),
-        Input('run|hrss', 'n_clicks'),
-        Input('run|trimp', 'n_clicks'),
-        Input('run|tss', 'n_clicks'),
-        Input('ride|distance', 'n_clicks'),
-        Input('ride|elapsed_time', 'n_clicks'),
-        Input('ride|hrss', 'n_clicks'),
-        Input('ride|trimp', 'n_clicks'),
-        Input('ride|tss', 'n_clicks'),
-    ]
+    [Input('run|distance', 'n_clicks'),
+     Input('run|elapsed_time', 'n_clicks'),
+     Input('run|hrss', 'n_clicks'),
+     Input('run|trimp', 'n_clicks'),
+     Input('run|tss', 'n_clicks'),
+     Input('ride|distance', 'n_clicks'),
+     Input('ride|elapsed_time', 'n_clicks'),
+     Input('ride|hrss', 'n_clicks'),
+     Input('ride|trimp', 'n_clicks'),
+     Input('ride|tss', 'n_clicks')]
 )
-def update_trend_chart(*args):
+def update_yoy_chart(*args):
     ctx = dash.callback_context
-
     if not ctx.triggered:
         sport = "run"
         metric = 'distance'
@@ -2514,7 +2809,7 @@ def update_trend_chart(*args):
 
     label = (sport + ' ' + metric.replace('elapsed_time', 'duration')).title().replace('_', ' ').replace('Cycling',
                                                                                                          'Ride')
-    figure, hoverData = create_metric_trend_chart(sport=sport, metric=metric)
+    figure, hoverData = create_yoy_chart(sport=sport, metric=metric)
     return figure, hoverData, label
 
 
@@ -2620,10 +2915,7 @@ def modal_power_curve(activity, is_open):
 def modal_power_zone(activity, is_open):
     if activity and is_open:
         activity_id = activity.split('|')[0]
-        metric = activity.split('|')[2]
-        return zone_chart(activity_id=activity_id, metric=metric,
-                          chart_id='modal-power-zone-chart'), html.H4(
-            'Heart Rate Zones') if metric == 'hr_zone' else html.H4('Power Zones')
+        return zone_chart(activity_id=activity_id, chart_id='modal-zone-chart'), html.H4('Training Zones')
     else:
         return None, None
 
