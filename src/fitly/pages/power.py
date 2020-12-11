@@ -920,7 +920,7 @@ def zone_chart(activity_id=None, metric='power_zone', chart_id='power-zone-chart
                     autorange='reversed',
                     showgrid=False,
                 ),
-                margin={'l': 45, 'b': 0, 't': 25, 'r': 0},
+                margin={'l': 45, 'b': 0, 't': 0, 'r': 0},
 
             )
         }
