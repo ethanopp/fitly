@@ -829,7 +829,7 @@ def create_ftp_chart(activity_type='ride', power_unit='watts'):
     return ftp_current, figure
 
 
-def zone_chart(activity_id=None, sport='Run', metrics=['power_zone','hr_zone'], chart_id='zone-chart', days=90,
+def zone_chart(activity_id=None, sport='Run', metrics=['power_zone', 'hr_zone'], chart_id='zone-chart', days=90,
                height=400):
     # If activity_id passed, filter only that workout, otherwise show distribution across last 6 weeks
 

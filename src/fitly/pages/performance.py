@@ -2294,9 +2294,9 @@ def workout_summary_kpi(df_samples):
         ]),
         html.Div(className='align-items-center text-center', style={'height': height}, children=[
             html.H5('Speed', className=' mb-0'),
-            html.P('Max: {:.0f}'.format(df_samples['velocity_smooth'].max()), className=' mb-0'),
-            html.P('Avg: {:.0f}'.format(df_samples['velocity_smooth'].mean()), className=' mb-0'),
-            html.P('Min: {:.0f}'.format(df_samples['velocity_smooth'].min()), className='mb-0')
+            html.P('Max: {:.1f}'.format(df_samples['velocity_smooth'].max()), className=' mb-0'),
+            html.P('Avg: {:.1f}'.format(df_samples['velocity_smooth'].mean()), className=' mb-0'),
+            html.P('Min: {:.1f}'.format(df_samples['velocity_smooth'].min()), className='mb-0')
         ]),
         html.Div(className='align-items-center text-center', style={'height': height}, children=[
             html.H5('Cadence', className=' mb-0'),
@@ -2343,7 +2343,7 @@ def workout_details(df_samples, start_seconds=None, end_seconds=None):
         go.Scatter(
             name='Speed',
             x=df_samples['time_interval'],
-            y=round(df_samples['velocity_smooth']),
+            y=round(df_samples['velocity_smooth'], 1),
             # hoverinfo='x+y',
             yaxis='y2',
             mode='lines',
@@ -2352,7 +2352,7 @@ def workout_details(df_samples, start_seconds=None, end_seconds=None):
         go.Scatter(
             name='Speed',
             x=highlight_df['time_interval'],
-            y=round(highlight_df['velocity_smooth']),
+            y=round(highlight_df['velocity_smooth'], 1),
             # hoverinfo='x+y',
             yaxis='y2',
             mode='lines',
@@ -2434,8 +2434,10 @@ def workout_details(df_samples, start_seconds=None, end_seconds=None):
                     font=dict(
                         color='rgb(220,220,220)'
                     ),
-
-                    hovermode='x',
+                    # TODO: Subplot unified tooltip not yet supported https://github.com/plotly/plotly.js/issues/4755
+                    hovermode='x unified',
+                    paper_bgcolor='rgb(66,66,66)',
+                    plot_bgcolor='rgba(0,0,0,0)',
                     margin={'l': 40, 'b': 25, 't': 5, 'r': 40},
                     showlegend=False,
                     # legend={'x': .5, 'y': 1.05, 'xanchor': 'center', 'orientation': 'h',
@@ -2446,9 +2448,9 @@ def workout_details(df_samples, start_seconds=None, end_seconds=None):
                         showline=True,
                         tickformat="%Mm",
                         hoverformat="%H:%M:%S",
-                        spikemode='across',
-                        showspikes=True,
-                        spikesnap='cursor',
+                        # spikemode='across',
+                        # showspikes=True,
+                        # spikesnap='cursor',
                         zeroline=False,
                         # tickvals=[1, 2, 5, 10, 30, 60, 120, 5 * 60, 10 * 60, 20 * 60, 60 * 60, 60 * 90],
                         # ticktext=['1s', '2s', '5s', '10s', '30s', '1m',
