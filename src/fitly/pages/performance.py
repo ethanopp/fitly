@@ -704,6 +704,10 @@ def get_trend_chart(metric, sport='Run', days=90):
         sql=app.session.query(strydSummary).filter(strydSummary.start_date_local >= date).statement, con=engine)
     app.session.remove()
     df = df.merge(stryd_df, how='left', left_on='activity_id', right_on='strava_activity_id')
+    # Convert duration to minutes
+    if metric == 'elapsed_time':
+        df[metric] = df[metric] / 60
+
     # Resample to accurately plot line of best fit
     df = df.set_index('start_date_local_x')
     df = df[[metric]].resample('D').mean().reset_index()
@@ -713,12 +717,11 @@ def get_trend_chart(metric, sport='Run', days=90):
     df[metric + '_trend'] = (df.index * slope) + intercept
     # Change index back for the chart
     df = df.set_index('start_date_local_x')
-    # Convert duration to minutes
-    if metric == 'elapsed_time':
-        df[metric] = df[metric] / 60
+
     # Format tooltips
     if metric in ['elapsed_time']:
-        text = ['{}: <b>{}'.format(metric.title().replace('_', ' '), timedelta(minutes=x)) for x in df[metric]]
+        text = ['{}: <b>{}'.format(metric.title().replace('_', ' '), timedelta(minutes=x)) for x in
+                df[metric].fillna(0)]
     else:
         text = ['{}: <b>{:.1f}'.format(metric.title().replace('_', ' '), x) for x in df[metric]]
 
