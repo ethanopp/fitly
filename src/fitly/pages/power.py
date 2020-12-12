@@ -143,7 +143,8 @@ def power_profiles(interval, activity_type='ride', power_unit='mmp', group='M'):
         'layout': go.Layout(
             transition=dict(duration=transition),
             font=dict(
-                color='rgb(220,220,220)'
+                size=10,
+                color=white
             ),
             xaxis=dict(
                 showticklabels=True,
@@ -645,7 +646,8 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
         layout = go.Layout(
             # transition=dict(duration=transition),
             font=dict(
-                color='rgb(220,220,220)'
+                size=10,
+                color=white
             ),
             shapes=shapes,
             annotations=annotations,
@@ -688,7 +690,8 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
         layout = go.Layout(
             # transition=dict(duration=transition),
             font=dict(
-                color='rgb(220,220,220)'
+                size=10,
+                color=white
             ),
             shapes=shapes,
             annotations=annotations,
@@ -806,7 +809,8 @@ def create_ftp_chart(activity_type='ride', power_unit='watts'):
         ],
         'layout': go.Layout(
             font=dict(
-                color='rgb(220,220,220)'
+                size=10,
+                color=white
             ),
             transition=dict(duration=transition),
             xaxis=dict(
@@ -914,7 +918,8 @@ def zone_chart(activity_id=None, sport='Run', metrics=['power_zone', 'hr_zone'],
             'data': data,
             'layout': go.Layout(
                 font=dict(
-                    color='rgb(220,220,220)'
+                    size=10,
+                    color=white
                 ),
                 height=height,
                 # annotations=[

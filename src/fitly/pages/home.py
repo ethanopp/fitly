@@ -1235,7 +1235,7 @@ def generate_oura_sleep_header_chart(date, days=7, summary=False, resample='D'):
         transition=dict(duration=transition),
         font=dict(
             color=white,
-            # size=10,
+            size=10,
         ),
         # hoverlabel={'font': {'size': 10}},
         xaxis=dict(
@@ -1313,7 +1313,7 @@ def generate_oura_sleep_header_chart(date, days=7, summary=False, resample='D'):
         transition=dict(duration=transition),
         font=dict(
             color=white,
-            # size=10,
+            size=10,
         ),
         # hoverlabel={'font': {'size': 10}},
         xaxis=dict(
@@ -1342,8 +1342,8 @@ def generate_oura_sleep_header_chart(date, days=7, summary=False, resample='D'):
             xanchor='center',
             orientation="h",
             font=dict(
-                color=white,
-                # size=12,
+                size=10,
+                color=white
             ),
         ),
         # barmode='stack',
@@ -1861,7 +1861,8 @@ def generate_oura_readiness_header_chart(date, days=7, summary=False, resample='
                 xanchor='center',
                 orientation="h",
                 font=dict(
-                    color=white,
+                    size=10,
+                    color=white
                 )),
             margin={'l': 0, 'b': 20, 't': 0, 'r': 0},
         )
@@ -1931,7 +1932,7 @@ def generate_oura_readiness_header_chart(date, days=7, summary=False, resample='
             height=height,
             transition=dict(duration=transition),
             font=dict(
-                # size=10,
+                size=10,
                 color=white
             ),
             # hoverlabel={'font': {'size': 10}},
@@ -1962,7 +1963,8 @@ def generate_oura_readiness_header_chart(date, days=7, summary=False, resample='
                 xanchor='center',
                 orientation="h",
                 font=dict(
-                    color=white,
+                    size=10,
+                    color=white
                 )),
             margin={'l': 0, 'b': 20, 't': 0, 'r': 0},
         )
@@ -2482,6 +2484,7 @@ def generate_oura_activity_header_chart(date, days=7, summary=False, resample='D
                 xanchor='center',
                 orientation="h",
                 font=dict(
+                    size=10,
                     color=white
                 )),
             hovermode='x',
@@ -2523,6 +2526,7 @@ def generate_oura_activity_header_chart(date, days=7, summary=False, resample='D
             height=height,
             transition=dict(duration=transition),
             font=dict(
+                size=10,
                 color=white
             ),
             # hoverlabel={'font': {'size': 10}},
@@ -2553,6 +2557,7 @@ def generate_oura_activity_header_chart(date, days=7, summary=False, resample='D
                 xanchor='center',
                 orientation="h",
                 font=dict(
+                    size=10,
                     color=white
                 )),
             hovermode='x',

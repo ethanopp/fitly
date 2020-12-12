@@ -324,11 +324,12 @@ def get_layout(**kwargs):
 
                             ]),
                             dbc.CardBody([
-                                html.Div(className='row align-items-center', style={'paddingBottom': '1.25rem'},
+                                html.Div(className='row align-items-center',
+                                         # style={'paddingBottom': '1.25rem'},
                                          children=[
 
-                                             html.Div(className='col-12 align-items-center',
-                                                      style={'height': '1.875rem'}, children=[
+                                             html.Div(className='col-12 align-items-center mb-2',
+                                                      style={'height': '1.375rem'}, children=[
 
                                                      dbc.DropdownMenu(children=
                                                      [
@@ -373,11 +374,12 @@ def get_layout(**kwargs):
 
                                              # sport_filter_icons(id='zones'),
                                              dbc.Spinner(color='info', children=[
-                                                 html.Div(id='l90d-zones', className='col-lg-6 col-12'),
+                                                 html.Div(id='l90d-zones', className='col-lg-6 col-12 mt-2'),
                                              ]),
                                              # populated by callback
                                              dbc.Spinner(color='info', children=[
-                                                 html.Div(id='workout-distribution-table', className='col-lg-6 col-12',
+                                                 html.Div(id='workout-distribution-table',
+                                                          className='col-lg-6 col-12 mt-2',
                                                           children=[
                                                               dash_table.DataTable(
                                                                   id='workout-type-distributions',
@@ -414,7 +416,7 @@ def get_layout(**kwargs):
                                                           ]),
                                              ]),
                                          ]),
-                                html.Div(className='row', children=[
+                                html.Div(className='row', style={'paddingTop': '.75rem'}, children=[
 
                                     html.Div(className='col-11', style={'paddingRight': 0}, children=[
 
@@ -1397,8 +1399,10 @@ def create_yoy_chart(metric, sport='all'):
         'layout': go.Layout(
             # transition=dict(duration=transition),
             font=dict(
-                color='rgb(220,220,220)'
+                size=10,
+                color=white
             ),
+
             xaxis=dict(
                 showgrid=False,
                 showticklabels=True,
@@ -1894,7 +1898,8 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
         'layout': go.Layout(
             # transition=dict(duration=transition),
             font=dict(
-                color='rgb(220,220,220)'
+                size=10,
+                color=white
             ),
             annotations=chart_annotations,
             xaxis=dict(
@@ -2432,7 +2437,8 @@ def workout_details(df_samples, start_seconds=None, end_seconds=None):
                     # transition=dict(duration=transition),
 
                     font=dict(
-                        color='rgb(220,220,220)'
+                        size=10,
+                        color=white
                     ),
                     # TODO: Subplot unified tooltip not yet supported https://github.com/plotly/plotly.js/issues/4755
                     hovermode='x unified',
