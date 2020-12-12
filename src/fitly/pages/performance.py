@@ -696,7 +696,8 @@ def get_trend_chart(metric, sport='Run', days=90):
     date = datetime.now().date() - timedelta(days=days)
     df = pd.read_sql(
         sql=app.session.query(stravaSummary).filter(stravaSummary.start_date_utc >= date).filter(
-            stravaSummary.type.like(sport)).statement, con=engine)
+            stravaSummary.type.like(sport), stravaSummary.elapsed_time > app.session.query(athlete).filter(
+                athlete.athlete_id == 1).first().min_non_warmup_workout_time).statement, con=engine)
     stryd_df = pd.read_sql(
         sql=app.session.query(strydSummary).filter(strydSummary.start_date_local >= date).statement, con=engine)
     app.session.remove()
