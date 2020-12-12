@@ -829,7 +829,7 @@ def create_ftp_chart(activity_type='ride', power_unit='watts'):
     return ftp_current, figure
 
 
-def zone_chart(activity_id=None, sport='Run', metrics=['hr_zone', 'power_zone'], chart_id='zone-chart', days=90,
+def zone_chart(activity_id=None, sport='Run', metrics=['power_zone','hr_zone'], chart_id='zone-chart', days=90,
                height=400):
     # If activity_id passed, filter only that workout, otherwise show distribution across last 6 weeks
 
@@ -853,7 +853,7 @@ def zone_chart(activity_id=None, sport='Run', metrics=['hr_zone', 'power_zone'],
         zone_df = df_samples.groupby(metric).size().reset_index(name='counts')
         zone_df['seconds'] = zone_df['counts']
         zone_df['Percent of Total'] = (zone_df['seconds'] / zone_df['seconds'].sum())
-        zone_df = zone_df.sort_index(ascending=False)
+
 
         # zone_map = {1: 'Active Recovery', 2: 'Endurance', 3: 'Tempo', 4: 'Threshold', 5: 'VO2 Max',
         #             6: 'Anaerobic', 7: 'Neuromuscular'}
@@ -868,6 +868,7 @@ def zone_chart(activity_id=None, sport='Run', metrics=['hr_zone', 'power_zone'],
                 percentage * 100) + '%'
             for seconds, percentage in zip(list(zone_df['seconds']), list(zone_df['Percent of Total']))]
 
+        zone_df = zone_df.sort_index(ascending=False)
         if metric == 'hr_zone':
             colors = [
                 'rgb(174, 18, 58)',

@@ -319,7 +319,7 @@ def get_layout(**kwargs):
                     html.Div(className='col-lg-12', children=[
                         dbc.Card([
                             dbc.CardHeader(className='align-items-center text-left', children=[
-                                html.H6('90 Day Performance', className='mb-0',
+                                html.H6('90 Day Performance', id='performance-title', className='mb-0',
                                         style={'display': 'inline-block'}),
 
                             ]),
@@ -2684,9 +2684,10 @@ def refresh_fitness_chart(ride_switch, run_switch, all_switch, power_switch, hr_
     return pmc_figure, hoverData
 
 
-# Zone and distribution callback for sport/date fitlers. Also update date label with callback here
+# Zone and distribution callback for sport/date fitlers. Also update date label/card header with callback here
 @app.callback(
     [Output('performance-time-selector', 'label'),
+    Output('performance-title', 'children'),
      Output('l90d-running-icon', 'style'),
      Output('l90d-bicycle-icon', 'style'),
      Output('l90d-zones', 'children'),
@@ -2715,7 +2716,7 @@ def update_icon(*args):
         run_style = {'fontSize': '1.5rem', 'display': 'inline-block', 'vertical-align': 'middle'}
         ride_style = {'fontSize': '1.5rem', 'display': 'inline-block', 'vertical-align': 'middle', 'color': teal}
 
-    return label, run_style, ride_style, zone_chart(days=days, sport=sport, height=200), workout_distribution(
+    return label, html.H6(label+' Performance', className='mb-0'), run_style, ride_style, zone_chart(days=days, sport=sport, height=200), workout_distribution(
         sport=sport, days=days)
 
 
