@@ -521,38 +521,37 @@ def get_layout(**kwargs):
                              dbc.CardHeader(
                                  html.Div(className='row align-items-center text-left', children=[
                                      ### Title ###
-                                     html.Div(className='col-lg-4 ml-0 mr-0', children=[
-                                         dbc.DropdownMenu(
-                                             [
-
-                                                 dbc.DropdownMenuItem("Running", header=True),
-                                                 dbc.DropdownMenuItem("Distance", id="run|distance"),
-                                                 dbc.DropdownMenuItem("Duration", id="run|elapsed_time"),
-                                                 dbc.DropdownMenuItem("hrSS", id="run|hrss"),
-                                                 dbc.DropdownMenuItem("Stress Score", id="run|tss"),
-                                                 dbc.DropdownMenuItem("Trimp", id="run|trimp"),
-
-                                                 dbc.DropdownMenuItem(divider=True),
-                                                 dbc.DropdownMenuItem("Cycling", header=True),
-                                                 dbc.DropdownMenuItem("Distance", id="ride|distance"),
-                                                 dbc.DropdownMenuItem("Duration", id="ride|elapsed_time"),
-                                                 dbc.DropdownMenuItem("hrSS", id="ride|hrss"),
-                                                 dbc.DropdownMenuItem("Stress Score", id="ride|tss"),
-                                                 dbc.DropdownMenuItem("Trimp", id="ride|trimp"),
-
-                                             ],
-                                             label="Run Distance",
-                                             bs_size='sm',
-                                             className="mb-0",
-                                             id='growth-chart-metric-select',
-                                         ),
-                                     ]),
-
-                                     html.Div(id='growth-header', className='col-lg-8')
+                                     html.Div(id='growth-header', className='col-lg-12')
                                  ]),
 
                              ),
                              dbc.CardBody([
+                                 html.Div(className='col-12 text-center align-items-center mb-2', children=[
+                                     dbc.DropdownMenu(
+                                         [
+
+                                             dbc.DropdownMenuItem("Running", header=True),
+                                             dbc.DropdownMenuItem("Distance", id="run|distance"),
+                                             dbc.DropdownMenuItem("Duration", id="run|elapsed_time"),
+                                             dbc.DropdownMenuItem("hrSS", id="run|hrss"),
+                                             dbc.DropdownMenuItem("Stress Score", id="run|tss"),
+                                             dbc.DropdownMenuItem("Trimp", id="run|trimp"),
+
+                                             dbc.DropdownMenuItem(divider=True),
+                                             dbc.DropdownMenuItem("Cycling", header=True),
+                                             dbc.DropdownMenuItem("Distance", id="ride|distance"),
+                                             dbc.DropdownMenuItem("Duration", id="ride|elapsed_time"),
+                                             dbc.DropdownMenuItem("hrSS", id="ride|hrss"),
+                                             dbc.DropdownMenuItem("Stress Score", id="ride|tss"),
+                                             dbc.DropdownMenuItem("Trimp", id="ride|trimp"),
+
+                                         ],
+                                         label="Run Distance",
+                                         bs_size='sm',
+                                         className="mb-0",
+                                         id='growth-chart-metric-select',
+                                     ),
+                                 ]),
                                  dcc.Graph(id='growth-chart', config={'displayModeBar': False},
                                            # style={'height': '90%'}
                                            )
@@ -1264,7 +1263,7 @@ def create_growth_kpis(date, cy, cy_metric, ly, ly_metric, metric):
         cy_color = orange if cy_metric < ly_metric else teal
     else:
         cy_color = white
-    return html.Div(className='row', children=[
+    return html.Div(className='row text-center align-items-center', children=[
         ### Current Year ###
         html.Div(id='target-change-kpi', className='col-lg-6', children=[
             html.Div(children=[
@@ -1405,7 +1404,7 @@ def create_yoy_chart(metric, sport='all'):
                 size=10,
                 color=white
             ),
-
+            height=416,
             xaxis=dict(
                 showgrid=False,
                 showticklabels=True,
