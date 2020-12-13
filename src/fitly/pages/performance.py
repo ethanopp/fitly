@@ -2769,6 +2769,11 @@ def update_icon(*args):
      State('performance-time-selector-l30d', 'n_clicks_timestamp')]
 )
 def update_trend_chart(*args):
+    athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1).first()
+    use_run_power = True if athlete_info.use_run_power else False
+    use_cycle_power = True if athlete_info.use_cycle_power else False
+    use_power = True if use_run_power or use_cycle_power else False
+    app.session.remove()
     ctx = dash.callback_context
     sport = 'Run' if ctx.states['performance-activity-type-toggle.value'] == False else 'Ride'
 
@@ -2789,7 +2794,7 @@ def update_trend_chart(*args):
         metric = max(ctx.states.items(), key=operator.itemgetter(1))[0].split(".")[0].replace('-trend-button',
                                                                                               '').replace('-', '_')
     else:
-        metric = 'average_heartrate'
+        metric = 'average_heartrate' if not use_power else 'average_watts'
 
     figure = get_trend_chart(metric=metric, sport=sport, days=days)
     return figure, get_trend_controls(sport=sport, selected=metric)
