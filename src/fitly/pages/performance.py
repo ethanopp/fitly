@@ -641,10 +641,12 @@ def get_hrv_df():
     return hrv_df
 
 
-def get_trend_controls(selected='average-heartrate', sport='Run'):
+def get_trend_controls(selected=None, sport='Run'):
     athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1).first()
     use_run_power = True if athlete_info.use_run_power else False
     use_cycle_power = True if athlete_info.use_cycle_power else False
+    use_power = True if use_run_power or use_cycle_power else False
+    app.session.remove()
     metrics = {'average-watts': {'fa fa-bolt': 'Power (w)'},
                'average-heartrate': {'fa fa-heartbeat': 'Heartrate'},
                'tss': {'fa fa-tachometer-alt': 'Stress (tss)'},
@@ -656,6 +658,9 @@ def get_trend_controls(selected='average-heartrate', sport='Run'):
                'average-leg-spring': {'fa fa-frog': 'Leg Spring Stiffness (LSS)'}
                }
     hide = []
+
+    if not selected:
+        selected = 'average_heartrate' if not use_power else 'average_watts'
 
     if sport == 'Run':
         if not use_run_power:
