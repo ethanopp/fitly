@@ -1283,15 +1283,23 @@ def create_growth_kpis(date, cy, cy_metric, ly, ly_metric, metric):
     else:
         cy_color = white
     return html.Div(className='row text-center align-items-center', children=[
+
+        ### Title ###
+        html.Div(id='yoy-title', className='col-lg-4', children=[
+            html.Div(children=[
+                html.H6('YOY Performance', className='mt-0 mb-0 d-inline-block'),
+            ]),
+        ]),
+
         ### Current Year ###
-        html.Div(id='target-change-kpi', className='col-lg-6', children=[
+        html.Div(id='target-change-kpi', className='col-lg-4', children=[
             html.Div(children=[
                 html.H6(cy_title, className='mt-0 mb-0 d-inline-block',
                         style={'color': cy_color}),
             ]),
         ]),
         ### Last Year ###
-        html.Div(id='atl-kpi', className='col-lg-6', children=[
+        html.Div(id='atl-kpi', className='col-lg-4', children=[
             html.Div(children=[
                 html.H6(ly_title, className='mt-0 mb-0 d-inline-block',
                         style={'color': white}),

@@ -47,7 +47,7 @@ def create_power_curve_kpis(interval, all, L90D, l6w, last, pr):
                 target="power-curve-title"),
 
             ### All KPI ###
-            html.Div(id='all-kpi', className='col-auto mb-0', children=[
+            html.Div(id='all-kpi', className='col-lg-12 mb-0', children=[
                 html.H5('All Time {}'.format(all),
                         style={'display': 'inline-block',  # 'fontWeight': 'bold',
                                'color': white, 'backgroundColor': dark_blue, 'marginTop': '0',
@@ -55,7 +55,7 @@ def create_power_curve_kpis(interval, all, L90D, l6w, last, pr):
                                'borderRadius': '.3rem'}),
             ]),
             ### L90D KPI ###
-            html.Div(id='L90D-kpi', className='col-auto mb-0', children=[
+            html.Div(id='L90D-kpi', className='col-lg-12 mb-0', children=[
                 html.H5('L90D {}'.format(L90D if pr == '' else pr),
                         style={'display': 'inline-block',  # 'fontWeight': 'bold',
                                'color': 'rgb(46,46,46)', 'backgroundColor': white if pr == '' else orange,
@@ -64,7 +64,7 @@ def create_power_curve_kpis(interval, all, L90D, l6w, last, pr):
                                'borderRadius': '.3rem'}),
             ]),
             ### L6W KPI ###
-            html.Div(id='l6w-kpi', className='col-auto mb-0', children=[
+            html.Div(id='l6w-kpi', className='col-lg-12 mb-0', children=[
                 html.H5('L6W {}'.format(l6w),
                         style={'display': 'inline-block',  # 'fontWeight': 'bold',
                                'color': white, 'backgroundColor': light_blue, 'marginTop': '0',
@@ -72,7 +72,7 @@ def create_power_curve_kpis(interval, all, L90D, l6w, last, pr):
                                'borderRadius': '.3rem'}),
             ]),
             ### Last KPI ###
-            html.Div(id='last-kpi', className='col-auto mb-0', children=[
+            html.Div(id='last-kpi', className='col-lg-12 mb-0', children=[
                 html.H5('L30D {}'.format(last),
                         style={'display': 'inline-block',  # 'fontWeight': 'bold',
                                'color': 'rgb(46,46,46)', 'backgroundColor': teal, 'marginTop': '0',
@@ -141,7 +141,7 @@ def power_profiles(interval, activity_type='ride', power_unit='mmp', group='M'):
             )
         ],
         'layout': go.Layout(
-            transition=dict(duration=transition),
+            # transition=dict(duration=transition),
             font=dict(
                 size=10,
                 color=white
@@ -163,7 +163,7 @@ def power_profiles(interval, activity_type='ride', power_unit='mmp', group='M'):
     return figure
 
 
-def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend=False, strydmetrics=True):
+def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend=True, strydmetrics=True):
     # TODO: Add power cuvrve model once sweatpy has been finished
     # https://sweatpy.gssns.io/features/Power%20duration%20modelling/#comparison-of-power-duration-models
     activity_type = '%' + activity_type + '%'
@@ -357,8 +357,7 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
             else:
                 L30D_best_interval_df.at[i, power_unit] = None
 
-    tooltip = '''{}<br>{}<br>{:.2f} W/kg''' if power_unit == 'watts_per_kg' else '''{}<br>{}<br>{:.0f} W'''
-
+    tooltip = '''<b>{}</b><br>{}<br>{}<br>{:.2f} W/kg''' if power_unit == 'watts_per_kg' else '''<b>{}</b><br>{}<br>{}<br>{:.0f} W'''
     data = [
         go.Scatter(
             name='All',
@@ -367,6 +366,7 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
             mode='lines',
             text=[
                 tooltip.format(
+                    timedelta(seconds=i),
                     all_best_interval_df.loc[i]['act_name'],
                     all_best_interval_df.loc[i].date,
                     all_best_interval_df.loc[i][power_unit])
@@ -387,6 +387,7 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
             #       L90D_best_interval_df.index],
             text=[
                 tooltip.format(
+                    timedelta(seconds=i),
                     L90D_best_interval_df.loc[i]['act_name'],
                     L90D_best_interval_df.loc[i].date,
                     L90D_best_interval_df.loc[i][power_unit])
@@ -406,6 +407,7 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
             #       L90D_best_interval_df.index],
             text=[
                 tooltip.format(
+                    timedelta(seconds=i),
                     L6W_best_interval_df.loc[i]['act_name'],
                     L6W_best_interval_df.loc[i].date,
                     L6W_best_interval_df.loc[i][power_unit])
@@ -425,6 +427,7 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
             #       L90D_best_interval_df.index],
             text=[
                 tooltip.format(
+                    timedelta(seconds=i),
                     L30D_best_interval_df.loc[i]['act_name'],
                     L30D_best_interval_df.loc[i].date,
                     L30D_best_interval_df.loc[i][power_unit])
@@ -445,6 +448,7 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
                 mode='lines',
                 text=[
                     tooltip.format(
+                        timedelta(seconds=i),
                         recent_best_interval_df.loc[i]['act_name'],
                         recent_best_interval_df.loc[i].date,
                         recent_best_interval_df.loc[i][power_unit])
@@ -552,6 +556,7 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
             go.Bar(
                 xaxis='x2', yaxis='y2', customdata=['ignore'], x=[100], y=[''], width=[2],
                 marker=dict(color=light_blue),
+                showlegend=False,
                 text='Fitness: <b>{:.2f}</b> W/kg<br>Stryd Avg: <b>{:.2f}</b> W/kg<br>Percentile: <b>{:.0%}'.format(
                     td["attr"]["fitness"],  # Use value directly from stryd api call
                     td["percentile"]["median_fitness"],
@@ -562,6 +567,7 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
             go.Bar(
                 xaxis='x3', yaxis='y2', customdata=['ignore'], x=[100], y=[''], width=[2],
                 marker=dict(color=light_blue),
+                showlegend=False,
                 text='Max 10 Sec Power: <b>{:.2f} </b>W/kg<br>Stryd Avg: <b>{:.2f}</b> W/kg<br>Percentile: <b>{:.0%}'.format(
                     td["attr"]["muscle_power"],  # Use value directly from stryd api call
                     td["percentile"]["median_muscle_power"],
@@ -572,6 +578,7 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
             go.Bar(
                 xaxis='x4', yaxis='y2', customdata=['ignore'], x=[100], y=[''], width=[2],
                 marker=dict(color=light_blue),
+                showlegend=False,
                 text='Longest 100% CP: <b>{}</b> <br>Stryd Avg: <b>{}</b><br>Percentile: <b>{:.0%}'.format(
                     timedelta(seconds=int(td["attr"]["fatigue_resistance"])),  # Use value directly from stryd api call
                     timedelta(seconds=int(td["percentile"]["median_fatigue_resistance"])),
@@ -582,6 +589,7 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
             go.Bar(
                 xaxis='x5', yaxis='y2', customdata=['ignore'], x=[100], y=[''], width=[2],
                 marker=dict(color=light_blue),
+                showlegend=False,
                 text='Longest 50% CP: <b>{}</b> <br>Stryd Avg: <b>{}</b><br>Percentile: <b>{:.0%}'.format(
                     timedelta(seconds=int(td["attr"]["endurance"])),  # Use value directly from stryd api call
                     timedelta(seconds=int(td["percentile"]["median_endurance"])),
@@ -676,6 +684,8 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
                     'traceorder': 'normal', 'bgcolor': 'rgba(127, 127, 127, 0)'},
             autosize=True,
             hovermode='x',
+            # paper_bgcolor='rgb(66,66,66)',
+            # plot_bgcolor='rgba(0,0,0,0)',
             # TD Fitness
             xaxis2=dict(domain=[.01, .24], showgrid=False, zeroline=False, showticklabels=False, range=[0, 100], ),
             # Muscle Power
@@ -722,6 +732,8 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
                     'traceorder': 'normal', 'bgcolor': 'rgba(127, 127, 127, 0)'},
             autosize=True,
             hovermode='x',
+            # paper_bgcolor='rgb(66,66,66)',
+            # plot_bgcolor='rgba(0,0,0,0)',
 
         )
 
@@ -861,7 +873,6 @@ def zone_chart(activity_id=None, sport='Run', metrics=['power_zone', 'hr_zone'],
         zone_df = df_samples.groupby(metric).size().reset_index(name='counts')
         zone_df['seconds'] = zone_df['counts']
         zone_df['Percent of Total'] = (zone_df['seconds'] / zone_df['seconds'].sum())
-
 
         # zone_map = {1: 'Active Recovery', 2: 'Endurance', 3: 'Tempo', 4: 'Threshold', 5: 'VO2 Max',
         #             6: 'Anaerobic', 7: 'Neuromuscular'}
@@ -1199,27 +1210,27 @@ def update_power_profiles(activity_type, power_unit, day_n_clicks, week_n_clicks
 #     return generate_power_dashboard()
 
 
-@app.callback(
-    Output('power-curve-kpis', 'children'),
-    [Input('power-curve-chart', 'hoverData')],
-    [State('power-unit-toggle', 'value')])
-def update_fitness_kpis(hoverData, power_unit):
-    interval, at, L90D, l6w, last, pr = 0, '', '', '', '', ''
-    if hoverData is not None and hoverData['points'][0]['customdata'] != 'ignore':
-        interval = hoverData['points'][0]['x']
-        for x in hoverData['points']:
-            if x['customdata'].split('_')[2] == 'at':
-                at = '{:.1f} W/kg'.format(x['y']) if power_unit else '{:.0f} W'.format(x['y'])
-            elif x['customdata'].split('_')[2] == 'L90D':
-                L90D = '{:.1f} W/kg'.format(x['y']) if power_unit else '{:.0f} W'.format(x['y'])
-            elif x['customdata'].split('_')[2] == 'l6w':
-                l6w = '{:.1f} W/kg'.format(x['y']) if power_unit else '{:.0f} W'.format(x['y'])
-            elif x['customdata'].split('_')[2] == 'pr':
-                pr = '{:.1f} W/kg'.format(x['y']) if power_unit else '{:.0f} W'.format(x['y'])
-            elif x['customdata'].split('_')[2] == 'w':
-                last = '{:.1f} W/kg'.format(x['y']) if power_unit else '{:.0f} W'.format(x['y'])
-
-    return create_power_curve_kpis(interval, at, L90D, l6w, last, pr)
+# @app.callback(
+#     Output('power-curve-kpis', 'children'),
+#     [Input('power-curve-chart', 'hoverData')],
+#     [State('power-unit-toggle', 'value')])
+# def update_fitness_kpis(hoverData, power_unit):
+#     interval, at, L90D, l6w, last, pr = 0, '', '', '', '', ''
+#     if hoverData is not None and hoverData['points'][0]['customdata'] != 'ignore':
+#         interval = hoverData['points'][0]['x']
+#         for x in hoverData['points']:
+#             if x['customdata'].split('_')[2] == 'at':
+#                 at = '{:.1f} W/kg'.format(x['y']) if power_unit else '{:.0f} W'.format(x['y'])
+#             elif x['customdata'].split('_')[2] == 'L90D':
+#                 L90D = '{:.1f} W/kg'.format(x['y']) if power_unit else '{:.0f} W'.format(x['y'])
+#             elif x['customdata'].split('_')[2] == 'l6w':
+#                 l6w = '{:.1f} W/kg'.format(x['y']) if power_unit else '{:.0f} W'.format(x['y'])
+#             elif x['customdata'].split('_')[2] == 'pr':
+#                 pr = '{:.1f} W/kg'.format(x['y']) if power_unit else '{:.0f} W'.format(x['y'])
+#             elif x['customdata'].split('_')[2] == 'w':
+#                 last = '{:.1f} W/kg'.format(x['y']) if power_unit else '{:.0f} W'.format(x['y'])
+#
+#     return create_power_curve_kpis(interval, at, L90D, l6w, last, pr)
 
 
 def get_layout(**kwargs):
@@ -1270,10 +1281,13 @@ def get_layout(**kwargs):
                      children=[
                          html.Div(className='col-lg-8', children=[
                              dbc.Card(children=[
-                                 dbc.CardHeader(id='power-curve-kpis'),
-                                 dbc.CardBody(
-                                     dcc.Graph(id='power-curve-chart', config={'displayModeBar': False},
-                                               style={'height': '100%'}))
+                                 dbc.CardHeader(id='power-curve-kpis',
+                                                children=[html.H4('Power Duration Curve', className='mb-0')]),
+                                 dbc.Spinner(color='info', children=[
+                                     dbc.CardBody(
+                                         dcc.Graph(id='power-curve-chart', config={'displayModeBar': False},
+                                                   style={'height': '100%'}))
+                                 ]),
                              ]),
                          ]),
                          html.Div(className='col-lg-4', children=[
@@ -1282,8 +1296,10 @@ def get_layout(**kwargs):
                                  dbc.Tooltip(
                                      'Functional Threshold Power (FTP) is the highest average power you can sustain for 1 hour, measured in watts. FTP is used to determine training zones when using a power meter and to measure improvement.',
                                      target="ftp-current", ),
-                                 dbc.CardBody(dcc.Graph(id='ftp-chart', config={'displayModeBar': False},
-                                                        style={'height': '100%'}, ))
+                                 dbc.Spinner(color='info', children=[
+                                     dbc.CardBody(dcc.Graph(id='ftp-chart', config={'displayModeBar': False},
+                                                            style={'height': '100%'}, ))
+                                 ]),
                              ]
                              ),
 
@@ -1306,38 +1322,62 @@ def get_layout(**kwargs):
                 html.Div(className='col-lg-3', children=[
                     dbc.Card(id='power-profile-5', children=[
                         dbc.CardHeader(html.H4('5 Second Max Power', className='mb-0')),
-                        dbc.CardBody(dcc.Graph(
-                            id='power-profile-5-chart',
-                            config={'displayModeBar': False},
-                            style={'height': '100%'},
-                        )
-                        )])]),
+                        dbc.Spinner(color='info', children=[
+                            dbc.CardBody(
+                                dcc.Graph(
+                                    id='power-profile-5-chart',
+                                    config={'displayModeBar': False},
+                                    style={'height': '100%'},
+                                )
+                            )
+                        ]),
+                    ]
+                             )
+                ]),
                 html.Div(className='col-lg-3', children=[
                     dbc.Card(id='power-profile-60', children=[
                         dbc.CardHeader(html.H4('1 Minute Max Power', className='mb-0')),
-                        dbc.CardBody(dcc.Graph(
-                            id='power-profile-60-chart',
-                            config={'displayModeBar': False},
-                            style={'height': '100%'},
-                        )
-                        )])]),
+                        dbc.Spinner(color='info', children=[
+                            dbc.CardBody(
+                                dcc.Graph(
+                                    id='power-profile-60-chart',
+                                    config={'displayModeBar': False},
+                                    style={'height': '100%'},
+                                )
+                            )
+                        ]),
+                    ]
+                             )
+                ]),
                 html.Div(className='col-lg-3', children=[
                     dbc.Card(id='power-profile-300', children=[
                         dbc.CardHeader(html.H4('5 Minute Max Power', className='mb-0')),
-                        dbc.CardBody(dcc.Graph(
-                            id='power-profile-300-chart',
-                            config={'displayModeBar': False},
-                            style={'height': '100%'},
-                        )
-                        )])]),
+                        dbc.Spinner(color='info', children=[
+                            dbc.CardBody(
+                                dcc.Graph(
+                                    id='power-profile-300-chart',
+                                    config={'displayModeBar': False},
+                                    style={'height': '100%'},
+                                )
+                            )
+                        ]),
+                    ]
+                             )
+                ]),
                 html.Div(className='col-lg-3', children=[
                     dbc.Card(id='power-profile-1200', children=[
                         dbc.CardHeader(html.H4('20 Minute Max Power', className='mb-0')),
-                        dbc.CardBody(dcc.Graph(
-                            id='power-profile-1200-chart',
-                            config={'displayModeBar': False},
-                            style={'height': '100%'},
-                        )
-                        )])]),
+                        dbc.Spinner(color='info', children=[
+                            dbc.CardBody(
+                                dcc.Graph(
+                                    id='power-profile-1200-chart',
+                                    config={'displayModeBar': False},
+                                    style={'height': '100%'},
+                                )
+                            )
+                        ]),
+                    ]
+                             )
+                ]),
             ])
         ])
