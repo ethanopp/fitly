@@ -52,10 +52,12 @@ def get_layout(**kwargs):
                 ]),
             ]),
 
-            dbc.Spinner(color='info', children=[
-                html.Div(className='row', children=[
-                    html.Div(id='exercise-containers', className='col-lg-12')
-                ])
+            html.Div(id='workout-charts', className='col-12', children=[
+                dbc.Spinner(color='info', children=[
+                    html.Div(className='row', children=[
+                        html.Div(id='exercise-containers', className='col-lg-12')
+                    ])
+                ]),
             ])
         ])
 

@@ -146,6 +146,7 @@ def power_profiles(interval, activity_type='ride', power_unit='mmp', group='M'):
                 size=10,
                 color=white
             ),
+            height=400,
             xaxis=dict(
                 showticklabels=True,
                 tickformat="%b '%y"
@@ -651,6 +652,7 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
             ),
             shapes=shapes,
             annotations=annotations,
+            height=400,
             xaxis=dict(
                 showgrid=False,
                 # tickformat="%H:%M:%S",
@@ -693,6 +695,7 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
                 size=10,
                 color=white
             ),
+            height=400,
             shapes=shapes,
             annotations=annotations,
             xaxis=dict(
@@ -812,6 +815,7 @@ def create_ftp_chart(activity_type='ride', power_unit='watts'):
                 size=10,
                 color=white
             ),
+            height=400,
             transition=dict(duration=transition),
             xaxis=dict(
                 showticklabels=True,

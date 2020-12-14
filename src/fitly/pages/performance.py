@@ -90,53 +90,57 @@ def get_layout(**kwargs):
                   children=[
                       dbc.ModalHeader(id='activity-modal-header'),
                       dbc.ModalBody([
-                          dbc.Spinner(color='info', children=[
-                              html.Div(id='activity-modal-body', className='row mt-2 mb-2', children=[
-                                  html.Div(className='col-lg-10', children=[
-                                      html.Div(className='row', children=[
-                                          html.Div(className='col-lg-12', children=[
-                                              dbc.Card(color='dark', children=[
-                                                  dbc.CardHeader(html.H4('Activity Stream')),
-                                                  dbc.CardBody([
-                                                      html.Div(className='row', children=[
-                                                          html.Div(id='modal-workout-summary',
-                                                                   className='col-lg-3'),
-                                                          html.Div(id='modal-workout-trends', className='col-lg-9'),
+                          html.Div([
+                              dbc.Spinner(color='info', children=[
+                                  html.Div(id='activity-modal-body', className='row mt-2 mb-2', children=[
+                                      html.Div(className='col-lg-10', children=[
+                                          html.Div(className='row', children=[
+                                              html.Div(className='col-lg-12', children=[
+                                                  dbc.Card(color='dark', children=[
+                                                      dbc.CardHeader(html.H4('Activity Stream')),
+                                                      dbc.CardBody([
+                                                          html.Div(className='row', children=[
+                                                              html.Div(id='modal-workout-summary',
+                                                                       className='col-lg-3'),
+                                                              html.Div(id='modal-workout-trends', className='col-lg-9'),
+                                                          ])
                                                       ])
                                                   ])
                                               ])
                                           ])
-                                      ])
-                                  ]),
+                                      ]),
 
-                                  html.Div(id='modal-workout-stats', className='col-lg-2',
-                                           style={'height': '100%'}),
+                                      html.Div(id='modal-workout-stats', className='col-lg-2',
+                                               style={'height': '100%'}),
+                                  ]),
                               ]),
                           ]),
 
-                          dbc.Spinner(color='info', children=[
-                              html.Div(id="activity-modal-body-2", className='row mt-2 mb-2',
-                                       children=[
-                                           html.Div(className='col-lg-6' if use_power else 'col-lg-12', children=[
-                                               dbc.Card(color='dark', children=[
-                                                   dbc.CardHeader(id='modal-zone-title'),
-                                                   dbc.CardBody(id='modal-zones')
-                                               ])
-                                           ]),
-                                           html.Div(className='col-lg-6',
-                                                    style={} if use_power else {'display': 'none'}, children=[
-                                                   dbc.Card(id='modal-power-curve-card', color='dark', children=[
-                                                       dbc.CardHeader(html.H4('Power Curve')),
-                                                       dbc.CardBody([
-                                                           dcc.Graph(id='modal-power-curve-chart',
-                                                                     config={'displayModeBar': False},
-                                                                     style={'height': '100%'})
-                                                       ]
-                                                       )
+                          html.Div([
+                              dbc.Spinner(color='info', children=[
+                                  html.Div(id="activity-modal-body-2", className='row mt-2 mb-2',
+                                           children=[
+                                               html.Div(className='col-lg-6' if use_power else 'col-lg-12', children=[
+                                                   dbc.Card(color='dark', children=[
+                                                       dbc.CardHeader(id='modal-zone-title'),
+                                                       dbc.CardBody(id='modal-zones')
                                                    ])
                                                ]),
+                                               html.Div(className='col-lg-6',
+                                                        style={} if use_power else {'display': 'none'}, children=[
+                                                       dbc.Card(id='modal-power-curve-card', color='dark', children=[
+                                                           dbc.CardHeader(html.H4('Power Curve')),
+                                                           dbc.CardBody([
+                                                               dcc.Graph(id='modal-power-curve-chart',
+                                                                         config={'displayModeBar': False},
+                                                                         style={'height': '100%'})
+                                                           ]
+                                                           )
+                                                       ])
+                                                   ]),
 
-                                       ])
+                                           ])
+                              ]),
                           ]),
                       ]),
 
@@ -373,47 +377,51 @@ def get_layout(**kwargs):
                                                  ]),
 
                                              # sport_filter_icons(id='zones'),
-                                             dbc.Spinner(color='info', children=[
-                                                 html.Div(id='l90d-zones', className='col-lg-6 col-12 mt-2'),
+                                             html.Div(className='col-lg-6 col-12 mt-2', children=[
+                                                 dbc.Spinner(color='info', children=[
+                                                     html.Div(id='l90d-zones'),
+                                                 ]),
                                              ]),
                                              # populated by callback
-                                             dbc.Spinner(color='info', children=[
-                                                 html.Div(id='workout-distribution-table',
-                                                          className='col-lg-6 col-12 mt-2',
-                                                          children=[
-                                                              dash_table.DataTable(
-                                                                  id='workout-type-distributions',
-                                                                  columns=[{'name': 'Activity', 'id': 'workout'},
-                                                                           {'name': '%', 'id': 'Percent of Total'}],
-                                                                  style_as_list_view=True,
-                                                                  fixed_rows={'headers': True, 'data': 0},
-                                                                  style_table={'height': '200px', 'overflowY': 'auto'},
-                                                                  style_header={'backgroundColor': 'rgba(0,0,0,0)',
-                                                                                'borderBottom': '1px solid rgb(220, 220, 220)',
-                                                                                'borderTop': '0px',
-                                                                                # 'textAlign': 'center',
-                                                                                'fontWeight': 'bold',
-                                                                                'fontFamily': '"Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif',
-                                                                                },
-                                                                  style_cell={
-                                                                      'backgroundColor': 'rgba(0,0,0,0)',
-                                                                      'color': 'rgb(220, 220, 220)',
-                                                                      'borderBottom': '1px solid rgb(73, 73, 73)',
-                                                                      'textOverflow': 'ellipsis',
-                                                                      'maxWidth': 25,
-                                                                      'fontFamily': '"Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif',
-                                                                  },
-                                                                  style_cell_conditional=[
-                                                                      {
-                                                                          'if': {'column_id': c},
-                                                                          'textAlign': 'center'
-                                                                      } for c in ['workout', 'Percent of Total']
-                                                                  ],
+                                             html.Div(className='col-lg-6 col-12 mt-2', children=[
+                                                 dbc.Spinner(color='info', children=[
+                                                     html.Div(id='workout-distribution-table',
+                                                              children=[
+                                                                  dash_table.DataTable(
+                                                                      id='workout-type-distributions',
+                                                                      columns=[{'name': 'Activity', 'id': 'workout'},
+                                                                               {'name': '%', 'id': 'Percent of Total'}],
+                                                                      style_as_list_view=True,
+                                                                      fixed_rows={'headers': True, 'data': 0},
+                                                                      style_table={'height': '200px',
+                                                                                   'overflowY': 'auto'},
+                                                                      style_header={'backgroundColor': 'rgba(0,0,0,0)',
+                                                                                    'borderBottom': '1px solid rgb(220, 220, 220)',
+                                                                                    'borderTop': '0px',
+                                                                                    # 'textAlign': 'center',
+                                                                                    'fontWeight': 'bold',
+                                                                                    'fontFamily': '"Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif',
+                                                                                    },
+                                                                      style_cell={
+                                                                          'backgroundColor': 'rgba(0,0,0,0)',
+                                                                          'color': 'rgb(220, 220, 220)',
+                                                                          'borderBottom': '1px solid rgb(73, 73, 73)',
+                                                                          'textOverflow': 'ellipsis',
+                                                                          'maxWidth': 25,
+                                                                          'fontFamily': '"Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif',
+                                                                      },
+                                                                      style_cell_conditional=[
+                                                                          {
+                                                                              'if': {'column_id': c},
+                                                                              'textAlign': 'center'
+                                                                          } for c in ['workout', 'Percent of Total']
+                                                                      ],
 
-                                                                  page_action="none",
-                                                              )
+                                                                      page_action="none",
+                                                                  )
 
-                                                          ]),
+                                                              ]),
+                                                 ]),
                                              ]),
                                          ]),
                                 html.Div(className='row', style={'paddingTop': '.75rem'}, children=[
@@ -421,8 +429,10 @@ def get_layout(**kwargs):
                                     html.Div(className='col-11', style={'paddingRight': 0}, children=[
 
                                         # Generated by callback
-                                        dbc.Spinner(color='info', children=[
-                                            dcc.Graph(id='trend-chart', config={'displayModeBar': False})
+                                        html.Div([
+                                            dbc.Spinner(color='info', children=[
+                                                dcc.Graph(id='trend-chart', config={'displayModeBar': False})
+                                            ]),
                                         ]),
                                     ]),
 
