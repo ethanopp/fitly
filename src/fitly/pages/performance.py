@@ -662,7 +662,7 @@ def get_trend_controls(selected=None, sport='Run'):
                'tss': {'fa fa-tachometer-alt': 'Stress (tss)'},
                'distance': {'fa fa-arrows-alt-h': 'Distance (mi)'},
                'elapsed-time': {'fa fa-clock': 'Duration (min)'},
-               'average-speed': {'fa fa-flag-checkered': 'Speed'},
+               'average-speed': {'fa fa-flag-checkered': 'Pace'},
                'average-ground-time': {'fa fa-road': 'Ground contact time'},
                'average-oscillation': {'fa fa-arrows-alt-v': 'Vertical Oscillation'},
                'average-leg-spring': {'fa fa-frog': 'Leg Spring Stiffness (LSS)'}
@@ -720,7 +720,11 @@ def get_trend_chart(metric, sport='Run', days=90):
     df = df.merge(stryd_df, how='left', left_on='activity_id', right_on='strava_activity_id')
     # Convert duration to minutes
     if metric == 'elapsed_time':
-        df[metric] = df[metric] / 60
+        df['duration'] = df[metric] / 60
+        metric = 'duration'
+    elif metric == 'average_speed':
+        df['average_pace'] = 60 / df[metric]
+        metric = 'average_pace'
 
     # Resample to accurately plot line of best fit
     df = df.set_index('start_date_local_x')
@@ -733,8 +737,8 @@ def get_trend_chart(metric, sport='Run', days=90):
     df = df.set_index('start_date_local_x')
 
     # Format tooltips
-    if metric in ['elapsed_time']:
-        text = ['{}: <b>{}'.format(metric.title().replace('_', ' '), timedelta(minutes=x)) for x in
+    if metric in ['duration', 'average_pace']:
+        text = ['{}: <b>{}'.format(metric.title().replace('_', ' '), str(timedelta(minutes=x)).split(".")[0]) for x in
                 df[metric].fillna(0)]
     else:
         text = ['{}: <b>{:.1f}'.format(metric.title().replace('_', ' '), x) for x in df[metric]]
