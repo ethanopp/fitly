@@ -708,16 +708,21 @@ def get_schedule(fitness_discipline, class_names=['all'], taken_class_ids=[], li
             ret = [workout for workout in res['data'] if
                    workout['id'] not in taken_class_ids and (
                            workout['title'] == next_workout or class_names == ['all'])]
-
+            taken_classes = []
             # If there are not enough workouts in our list, go to next page
             while len(ret) < limit and params['page'] < res['page_count']:
                 # We've got page 0, so add page at beginning of loop
                 params['page'] += 1
                 res = PelotonAPI._api_request(uri=uri, params=params).json()
+                [taken_classes.append(workout) for workout in res['data'] if
+                 workout['id'] in taken_class_ids and workout['title'] == next_workout]
                 [ret.append(workout) for workout in res['data'] if
                  workout['id'] not in taken_class_ids and (workout['title'] == next_workout or class_names == ['all'])]
             # Only take up to limit when adding new bookmarks
             ret = ret[:limit]
+            # If limit is not met, add classes that may have already been taken to hit limit
+            while len(ret) < limit and len(taken_classes) > 0:
+                ret.append(taken_classes.pop(0))
 
         workouts = pd.DataFrame(ret)
 
