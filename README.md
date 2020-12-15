@@ -1,10 +1,10 @@
 # Fit.ly
 Web analytics for endurance athletes
-![Image description](https://imgur.com/HoxtkJm.png)
-![Image description](https://imgur.com/jWK6F0O.png)
-![Image description](https://imgur.com/oX1Z1iO.png)
-![Image description](https://imgur.com/aRu7Pt1.png)
-![Image description](https://imgur.com/9dKmnrj.png)
+![Image description](https://i.imgur.com/Z3mfOMR.jpeg)
+![Image description](https://i.imgur.com/26Bglbc.jpg)
+![Image description](https://i.imgur.com/zeNnCvn.jpg)
+![Image description](https://i.imgur.com/7j6Ez9K.jpg)
+![Image description](https://i.imgur.com/uafoBFI.jpg)
 
 Special thanks to Slapdash for helping organize!
 https://github.com/ned2/slapdash
