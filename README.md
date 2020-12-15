@@ -1,7 +1,11 @@
 # Fit.ly
 Web analytics for endurance athletes
 ![Image description](https://i.imgur.com/Z3mfOMR.jpeg)
+![Image description](https://i.imgur.com/A5rJNff.png)
+![Image description](https://i.imgur.com/PewZiKt.png)
+![Image description](https://i.imgur.com/hsSPvyn.png)
 ![Image description](https://i.imgur.com/26Bglbc.jpg)
+![Image description](https://i.imgur.com/tbx5YmT.png)
 ![Image description](https://i.imgur.com/zeNnCvn.jpg)
 ![Image description](https://i.imgur.com/7j6Ez9K.jpg)
 ![Image description](https://i.imgur.com/uafoBFI.jpg)
