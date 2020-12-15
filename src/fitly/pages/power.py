@@ -163,6 +163,185 @@ def power_profiles(interval, activity_type='ride', power_unit='mmp', group='M'):
     return figure
 
 
+def stryd_training_distributions():
+    current_ftp_w = app.session.query(stravaSummary).filter(stravaSummary.type.ilike('run')).order_by(
+        stravaSummary.start_date_utc.desc()).first().ftp
+
+    # Data points for Power Curve Training Disribution
+    TD_df_L90D = pd.read_sql(
+        sql=app.session.query(
+            func.max(stravaBestSamples.mmp).label('mmp'), stravaBestSamples.activity_id, stravaBestSamples.ftp,
+            stravaBestSamples.interval, stravaBestSamples.time_interval,
+            stravaBestSamples.date, stravaBestSamples.timestamp_local, stravaBestSamples.watts_per_kg,
+        ).group_by(stravaBestSamples.interval).filter(stravaBestSamples.type.ilike('run'),
+                                                      stravaBestSamples.timestamp_local >= (
+                                                              datetime.now() - timedelta(days=90))
+                                                      ).statement, con=engine)
+
+    app.session.remove()
+
+    ### STRYD TRAINING DISTRIBUTION USES CURRENT WEIGHT WHEN CALCULATING W/KG ###
+    ### TRAINING DIST BARS WILL DO THE SAME TO BETTER ALIGN WITH PERCENTILES ###
+    ### ACTUAL DATA SHOWN IN POWER CURVE WILL BE BASED ON FTP AT THE TIME OF RECORDING FOR BETTER ACCURACY ###
+
+    # Make room on canvas for training dist bars
+    td = get_training_distribution()
+    data = [
+        # Fitness
+        go.Bar(
+            xaxis='x', yaxis='y', customdata=['ignore'], x=[100],
+            y=['Fitness'],
+            # width=.5,
+            marker=dict(color=light_blue),
+            showlegend=False,
+            text=[
+                'Fitness: <b>{:.2f}</b> W/kg<br>Stryd Avg: <b>{:.2f}</b> W/kg<br>Percentile: <b>{:.0%}'.format(
+                    td["attr"]["fitness"],  # Use value directly from stryd api call
+                    td["percentile"]["median_fitness"],
+                    td["percentile"]["fitness"])
+            ],
+            hoverinfo='text',
+            orientation='h'),
+
+        # Muscle Power
+        go.Bar(
+            xaxis='x', yaxis='y', customdata=['ignore'], x=[100],
+            y=['Muscle Power'],
+            # width=.5,
+            marker=dict(color=light_blue),
+            showlegend=False,
+            text=[
+                'Max 10 Sec Power: <b>{:.2f} </b>W/kg<br>Stryd Avg: <b>{:.2f}</b> W/kg<br>Percentile: <b>{:.0%}'.format(
+                    td["attr"]["muscle_power"],  # Use value directly from stryd api call
+                    td["percentile"]["median_muscle_power"],
+                    td["percentile"]["muscle_power"]),
+            ],
+            hoverinfo='text',
+            orientation='h'),
+
+        # Fatigue Resistance
+        go.Bar(
+            xaxis='x', yaxis='y', customdata=['ignore'], x=[100],
+            y=['Fatigue'],
+            # width=.5,
+            marker=dict(color=light_blue),
+            showlegend=False,
+            text=[
+                'Longest 100% CP: <b>{}</b> <br>Stryd Avg: <b>{}</b><br>Percentile: <b>{:.0%}'.format(
+                    timedelta(seconds=int(td["attr"]["fatigue_resistance"])),  # Use value directly from stryd api call
+                    timedelta(seconds=int(td["percentile"]["median_fatigue_resistance"])),
+                    td["percentile"]["fatigue_resistance"]),
+            ],
+            hoverinfo='text',
+            orientation='h'),
+        # Endurance
+        go.Bar(
+            xaxis='x', yaxis='y', customdata=['ignore'], x=[100],
+            y=['Endurance'],
+            # width=.5,
+            marker=dict(color=light_blue),
+            showlegend=False,
+            text=[
+                'Longest 50% CP: <b>{}</b> <br>Stryd Avg: <b>{}</b><br>Percentile: <b>{:.0%}'.format(
+                    timedelta(seconds=int(td["attr"]["endurance"])),  # Use value directly from stryd api call
+                    timedelta(seconds=int(td["percentile"]["median_endurance"])),
+                    td["percentile"]["endurance"])
+            ],
+            hoverinfo='text',
+            orientation='h'),
+    ]
+
+    shapes = [
+        # Training distribution charts lines
+        (dict(type='line', xref='x', yref='y', x0=50, x1=50, y0=0.05, y1=.35,
+              line=dict(color=white, width=1, dash="dot", ), ),
+         dict(type='line', xref='x', yref='y', x0=td['percentile']['fitness'] * 100,
+              x1=td['percentile']['fitness'] * 100, y0=0, y1=.4,
+              line=dict(color=white, width=2, ), )
+         ),
+
+        (dict(type='line', xref='x', yref='y', x0=50, x1=50, y0=0.05, y1=.35,
+              line=dict(color=white, width=1, dash="dot", ), ),
+         dict(type='line', xref='x', yref='y', x0=td['percentile']['muscle_power'] * 100,
+              x1=td['percentile']['muscle_power'] * 100, y0=0, y1=.4,
+              line=dict(color=white, width=2, ), )),
+
+        (dict(type='line', xref='x', yref='y', x0=50, x1=50, y0=0.05, y1=.35,
+              line=dict(color=white, width=1, dash="dot", ), ),
+         dict(type='line', xref='x', yref='y', x0=td['percentile']['fatigue_resistance'] * 100,
+              x1=td['percentile']['fatigue_resistance'] * 100, y0=0, y1=.4,
+              line=dict(color=white, width=2, ), )),
+
+        (dict(type='line', xref='x', yref='y', x0=50, x1=50, y0=0.05, y1=.35,
+              line=dict(color=white, width=1, dash="dot", ), ),
+
+         dict(type='line', xref='x', yref='y', x0=td['percentile']['endurance'] * 100,
+              x1=td['percentile']['endurance'] * 100, y0=0, y1=.4,
+              line=dict(color=white, width=2)
+              ))
+    ]
+    annotations = [
+        go.layout.Annotation(
+            font={'size': 12, 'color': white}, x=50, y=.7, xref="x", yref="y",
+            text='Fitness: {:.0f} W'.format(current_ftp_w),
+            showarrow=False,
+        ),
+
+        go.layout.Annotation(
+            font={'size': 12, 'color': white}, x=50, y=.7, xref="x", yref="y",
+            text='Muscle Power: {:.0f} W'.format(TD_df_L90D.loc[10]['mmp']),
+            showarrow=False,
+        ),
+
+        go.layout.Annotation(
+            font={'size': 12, 'color': white}, x=50, y=.7, xref="x", yref="y",
+            text='Fatigue Resistance: {}'.format(timedelta(seconds=int(td["attr"]["fatigue_resistance"]))),
+
+            showarrow=False,
+        ),
+        go.layout.Annotation(
+            font={'size': 12, 'color': white}, x=50, y=.7, xref="x", yref="y",
+            text='Endurance: {}'.format(timedelta(seconds=int(td["attr"]["endurance"]))),
+            showarrow=False,
+        ),
+
+    ]
+    layouts = []
+    for i in range(4):
+        layouts.append(
+            go.Layout(
+                font=dict(size=10, color=white),
+                shapes=[shapes[i][0], shapes[i][1]],
+                annotations=[annotations[i]],
+                height=100,
+                xaxis=dict(showgrid=False, showline=False, zeroline=False, showticklabels=False, range=[0, 100]),
+                margin={'l': 0, 'b': 20, 't': 0, 'r': 0},
+                showlegend=False,
+                autosize=True,
+                hovermode='x',
+                yaxis=dict(showgrid=False, showline=False, zeroline=False, showticklabels=False, range=[0, 1]),
+            )
+        )
+
+    graphs = []
+    for i in range(4):
+        graphs.append(
+            html.Div(className='col-lg-12', style={'paddingRight': 0, 'paddingLeft': 0}, children=[
+                dcc.Graph(
+                    config={
+                        'displayModeBar': False
+                    },
+                    style={'height': '100%'},
+                    figure={
+                        'data': [data[i]],
+                        'layout': layouts[i]}
+                )
+            ])
+        )
+
+    return graphs
+
+
 def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend=True, strydmetrics=True):
     # TODO: Add power cuvrve model once sweatpy has been finished
     # https://sweatpy.gssns.io/features/Power%20duration%20modelling/#comparison-of-power-duration-models
@@ -188,8 +367,6 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
                                                               datetime.now() - timedelta(days=90))
                                                       ).statement, con=engine)
 
-    current_ftp_w = app.session.query(stravaSummary).filter(stravaSummary.type.ilike(activity_type)).order_by(
-        stravaSummary.start_date_utc.desc()).first().ftp
     td_data_exists = len(TD_df_L90D) > 0
     # If training distribution data exists
     if td_data_exists:
@@ -544,198 +721,43 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
         )
     ] if td_data_exists else []
 
-    if stryd_credentials_supplied and strydmetrics and td_data_exists:
-        ### STRYD TRAINING DISTRIBUTION USES CURRENT WEIGHT WHEN CALCULATING W/KG ###
-        ### TRAINING DIST BARS WILL DO THE SAME TO BETTER ALIGN WITH PERCENTILES ###
-        ### ACTUAL DATA SHOWN IN POWER CURVE WILL BE BASED ON FTP AT THE TIME OF RECORDING FOR BETTER ACCURACY ###
+    layout = go.Layout(
+        # transition=dict(duration=transition),
+        font=dict(
+            size=10,
+            color=white
+        ),
+        height=400,
+        shapes=shapes,
+        annotations=annotations,
+        xaxis=dict(
+            showgrid=False,
+            # tickformat="%H:%M:%S",
+            # range=[best_interval_df.index.min(),best_interval_df.index.max()],
+            # range=[np.log10(best_interval_df.index.min()), np.log10(best_interval_df.index.max())],
+            type='log',
 
-        # Make room on canvas for training dist bars
-        td = get_training_distribution()
-        data.extend([
-            # Fitness
-            go.Bar(
-                xaxis='x2', yaxis='y2', customdata=['ignore'], x=[100], y=[''], width=[2],
-                marker=dict(color=light_blue),
-                showlegend=False,
-                text='Fitness: <b>{:.2f}</b> W/kg<br>Stryd Avg: <b>{:.2f}</b> W/kg<br>Percentile: <b>{:.0%}'.format(
-                    td["attr"]["fitness"],  # Use value directly from stryd api call
-                    td["percentile"]["median_fitness"],
-                    td["percentile"]["fitness"]),
-                hoverinfo='text', orientation='h'),
+            tickvals=[1, 2, 5, 10, 30, 60, 120, 5 * 60, 10 * 60, 20 * 60, 60 * 60, 60 * 90],
+            ticktext=['1s', '2s', '5s', '10s', '30s', '1m', '2m', '5m', '10m', '20m', '60m',
+                      '90m'],
+        ),
 
-            # Muscle Power
-            go.Bar(
-                xaxis='x3', yaxis='y2', customdata=['ignore'], x=[100], y=[''], width=[2],
-                marker=dict(color=light_blue),
-                showlegend=False,
-                text='Max 10 Sec Power: <b>{:.2f} </b>W/kg<br>Stryd Avg: <b>{:.2f}</b> W/kg<br>Percentile: <b>{:.0%}'.format(
-                    td["attr"]["muscle_power"],  # Use value directly from stryd api call
-                    td["percentile"]["median_muscle_power"],
-                    td["percentile"]["muscle_power"]),
-                hoverinfo='text', orientation='h'),
+        yaxis=dict(
+            showgrid=True,
+            zeroline=False,
+            # range=[best_interval_df['mmp'].min(), best_interval_df['mmp'].max()],
+            gridcolor='rgb(73, 73, 73)'
+        ),
+        margin={'l': 40, 'b': 25, 't': 5, 'r': 40},
+        showlegend=showlegend,
+        legend={'x': .5, 'y': 1, 'xanchor': 'center', 'orientation': 'h',
+                'traceorder': 'normal', 'bgcolor': 'rgba(127, 127, 127, 0)'},
+        autosize=True,
+        hovermode='x',
+        # paper_bgcolor='rgb(66,66,66)',
+        # plot_bgcolor='rgba(0,0,0,0)',
 
-            # Fatigue Resistance
-            go.Bar(
-                xaxis='x4', yaxis='y2', customdata=['ignore'], x=[100], y=[''], width=[2],
-                marker=dict(color=light_blue),
-                showlegend=False,
-                text='Longest 100% CP: <b>{}</b> <br>Stryd Avg: <b>{}</b><br>Percentile: <b>{:.0%}'.format(
-                    timedelta(seconds=int(td["attr"]["fatigue_resistance"])),  # Use value directly from stryd api call
-                    timedelta(seconds=int(td["percentile"]["median_fatigue_resistance"])),
-                    td["percentile"]["fatigue_resistance"]),
-                hoverinfo='text', orientation='h'),
-
-            # Endurance
-            go.Bar(
-                xaxis='x5', yaxis='y2', customdata=['ignore'], x=[100], y=[''], width=[2],
-                marker=dict(color=light_blue),
-                showlegend=False,
-                text='Longest 50% CP: <b>{}</b> <br>Stryd Avg: <b>{}</b><br>Percentile: <b>{:.0%}'.format(
-                    timedelta(seconds=int(td["attr"]["endurance"])),  # Use value directly from stryd api call
-                    timedelta(seconds=int(td["percentile"]["median_endurance"])),
-                    td["percentile"]["endurance"]),
-                hoverinfo='text', orientation='h'),
-        ])
-
-        shapes.extend([
-            # Training distribution charts lines
-            dict(type='line', xref='x2', yref='y2', x0=50, x1=50, y0=0, y1=.8,
-                 line=dict(color=white, width=1, dash="dot", ), ),
-            dict(type='line', xref='x2', yref='y2', x0=td['percentile']['fitness'] * 100,
-                 x1=td['percentile']['fitness'] * 100, y0=-1, y1=1,
-                 line=dict(color=white, width=2, ), ),
-
-            dict(type='line', xref='x3', yref='y2', x0=50, x1=50, y0=0, y1=.8,
-                 line=dict(color=white, width=1, dash="dot", ), ),
-            dict(type='line', xref='x3', yref='y2', x0=td['percentile']['muscle_power'] * 100,
-                 x1=td['percentile']['muscle_power'] * 100, y0=-1, y1=1,
-                 line=dict(color=white, width=2, ), ),
-
-            dict(type='line', xref='x4', yref='y2', x0=50, x1=50, y0=0, y1=.8,
-                 line=dict(color=white, width=1, dash="dot", ), ),
-            dict(type='line', xref='x4', yref='y2', x0=td['percentile']['fatigue_resistance'] * 100,
-                 x1=td['percentile']['fatigue_resistance'] * 100, y0=-1, y1=1,
-                 line=dict(color=white, width=2, ), ),
-
-            dict(type='line', xref='x5', yref='y2', x0=50, x1=50, y0=0, y1=.8,
-                 line=dict(color=white, width=1, dash="dot", ), ),
-
-            dict(type='line', xref='x5', yref='y2', x0=td['percentile']['endurance'] * 100,
-                 x1=td['percentile']['endurance'] * 100, y0=-1, y1=1,
-                 line=dict(color=white, width=2)
-                 )
-        ])
-        annotations.extend([
-            go.layout.Annotation(
-                font={'size': 12, 'color': white}, x=50, y=1.2, xref="x2", yref="y2",
-                text='Fitness: {:.0f} W'.format(current_ftp_w),
-                showarrow=False,
-            ),
-
-            go.layout.Annotation(
-                font={'size': 12, 'color': white}, x=50, y=1.2, xref="x3", yref="y2",
-                text='Muscle Power: {:.0f} W'.format(TD_df_L90D.loc[10]['mmp']),
-                showarrow=False,
-            ),
-
-            go.layout.Annotation(
-                font={'size': 12, 'color': white}, x=50, y=1.2, xref="x4", yref="y2",
-                text='Fatigue Resistance: {}'.format(timedelta(seconds=int(td["attr"]["fatigue_resistance"]))),
-
-                showarrow=False,
-            ),
-            go.layout.Annotation(
-                font={'size': 12, 'color': white}, x=50, y=1.2, xref="x5", yref="y2",
-                text='Endurance: {}'.format(timedelta(seconds=int(td["attr"]["endurance"]))),
-                showarrow=False,
-            ),
-
-        ])
-
-        layout = go.Layout(
-            # transition=dict(duration=transition),
-            font=dict(
-                size=10,
-                color=white
-            ),
-            shapes=shapes,
-            annotations=annotations,
-            height=400,
-            xaxis=dict(
-                showgrid=False,
-                # tickformat="%H:%M:%S",
-                # range=[best_interval_df.index.min(),best_interval_df.index.max()],
-                # range=[np.log10(best_interval_df.index.min()), np.log10(best_interval_df.index.max())],
-                type='log',
-                # tickangle=0,
-                tickvals=[1, 2, 5, 10, 30, 60, 120, 5 * 60, 10 * 60, 20 * 60, 60 * 60, 60 * 120],
-                ticktext=['1s', '2s', '5s', '10s', '30s', '1m', '2m', '5m', '10m', '20m', '60m', '120m'],
-            ),
-            yaxis=dict(
-                domain=[0, .9],
-                showgrid=True,
-                zeroline=False,
-                # range=[best_interval_df['mmp'].min(), best_interval_df['mmp'].max()],
-                gridcolor='rgb(73, 73, 73)'
-            ),
-            margin={'l': 40, 'b': 25, 't': 5, 'r': 40},
-            showlegend=showlegend,
-            legend={'x': .5, 'y': 1, 'xanchor': 'center', 'orientation': 'h',
-                    'traceorder': 'normal', 'bgcolor': 'rgba(127, 127, 127, 0)'},
-            autosize=True,
-            hovermode='x',
-            # paper_bgcolor='rgb(66,66,66)',
-            # plot_bgcolor='rgba(0,0,0,0)',
-            # TD Fitness
-            xaxis2=dict(domain=[.01, .24], showgrid=False, zeroline=False, showticklabels=False, range=[0, 100], ),
-            # Muscle Power
-            xaxis3=dict(domain=[.26, .49], showgrid=False, zeroline=False, showticklabels=False, range=[0, 100], ),
-            # Fatigue Resistance
-            xaxis4=dict(domain=[.51, .74], showgrid=False, zeroline=False, showticklabels=False, range=[0, 100], ),
-            # Endurance
-            xaxis5=dict(domain=[.76, .99], showgrid=False, zeroline=False, showticklabels=False, range=[0, 100], ),
-
-            yaxis2=dict(domain=[.9, 1], range=[-.2, 1.2], showgrid=False, showticklabels=False,
-                        gridcolor='rgb(255, 255, 255)'),
-        )
-    else:
-        layout = go.Layout(
-            # transition=dict(duration=transition),
-            font=dict(
-                size=10,
-                color=white
-            ),
-            height=400,
-            shapes=shapes,
-            annotations=annotations,
-            xaxis=dict(
-                showgrid=False,
-                # tickformat="%H:%M:%S",
-                # range=[best_interval_df.index.min(),best_interval_df.index.max()],
-                # range=[np.log10(best_interval_df.index.min()), np.log10(best_interval_df.index.max())],
-                type='log',
-
-                tickvals=[1, 2, 5, 10, 30, 60, 120, 5 * 60, 10 * 60, 20 * 60, 60 * 60, 60 * 90],
-                ticktext=['1s', '2s', '5s', '10s', '30s', '1m', '2m', '5m', '10m', '20m', '60m',
-                          '90m'],
-            ),
-
-            yaxis=dict(
-                showgrid=True,
-                zeroline=False,
-                # range=[best_interval_df['mmp'].min(), best_interval_df['mmp'].max()],
-                gridcolor='rgb(73, 73, 73)'
-            ),
-            margin={'l': 40, 'b': 25, 't': 5, 'r': 40},
-            showlegend=showlegend,
-            legend={'x': .5, 'y': 1, 'xanchor': 'center', 'orientation': 'h',
-                    'traceorder': 'normal', 'bgcolor': 'rgba(127, 127, 127, 0)'},
-            autosize=True,
-            hovermode='x',
-            # paper_bgcolor='rgb(66,66,66)',
-            # plot_bgcolor='rgba(0,0,0,0)',
-
-        )
+    )
 
     figure = {
         'data': data,
@@ -979,16 +1001,26 @@ def zone_chart(activity_id=None, sport='Run', metrics=['power_zone', 'hr_zone'],
 
 
 @app.callback(
-    [Output('power-curve-chart', 'figure'),
-     Output('power-curve-chart', 'hoverData')],
+    [Output('power-curve-container', 'className'),
+     Output('power-curve-chart', 'figure'),
+     Output('power-curve-chart', 'hoverData'),
+     Output('stryd-distributions', 'children')],
     [Input('activity-type-toggle', 'value'),
      Input('power-unit-toggle', 'value')]
 )
 def update_power_curve(activity_type, power_unit):
     power_unit = 'watts_per_kg' if power_unit else 'mmp'
     activity_type = 'ride' if activity_type else 'run'
+
+    if stryd_credentials_supplied and activity_type == 'run':
+        classname = 'col-lg-9'
+        stryd = stryd_training_distributions()
+    else:
+        classname = 'col-lg-12'
+        stryd = []
+
     figure, hoverData = power_curve(activity_type, power_unit, strydmetrics=False if activity_type == 'ride' else True)
-    return figure, hoverData
+    return classname, figure, hoverData, stryd
 
 
 # # Callbacks to figure out which is the latest chart that was clicked
@@ -1285,8 +1317,15 @@ def get_layout(**kwargs):
                                                 children=[html.H4('Power Duration Curve', className='mb-0')]),
                                  dbc.Spinner(color='info', children=[
                                      dbc.CardBody(
-                                         dcc.Graph(id='power-curve-chart', config={'displayModeBar': False},
-                                                   style={'height': '100%'}))
+                                         html.Div(className='row', children=[
+                                             html.Div(id='power-curve-container', className='col-lg-9', children=[
+                                                 dcc.Graph(id='power-curve-chart', config={'displayModeBar': False},
+                                                           style={'height': '100%'})
+                                             ]),
+                                             html.Div(id='stryd-distributions', className='col-lg-3', style={'paddingLeft': 0}),
+                                         ]),
+
+                                     )
                                  ]),
                              ]),
                          ]),
