@@ -908,7 +908,8 @@ def zone_chart(activity_id=None, sport='Run', metrics=['power_zone', 'hr_zone'],
                 percentage * 100) + '%'
             for seconds, percentage in zip(list(zone_df['seconds']), list(zone_df['Percent of Total']))]
 
-        zone_df = zone_df.sort_index(ascending=False)
+        zone_df = zone_df.sort_values(by=metric, ascending=False)
+
         if metric == 'hr_zone':
             colors = [
                 'rgb(174, 18, 58)',
@@ -981,7 +982,8 @@ def zone_chart(activity_id=None, sport='Run', metrics=['power_zone', 'hr_zone'],
                 yaxis=dict(
                     autorange='reversed',
                     showgrid=False,
-
+                    categoryarray=['Zone 5', 'Zone 4', 'Zone 3', 'Zone 2', 'Zone 1'] if sport == 'run' else [
+                        'Zone 7', 'Zone 6', 'Zone 5', 'Zone 4', 'Zone 3', 'Zone 2', 'Zone 1'],
                 ),
                 showlegend=True,
                 hovermode='closest',
