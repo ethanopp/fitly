@@ -212,7 +212,8 @@ class FitlyActivity(stravalib.model.Activity):
                 # If we match a strava workout to stryd workout, insert strava activity id into stryd table
                 if len(self.stryd_metrics) > 0:
                     stryd_workout = app.session.query(strydSummary).filter(
-                        strydSummary.start_date_local == pd.to_datetime(self.stryd_metrics['start_date_local'].values[0]))
+                        strydSummary.start_date_local == pd.to_datetime(
+                            self.stryd_metrics['start_date_local'].values[0]))
                     stryd_workout.update({'strava_activity_id': self.id})
                     app.session.commit()
                     app.session.remove()
@@ -484,18 +485,21 @@ class FitlyActivity(stravalib.model.Activity):
 
             try:
                 # Convert celcius to farenheit
-                self.df_samples['temp'] = unithelper.c2f(self.df_samples['temp'])
+                self.df_samples['temp'] = (self.df_samples['temp'] * (9 / 5)) + 32
             except:
                 pass
 
             try:
                 # Convert meter per second to mph
-                self.df_samples['velocity_smooth'] = unithelper.mph(self.df_samples['velocity_smooth']).num
-            except:
+                # self.df_samples['velocity_smooth'] = unithelper.mph(self.df_samples['velocity_smooth']).num
+                self.df_samples['velocity_smooth'] = self.df_samples['velocity_smooth'] * 2.23694
+            except BaseException as e:
                 pass
+
             try:
                 # Convert meters to feet
-                self.df_samples['distance'] = unithelper.feet(self.df_samples['distance']).num
+                # self.df_samples['distance'] = unithelper.feet(self.df_samples['distance']).num
+                self.df_samples['distance'] = self.df_samples['distance'] * 3.28084
             except:
                 pass
 
