@@ -909,6 +909,10 @@ def zone_chart(activity_id=None, sport='Run', metrics=['power_zone', 'hr_zone'],
                 percentage * 100) + '%'
             for seconds, percentage in zip(list(zone_df['seconds']), list(zone_df['Percent of Total']))]
 
+        per_low = zone_df[zone_df[metric].isin(
+            ['Zone 1', 'Zone 2', 'Zone 3'] if sport == 'Ride' and metric == 'power_zone' else ['Zone 1', 'Zone 2'])][
+            'Percent of Total'].sum()
+
         if metric == 'hr_zone':
             colors = [
                 'rgb(174, 18, 58)',
@@ -932,7 +936,8 @@ def zone_chart(activity_id=None, sport='Run', metrics=['power_zone', 'hr_zone'],
 
         data.append(
             go.Bar(
-                name='HR' if metric == 'hr_zone' else 'Power',
+                name='HR ({:.0f}% Low)'.format(per_low * 100) if metric == 'hr_zone' else 'Power ({:.0f}% Low)'.format(
+                    per_low * 100),
                 y=zone_df[metric],
                 x=zone_df['Percent of Total'],
                 orientation='h',
