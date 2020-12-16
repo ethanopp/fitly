@@ -1618,10 +1618,11 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
     # Merge pmd into ATL df
     pmd = pmd.merge(atl_df, how='right', right_index=True, left_index=True)
 
-    pmd['l6w_low_intensity'] = pmd['low_intensity_seconds'].rolling(42).sum()
-    pmd['l6w_high_intensity'] = (pmd['med_intensity_seconds'] + pmd['high_intensity_seconds']).rolling(42).sum()
-    pmd['l6w_percent_high_intensity'] = pmd['l6w_high_intensity'] / (
-            pmd['l6w_high_intensity'] + pmd['l6w_low_intensity'])
+    pmd['l90d_low_intensity'] = pmd['low_intensity_seconds'].rolling(90).sum()
+    pmd['l90d_high_intensity'] = (pmd['med_intensity_seconds'] + pmd['high_intensity_seconds']).rolling(90).sum()
+
+    pmd['l90d_percent_high_intensity'] = pmd['l90d_high_intensity'] / (
+                pmd['l90d_high_intensity'] + pmd['l90d_low_intensity'])
 
     pmd['TSB'] = pmd['CTL'].shift(1) - pmd['ATL'].shift(1)
     pmd['Ramp_Rate'] = pmd['CTL'] - pmd['CTL'].shift(7)
@@ -1784,15 +1785,15 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
             go.Scatter(
                 name='High Intensity',
                 x=actual.index,
-                y=actual['l6w_percent_high_intensity'],
+                y=actual['l90d_percent_high_intensity'],
                 mode='markers',
                 yaxis='y4',
-                text=['L6W % High Intensity:<b> {:.0f}%'.format(x * 100) for x in
-                      actual['l6w_percent_high_intensity']],
+                text=['L90D % High Intensity:<b> {:.0f}%'.format(x * 100) for x in
+                      actual['l90d_percent_high_intensity']],
                 hoverinfo='text',
                 marker=dict(
                     color=['rgba(250, 47, 76,.7)' if actual.at[
-                                                         i, 'l6w_percent_high_intensity'] > .2 else light_blue
+                                                         i, 'l90d_percent_high_intensity'] > .2 else light_blue
                            for i in actual.index],
                 )
 
