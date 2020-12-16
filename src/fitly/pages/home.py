@@ -1533,6 +1533,7 @@ def generate_sleep_modal_summary(days=7):
                                            yaxis=dict(
                                                showticklabels=True,
                                                showgrid=True,
+                                               gridcolor='rgb(66,66,66)',
                                                color=white,
                                                tickformat=',d',
                                            ),
@@ -1573,6 +1574,7 @@ def generate_sleep_modal_summary(days=7):
                                                  yaxis=dict(
                                                      showticklabels=True,
                                                      showgrid=True,
+                                                     gridcolor='rgb(66,66,66)',
                                                      color=white,
                                                      tickformat=',d',
                                                  ),
@@ -1620,6 +1622,7 @@ def generate_sleep_modal_summary(days=7):
                                              yaxis=dict(
                                                  showticklabels=True,
                                                  showgrid=True,
+                                                 gridcolor='rgb(66,66,66)',
                                                  color=white,
                                                  tickformat='%I:%M%p',
                                              ),
@@ -2134,6 +2137,7 @@ def generate_readiness_modal_summary(days=7):
                                                yaxis=dict(
                                                    showticklabels=True,
                                                    showgrid=True,
+                                                   gridcolor='rgb(66,66,66)',
                                                    color=white,
                                                    tickformat=',d',
                                                ),
@@ -2165,9 +2169,9 @@ def generate_readiness_modal_summary(days=7):
                                              yaxis='y',
                                              hoverinfo='none',
                                              mode='lines',
-                                             line={'dash': 'dot',
+                                             line={
                                                    'color': teal,
-                                                   'width': 1},
+                                                   'width': 2},
                                              showlegend=False,
                                          ),
                                          go.Scatter(
@@ -2209,6 +2213,7 @@ def generate_readiness_modal_summary(days=7):
                                          yaxis=dict(
                                              showticklabels=True,
                                              showgrid=True,
+                                             gridcolor='rgb(66,66,66)',
                                              color=white,
                                              tickformat=',d',
                                          ),
@@ -2243,9 +2248,9 @@ def generate_readiness_modal_summary(days=7):
                                              yaxis='y',
                                              hoverinfo='none',
                                              mode='lines',
-                                             line={'dash': 'dot',
+                                             line={
                                                    'color': white,
-                                                   'width': 1},
+                                                   'width': 2},
                                              showlegend=False,
                                          ),
                                          go.Scatter(
@@ -2287,6 +2292,7 @@ def generate_readiness_modal_summary(days=7):
                                          yaxis=dict(
                                              showticklabels=True,
                                              showgrid=True,
+                                             gridcolor='rgb(66,66,66)',
                                              color=white,
                                              tickformat=',d',
                                          ),
@@ -2698,6 +2704,7 @@ def generate_activity_modal_summary(days=7):
                                               yaxis=dict(
                                                   showticklabels=True,
                                                   showgrid=True,
+                                                  gridcolor='rgb(66,66,66)',
                                                   color=white,
                                                   tickformat=',d',
                                               ),
@@ -2735,6 +2742,7 @@ def generate_activity_modal_summary(days=7):
                                                      yaxis=dict(
                                                          showticklabels=True,
                                                          showgrid=True,
+                                                         gridcolor='rgb(66,66,66)',
                                                          color=white,
                                                          tickformat='%',
                                                      ),
@@ -2771,6 +2779,7 @@ def generate_activity_modal_summary(days=7):
                                               yaxis=dict(
                                                   showticklabels=True,
                                                   showgrid=True,
+                                                  gridcolor='rgb(66,66,66)',
                                                   color=white,
                                                   tickformat=',d',
                                               ),
