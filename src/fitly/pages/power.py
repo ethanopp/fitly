@@ -902,13 +902,12 @@ def zone_chart(activity_id=None, sport='Run', metrics=['power_zone', 'hr_zone'],
                     6: 'Zone 6', 7: 'Zone 7'}
 
         zone_df[metric] = zone_df[metric].map(zone_map)
+        zone_df = zone_df.sort_values(by=metric, ascending=False)
 
         label = [
             'Time: ' + '<b>{}</b>'.format(timedelta(seconds=seconds)) + '<br>' + '% of Total: ' + '<b>{0:.0f}'.format(
                 percentage * 100) + '%'
             for seconds, percentage in zip(list(zone_df['seconds']), list(zone_df['Percent of Total']))]
-
-        zone_df = zone_df.sort_values(by=metric, ascending=False)
 
         if metric == 'hr_zone':
             colors = [

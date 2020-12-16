@@ -2541,7 +2541,7 @@ def calculate_splits(df_samples):
     if np.isnan(df_samples['distance'].max()):
         return None
     else:
-        df_samples['miles'] = df_samples['distance'] * 0.000621371
+        df_samples['miles'] = df_samples['distance'] * 0.000189394
         df_samples['mile_marker'] = df_samples['miles'].apply(np.floor)
         df_samples['mile_marker_previous'] = df_samples['mile_marker'].shift(1)
 

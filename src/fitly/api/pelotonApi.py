@@ -734,7 +734,7 @@ def get_schedule(fitness_discipline, class_names=['all'], taken_class_ids=[], li
 def get_peloton_class_names():
     """ Returns dict of class types """
 
-    peloton_class_names_file = 'peloton_class_dict.json'
+    peloton_class_names_file = os.path.join(os.path.join(os.getcwd(), 'config'), 'peloton_class_dict.json')
 
     # If file exists, read it's last refresh time
     if os.path.isfile(peloton_class_names_file):
