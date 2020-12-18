@@ -145,7 +145,7 @@ def get_layout(**kwargs):
                       ]),
 
                       dbc.ModalFooter(
-                          dbc.Button("Close", id="close-activity-modal-button", color='primary', n_clicks=0)
+                          dbc.Button("Close", id="close-activity-modal-button", size='sm', color='primary', n_clicks=0)
                       ),
                   ]),
         html.Div(className='row align-items-start text-center mt-2 mb-2', children=[
@@ -1622,7 +1622,7 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
     pmd['l90d_high_intensity'] = (pmd['med_intensity_seconds'] + pmd['high_intensity_seconds']).rolling(90).sum()
 
     pmd['l90d_percent_high_intensity'] = pmd['l90d_high_intensity'] / (
-                pmd['l90d_high_intensity'] + pmd['l90d_low_intensity'])
+            pmd['l90d_high_intensity'] + pmd['l90d_low_intensity'])
 
     pmd['TSB'] = pmd['CTL'].shift(1) - pmd['ATL'].shift(1)
     pmd['Ramp_Rate'] = pmd['CTL'] - pmd['CTL'].shift(7)

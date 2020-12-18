@@ -2170,8 +2170,8 @@ def generate_readiness_modal_summary(days=7):
                                              hoverinfo='none',
                                              mode='lines',
                                              line={
-                                                   'color': teal,
-                                                   'width': 2},
+                                                 'color': teal,
+                                                 'width': 2},
                                              showlegend=False,
                                          ),
                                          go.Scatter(
@@ -2249,8 +2249,8 @@ def generate_readiness_modal_summary(days=7):
                                              hoverinfo='none',
                                              mode='lines',
                                              line={
-                                                   'color': white,
-                                                   'width': 2},
+                                                 'color': white,
+                                                 'width': 2},
                                              showlegend=False,
                                          ),
                                          go.Scatter(
@@ -3373,8 +3373,8 @@ def get_layout(**kwargs):
                               dbc.ModalHeader("Sleep Summary"),
                               dbc.ModalBody(id="oura-sleep-summary-modal-body"),
                               dbc.ModalFooter(
-                                  dbc.Button("Close", id="close-sleep-summary-modal-button", className="ml-auto",
-                                             n_clicks=0)
+                                  dbc.Button("Close", id="close-sleep-summary-modal-button", size='sm', color='primary',
+                                             className="ml-auto", n_clicks=0)
                               ),
                           ]),
 
@@ -3384,8 +3384,8 @@ def get_layout(**kwargs):
                               dbc.ModalHeader("Readiness Summary"),
                               dbc.ModalBody(html.Div(id="oura-readiness-summary-modal-body")),
                               dbc.ModalFooter(
-                                  dbc.Button("Close", id="close-readiness-summary-modal-button", className="ml-auto",
-                                             n_clicks=0)
+                                  dbc.Button("Close", id="close-readiness-summary-modal-button", size='sm',
+                                             color='primary', className="ml-auto", n_clicks=0)
                               ),
                           ]),
 
@@ -3395,8 +3395,8 @@ def get_layout(**kwargs):
                               dbc.ModalHeader("Activity Summary"),
                               dbc.ModalBody(html.Div(id="oura-activity-summary-modal-body")),
                               dbc.ModalFooter(
-                                  dbc.Button("Close", id="close-activity-summary-modal-button", className="ml-auto",
-                                             n_clicks=0)
+                                  dbc.Button("Close", id="close-activity-summary-modal-button", size='sm',
+                                             color='primary', className="ml-auto", n_clicks=0)
                               ),
                           ]),
 
