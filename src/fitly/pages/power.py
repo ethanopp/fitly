@@ -342,8 +342,8 @@ def stryd_training_distributions():
     return graphs
 
 
-def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend=True, strydmetrics=True):
-    # TODO: Add power cuvrve model once sweatpy has been finished
+def power_curve(activity_type='ride', power_unit='mmp', last_id=None, height=400, time_comparison=None):
+    # TODO: Add power curve model once sweatpy has been finished
     # https://sweatpy.gssns.io/features/Power%20duration%20modelling/#comparison-of-power-duration-models
     activity_type = '%' + activity_type + '%'
 
@@ -367,7 +367,8 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
                                                               datetime.now() - timedelta(days=90))
                                                       ).statement, con=engine)
 
-    td_data_exists = len(TD_df_L90D) > 0
+    # Don't show TD date when plotting a small chart ( <400 height)
+    td_data_exists = len(TD_df_L90D) > 0 and height >= 400
     # If training distribution data exists
     if td_data_exists:
         TD_df_L90D['act_name'] = TD_df_L90D['activity_id'].map(act_dict['act_name'])
@@ -453,12 +454,6 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
                                                       ).statement, con=engine, index_col='interval')
     L6W_best_interval_df['act_name'] = L6W_best_interval_df['activity_id'].map(act_dict['act_name'])
 
-    # Pull max power from all intervals from latest workout
-
-    # if last_id is None:
-    #     last_id = app.session.query(stravaSummary.activity_id).filter(stravaSummary.type.ilike(activity_type)).order_by(
-    #         stravaSummary.start_date_utc.desc()).first()[0]
-
     L30D_best_interval_df = pd.read_sql(
         sql=app.session.query(
             func.max(stravaBestSamples.mmp).label('mmp'), stravaBestSamples.activity_id,
@@ -482,57 +477,71 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
                                                           ).statement, con=engine, index_col='interval')
         recent_best_interval_df['act_name'] = recent_best_interval_df['activity_id'].map(act_dict['act_name'])
 
-    first_workout_date = app.session.query(func.min(stravaSummary.start_date_utc)).first()[0]
+    if time_comparison:
+        time_comparison_best_interval_df = pd.read_sql(
+            sql=app.session.query(
+                func.max(stravaBestSamples.mmp).label('mmp'), stravaBestSamples.activity_id, stravaBestSamples.ftp,
+                stravaBestSamples.interval, stravaBestSamples.time_interval,
+                stravaBestSamples.date, stravaBestSamples.timestamp_local, stravaBestSamples.watts_per_kg,
+            ).group_by(stravaBestSamples.interval).filter(stravaBestSamples.interval.in_(interval_lengths),
+                                                          stravaBestSamples.type.ilike(activity_type),
+                                                          stravaBestSamples.timestamp_local >= (
+                                                                  datetime.now() - timedelta(days=time_comparison))
+                                                          ).statement, con=engine, index_col='interval')
+        time_comparison_best_interval_df['act_name'] = time_comparison_best_interval_df['activity_id'].map(
+            act_dict['act_name'])
 
     app.session.remove()
 
     if len(all_best_interval_df) < 1:
         return {}
 
-    hoverData = {'points': [
-        {'x': 60,
-         'y': ((all_best_interval_df.loc[60]['watts_per_kg']) if len(all_best_interval_df) > 0 else 0),
-         'customdata': 'x_x_at'},
-        {'y': ((L90D_best_interval_df.loc[60]['watts_per_kg']) if len(
-            L90D_best_interval_df) > 0 else 0), 'customdata': 'x_x_L90D'},
-        {'y': ((L6W_best_interval_df.loc[60]['watts_per_kg']) if len(
-            L6W_best_interval_df) > 0 else 0), 'customdata': 'x_x_l6w'},
-        {'y': ((L30D_best_interval_df.loc[60]['watts_per_kg']) if len(
-            L30D_best_interval_df) > 0 else 0), 'customdata': 'x_x_w'}
-    ]} if power_unit == 'watts_per_kg' else {'points': [
-        {'x': 60,
-         'y': (round(all_best_interval_df.loc[60]['mmp']) if len(all_best_interval_df) > 0 else 0),
-         'customdata': 'x_x_at'},
-        {'y': (round(L90D_best_interval_df.loc[60]['mmp']) if len(
-            L90D_best_interval_df) > 0 else 0), 'customdata': 'x_x_L90D'},
-        {'y': (round(L6W_best_interval_df.loc[60]['mmp']) if len(
-            L6W_best_interval_df) > 0 else 0), 'customdata': 'x_x_l6w'},
-        {'y': (round(L30D_best_interval_df.loc[60]['mmp']) if len(
-            L30D_best_interval_df) > 0 else 0), 'customdata': 'x_x_w'}
-    ]}
+    ## Initial hoverdata if showing KPIs in header
+    # hoverData = {'points': [
+    #     {'x': 60,
+    #      'y': ((all_best_interval_df.loc[60]['watts_per_kg']) if len(all_best_interval_df) > 0 else 0),
+    #      'customdata': 'x_x_at'},
+    #     {'y': ((L90D_best_interval_df.loc[60]['watts_per_kg']) if len(
+    #         L90D_best_interval_df) > 0 else 0), 'customdata': 'x_x_L90D'},
+    #     {'y': ((L6W_best_interval_df.loc[60]['watts_per_kg']) if len(
+    #         L6W_best_interval_df) > 0 else 0), 'customdata': 'x_x_l6w'},
+    #     {'y': ((L30D_best_interval_df.loc[60]['watts_per_kg']) if len(
+    #         L30D_best_interval_df) > 0 else 0), 'customdata': 'x_x_w'}
+    # ]} if power_unit == 'watts_per_kg' else {'points': [
+    #     {'x': 60,
+    #      'y': (round(all_best_interval_df.loc[60]['mmp']) if len(all_best_interval_df) > 0 else 0),
+    #      'customdata': 'x_x_at'},
+    #     {'y': (round(L90D_best_interval_df.loc[60]['mmp']) if len(
+    #         L90D_best_interval_df) > 0 else 0), 'customdata': 'x_x_L90D'},
+    #     {'y': (round(L6W_best_interval_df.loc[60]['mmp']) if len(
+    #         L6W_best_interval_df) > 0 else 0), 'customdata': 'x_x_l6w'},
+    #     {'y': (round(L30D_best_interval_df.loc[60]['mmp']) if len(
+    #         L30D_best_interval_df) > 0 else 0), 'customdata': 'x_x_w'}
+    # ]}
 
-    # We only want to show 1 line with all different colors, so loop through each df and remove points where not max
+    # On Main chart, we only want to show 1 line with all different colors, so loop through each df and remove points where not max
     # Replace all_time with l90D
-    for i in all_best_interval_df.index:
-        if i in L90D_best_interval_df.index:
-            if L90D_best_interval_df.at[i, power_unit] >= all_best_interval_df.at[i, power_unit]:
-                all_best_interval_df.at[i, power_unit] = None
-            else:
-                L90D_best_interval_df.at[i, power_unit] = None
-    # Replace L90D with L6W
-    for i in L90D_best_interval_df.index:
-        if i in L6W_best_interval_df.index:
-            if L6W_best_interval_df.at[i, power_unit] >= L90D_best_interval_df.at[i, power_unit]:
-                L90D_best_interval_df.at[i, power_unit] = None
-            else:
-                L6W_best_interval_df.at[i, power_unit] = None
-    # Replace L6W with L30D
-    for i in L6W_best_interval_df.index:
-        if i in L30D_best_interval_df.index:
-            if L30D_best_interval_df.at[i, power_unit] >= L6W_best_interval_df.at[i, power_unit]:
-                L6W_best_interval_df.at[i, power_unit] = None
-            else:
-                L30D_best_interval_df.at[i, power_unit] = None
+    if not time_comparison:
+        for i in all_best_interval_df.index:
+            if i in L90D_best_interval_df.index:
+                if L90D_best_interval_df.at[i, power_unit] >= all_best_interval_df.at[i, power_unit]:
+                    all_best_interval_df.at[i, power_unit] = None
+                else:
+                    L90D_best_interval_df.at[i, power_unit] = None
+        # Replace L90D with L6W
+        for i in L90D_best_interval_df.index:
+            if i in L6W_best_interval_df.index:
+                if L6W_best_interval_df.at[i, power_unit] >= L90D_best_interval_df.at[i, power_unit]:
+                    L90D_best_interval_df.at[i, power_unit] = None
+                else:
+                    L6W_best_interval_df.at[i, power_unit] = None
+        # Replace L6W with L30D
+        for i in L6W_best_interval_df.index:
+            if i in L30D_best_interval_df.index:
+                if L30D_best_interval_df.at[i, power_unit] >= L6W_best_interval_df.at[i, power_unit]:
+                    L6W_best_interval_df.at[i, power_unit] = None
+                else:
+                    L30D_best_interval_df.at[i, power_unit] = None
 
     tooltip = '''<b>{}</b><br>{}<br>{}<br>{:.2f} W/kg''' if power_unit == 'watts_per_kg' else '''<b>{}</b><br>{}<br>{}<br>{:.0f} W'''
     data = [
@@ -553,69 +562,96 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
                 '{}_{}_at'.format(all_best_interval_df.loc[x]['activity_id'], int(x))
                 for x in all_best_interval_df.index],  # add fields to text so data can go through clickData
             hoverinfo='text',
-            line={'shape': 'spline', 'color': dark_blue},
-        ),
-        go.Scatter(
-            name='L90D',
-            x=L90D_best_interval_df.index,
-            y=L90D_best_interval_df[power_unit],
-            mode='lines',
-            # text=['{:.0f}'.format(L90D_best_interval_df.loc[i]['mmp']) for i in
-            #       L90D_best_interval_df.index],
-            text=[
-                tooltip.format(
-                    timedelta(seconds=i),
-                    L90D_best_interval_df.loc[i]['act_name'],
-                    L90D_best_interval_df.loc[i].date,
-                    L90D_best_interval_df.loc[i][power_unit])
-                for i in L90D_best_interval_df.index],
-            customdata=[
-                '{}_{}_L90D'.format(L90D_best_interval_df.loc[x]['activity_id'], int(x))
-                for x in L90D_best_interval_df.index],
-            hoverinfo='text',
-            line={'shape': 'spline', 'color': white},
-        ),
-        go.Scatter(
-            name='L6W',
-            x=L6W_best_interval_df.index,
-            y=L6W_best_interval_df[power_unit],
-            mode='lines',
-            # text=['{:.0f}'.format(L90D_best_interval_df.loc[i]['mmp']) for i in
-            #       L90D_best_interval_df.index],
-            text=[
-                tooltip.format(
-                    timedelta(seconds=i),
-                    L6W_best_interval_df.loc[i]['act_name'],
-                    L6W_best_interval_df.loc[i].date,
-                    L6W_best_interval_df.loc[i][power_unit])
-                for i in L6W_best_interval_df.index],
-            customdata=[
-                '{}_{}_l6w'.format(L6W_best_interval_df.loc[x]['activity_id'], int(x))
-                for x in L6W_best_interval_df.index],
-            hoverinfo='text',
-            line={'shape': 'spline', 'color': light_blue},
-        ),
-        go.Scatter(
-            name='L30D',
-            x=L30D_best_interval_df.index,
-            y=L30D_best_interval_df[power_unit],
-            mode='lines',
-            # text=['{:.0f}'.format(L90D_best_interval_df.loc[i]['mmp']) for i in
-            #       L90D_best_interval_df.index],
-            text=[
-                tooltip.format(
-                    timedelta(seconds=i),
-                    L30D_best_interval_df.loc[i]['act_name'],
-                    L30D_best_interval_df.loc[i].date,
-                    L30D_best_interval_df.loc[i][power_unit])
-                for i in L30D_best_interval_df.index],
-            customdata=[
-                '{}_{}_w'.format(L30D_best_interval_df.loc[x]['activity_id'], int(x))
-                for x in L30D_best_interval_df.index],
-            hoverinfo='text',
-            line={'shape': 'spline', 'color': teal},
+            line={'shape': 'spline', 'color': 'rgba(220,220,220,.5)'}
         )
     ]
+    if not time_comparison:
+        data.extend([
+            go.Scatter(
+                name='L90D',
+                x=L90D_best_interval_df.index,
+                y=L90D_best_interval_df[power_unit],
+                mode='lines',
+                # text=['{:.0f}'.format(L90D_best_interval_df.loc[i]['mmp']) for i in
+                #       L90D_best_interval_df.index],
+                text=[
+                    tooltip.format(
+                        timedelta(seconds=i),
+                        L90D_best_interval_df.loc[i]['act_name'],
+                        L90D_best_interval_df.loc[i].date,
+                        L90D_best_interval_df.loc[i][power_unit])
+                    for i in L90D_best_interval_df.index],
+                customdata=[
+                    '{}_{}_L90D'.format(L90D_best_interval_df.loc[x]['activity_id'], int(x))
+                    for x in L90D_best_interval_df.index],
+                hoverinfo='text',
+                line={'shape': 'spline', 'color': white},
+            ),
+            go.Scatter(
+                name='L6W',
+                x=L6W_best_interval_df.index,
+                y=L6W_best_interval_df[power_unit],
+                mode='lines',
+                # text=['{:.0f}'.format(L90D_best_interval_df.loc[i]['mmp']) for i in
+                #       L90D_best_interval_df.index],
+                text=[
+                    tooltip.format(
+                        timedelta(seconds=i),
+                        L6W_best_interval_df.loc[i]['act_name'],
+                        L6W_best_interval_df.loc[i].date,
+                        L6W_best_interval_df.loc[i][power_unit])
+                    for i in L6W_best_interval_df.index],
+                customdata=[
+                    '{}_{}_l6w'.format(L6W_best_interval_df.loc[x]['activity_id'], int(x))
+                    for x in L6W_best_interval_df.index],
+                hoverinfo='text',
+                line={'shape': 'spline', 'color': light_blue},
+            ),
+            go.Scatter(
+                name='L30D',
+                x=L30D_best_interval_df.index,
+                y=L30D_best_interval_df[power_unit],
+                mode='lines',
+                # text=['{:.0f}'.format(L90D_best_interval_df.loc[i]['mmp']) for i in
+                #       L90D_best_interval_df.index],
+                text=[
+                    tooltip.format(
+                        timedelta(seconds=i),
+                        L30D_best_interval_df.loc[i]['act_name'],
+                        L30D_best_interval_df.loc[i].date,
+                        L30D_best_interval_df.loc[i][power_unit])
+                    for i in L30D_best_interval_df.index],
+                customdata=[
+                    '{}_{}_w'.format(L30D_best_interval_df.loc[x]['activity_id'], int(x))
+                    for x in L30D_best_interval_df.index],
+                hoverinfo='text',
+                line={'shape': 'spline', 'color': teal},
+            )
+        ])
+    else:
+        data.append(
+            go.Scatter(
+                name={99999: 'All', int(datetime.now().strftime('%j')): 'YTD', 90: 'L90D', 42: 'L6W', 30: 'L30D'}[
+                    time_comparison],
+                x=time_comparison_best_interval_df.index,
+                y=time_comparison_best_interval_df[power_unit],
+                mode='lines',
+                # text=['{:.0f}'.format(L90D_best_interval_df.loc[i]['mmp']) for i in
+                #       L90D_best_interval_df.index],
+                text=[
+                    tooltip.format(
+                        timedelta(seconds=i),
+                        time_comparison_best_interval_df.loc[i]['act_name'],
+                        time_comparison_best_interval_df.loc[i].date,
+                        time_comparison_best_interval_df.loc[i][power_unit])
+                    for i in time_comparison_best_interval_df.index],
+                customdata=[
+                    '{}_{}_w'.format(time_comparison_best_interval_df.loc[x]['activity_id'], int(x))
+                    for x in time_comparison_best_interval_df.index],
+                hoverinfo='text',
+                line={'shape': 'spline', 'color': teal},
+            )
+        )
     if last_id:
         data.append(
             go.Scatter(
@@ -723,11 +759,12 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
 
     layout = go.Layout(
         # transition=dict(duration=transition),
+        title='Power Curve' if height < 400 else '',
         font=dict(
             size=10,
             color=white
         ),
-        height=400,
+        height=height,
         shapes=shapes,
         annotations=annotations,
         xaxis=dict(
@@ -747,10 +784,10 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
             # range=[best_interval_df['mmp'].min(), best_interval_df['mmp'].max()],
             gridcolor='rgb(73, 73, 73)'
         ),
-        margin={'l': 40, 'b': 25, 't': 5, 'r': 40},
-        showlegend=showlegend,
-        legend={'x': .5, 'y': 1, 'xanchor': 'center', 'orientation': 'h',
-                'traceorder': 'normal', 'bgcolor': 'rgba(127, 127, 127, 0)'},
+        margin={'l': 40, 'b': 25, 't': 20 if height < 400 else 5, 'r': 0},
+        legend=dict(x=.5, y=1, bgcolor='rgba(127, 127, 127, 0)', xanchor='center',
+                    orientation='h', ) if height >= 400 else
+        dict(x=.85, bgcolor='rgba(127, 127, 127, 0)', xanchor='center'),
         autosize=True,
         hovermode='x',
         # paper_bgcolor='rgb(66,66,66)',
@@ -778,7 +815,7 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, showlegend
     #         showlegend=False
     #     ))
 
-    return figure, hoverData
+    return figure  # , hoverData
 
 
 def create_ftp_chart(activity_type='ride', power_unit='watts'):
@@ -870,7 +907,7 @@ def create_ftp_chart(activity_type='ride', power_unit='watts'):
     return ftp_current, figure
 
 
-def zone_chart(activity_id=None, sport='Run', metrics=['power_zone', 'hr_zone'], chart_id='zone-chart', days=90,
+def zone_chart(activity_id=None, sport='run', metrics=['power_zone', 'hr_zone'], chart_id='zone-chart', days=90,
                height=400):
     # If activity_id passed, filter only that workout, otherwise show distribution across last 6 weeks
 
@@ -958,6 +995,7 @@ def zone_chart(activity_id=None, sport='Run', metrics=['power_zone', 'hr_zone'],
         figure={
             'data': data,
             'layout': go.Layout(
+                title='Time in Zones' if height < 400 else '',
                 font=dict(
                     size=10,
                     color=white
@@ -991,14 +1029,11 @@ def zone_chart(activity_id=None, sport='Run', metrics=['power_zone', 'hr_zone'],
                 ),
                 showlegend=True,
                 hovermode='closest',
-                legend=dict(
-                    # x=.5,
-                    # y=1.1,
-                    bgcolor='rgba(0,0,0,0)',
-                    xanchor='center',
-                    # orientation='h',
-                ),
-                margin={'l': 45, 'b': 0, 't': 0, 'r': 0},
+                legend=dict(x=.5, y=1.1, bgcolor='rgba(127, 127, 127, 0)', xanchor='center',
+                            orientation='h', ) if height >= 400 else
+                dict(x=.85, bgcolor='rgba(127, 127, 127, 0)', xanchor='center'),
+                margin={'l': 45, 'b': 0, 't': 20, 'r': 0},
+                # margin={'l': 40, 'b': 0, 't': 20 if height < 400 else 5, 'r': 0},
 
             )
         }
@@ -1008,7 +1043,6 @@ def zone_chart(activity_id=None, sport='Run', metrics=['power_zone', 'hr_zone'],
 @app.callback(
     [Output('power-curve-container', 'className'),
      Output('power-curve-chart', 'figure'),
-     Output('power-curve-chart', 'hoverData'),
      Output('stryd-distributions', 'children')],
     [Input('activity-type-toggle', 'value'),
      Input('power-unit-toggle', 'value')]
@@ -1024,8 +1058,8 @@ def update_power_curve(activity_type, power_unit):
         classname = 'col-lg-12'
         stryd = []
 
-    figure, hoverData = power_curve(activity_type, power_unit, strydmetrics=False if activity_type == 'ride' else True)
-    return classname, figure, hoverData, stryd
+    figure = power_curve(activity_type, power_unit)
+    return classname, figure, stryd
 
 
 # # Callbacks to figure out which is the latest chart that was clicked

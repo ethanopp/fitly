@@ -19,6 +19,7 @@ from ..pages.power import power_curve, zone_chart
 import re
 import json
 import operator
+import scipy
 
 transition = int(config.get('dashboard', 'transition'))
 
@@ -360,30 +361,46 @@ def get_layout(**kwargs):
                                                          id='performance-time-selector',
                                                          style={'display': 'inline-block', 'paddingRight': '2vw'},
                                                      ),
-                                                     html.I(id='l90d-running-icon', className='fa fa-running',
+                                                     html.I(id='performance-trend-running-icon',
+                                                            className='fa fa-running',
                                                             style={'fontSize': '1.5rem', 'display': 'inline-block'}),
                                                      daq.ToggleSwitch(id='performance-activity-type-toggle',
                                                                       className='mr-2 ml-2',
                                                                       style={'display': 'inline-block'}, value=False),
 
-                                                     html.I(id='l90d-bicycle-icon', className='fa fa-bicycle',
+                                                     html.I(id='performance-trend-bicycle-icon',
+                                                            className='fa fa-bicycle',
                                                             style={'fontSize': '1.5rem', 'display': 'inline-block'}),
                                                      dbc.Tooltip('Analyze cycling activities',
-                                                                 target="l90d-bicycle-icon"),
+                                                                 target="performance-trend-bicycle-icon"),
                                                      dbc.Tooltip('Toggle activity type',
                                                                  target="performance-activity-type-toggle"),
                                                      dbc.Tooltip('Analyze running activities',
-                                                                 target="l90d-running-icon"),
+                                                                 target="performance-trend-running-icon"),
                                                  ]),
 
                                              # sport_filter_icons(id='zones'),
                                              html.Div(className='col-lg-6 col-12 mt-2', children=[
                                                  dbc.Spinner(color='info', children=[
-                                                     html.Div(id='l90d-zones'),
+                                                     html.Div(id='performance-trend-zones'),
                                                  ]),
                                              ]),
                                              # populated by callback
                                              html.Div(className='col-lg-6 col-12 mt-2', children=[
+                                                 html.Div(className='col-lg-12',
+                                                          children=[
+                                                              html.P(['Training Distribution'], style={
+                                                                  'height': '20px',
+                                                                  'font-family': '"Open Sans", verdana, arial, sans-serif',
+                                                                  'font-size': '14px',
+                                                                  'color': white,
+                                                                  'fill': 'rgb(220, 220, 220)',
+                                                                  'line-height': '10px',
+                                                                  'opacity': 1,
+                                                                  'font-weight': 'normal',
+                                                                  'white-space': 'pre',
+                                                                  'marginBottom': 0})
+                                                          ]),
                                                  dbc.Spinner(color='info', children=[
                                                      html.Div(id='workout-distribution-table',
                                                               children=[
@@ -393,12 +410,13 @@ def get_layout(**kwargs):
                                                                                {'name': '%', 'id': 'Percent of Total'}],
                                                                       style_as_list_view=True,
                                                                       fixed_rows={'headers': True, 'data': 0},
-                                                                      style_table={'height': '200px',
+                                                                      style_table={'height': '180px',
                                                                                    'overflowY': 'auto'},
                                                                       style_header={'backgroundColor': 'rgba(0,0,0,0)',
                                                                                     'borderBottom': '1px solid rgb(220, 220, 220)',
                                                                                     'borderTop': '0px',
                                                                                     # 'textAlign': 'center',
+                                                                                    'fontSize': 12,
                                                                                     'fontWeight': 'bold',
                                                                                     'fontFamily': '"Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif',
                                                                                     },
@@ -408,6 +426,7 @@ def get_layout(**kwargs):
                                                                           'borderBottom': '1px solid rgb(73, 73, 73)',
                                                                           'textOverflow': 'ellipsis',
                                                                           'maxWidth': 25,
+                                                                          'fontSize': 12,
                                                                           'fontFamily': '"Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif',
                                                                       },
                                                                       style_cell_conditional=[
@@ -426,15 +445,25 @@ def get_layout(**kwargs):
                                          ]),
                                 html.Div(className='row', style={'paddingTop': '.75rem'}, children=[
 
-                                    html.Div(className='col-11', style={'paddingRight': 0}, children=[
-
-                                        # Generated by callback
-                                        html.Div([
+                                    html.Div(className='col-lg-6' if use_power else '', children=[
+                                        html.Div(id='performance-power-curve-container', children=[
                                             dbc.Spinner(color='info', children=[
-                                                dcc.Graph(id='trend-chart', config={'displayModeBar': False})
-                                            ]),
-                                        ]),
+                                                dcc.Graph(id='performance-power-curve',
+                                                          config={'displayModeBar': False})
+                                            ])
+                                        ])
                                     ]),
+                                    html.Div(className='col-lg-5 col-11' if use_power else 'col-11',
+                                             style={'paddingRight': 0},
+                                             children=[
+
+                                                 # Generated by callback
+                                                 html.Div([
+                                                     dbc.Spinner(color='info', children=[
+                                                         dcc.Graph(id='trend-chart', config={'displayModeBar': False})
+                                                     ]),
+                                                 ]),
+                                             ]),
 
                                     html.Div(id='trend-controls', className='col-1',
                                              style={'display': 'flex',
@@ -711,13 +740,17 @@ def get_trend_controls(selected=None, sport='Run'):
 def get_trend_chart(metric, sport='Run', days=90):
     date = datetime.now().date() - timedelta(days=days)
     df = pd.read_sql(
-        sql=app.session.query(stravaSummary).filter(stravaSummary.start_date_utc >= date).filter(
+        sql=app.session.query(stravaSummary).filter(
             stravaSummary.type.like(sport), stravaSummary.elapsed_time > app.session.query(athlete).filter(
                 athlete.athlete_id == 1).first().min_non_warmup_workout_time).statement, con=engine)
     stryd_df = pd.read_sql(
-        sql=app.session.query(strydSummary).filter(strydSummary.start_date_local >= date).statement, con=engine)
+        sql=app.session.query(strydSummary).statement, con=engine)
     app.session.remove()
     df = df.merge(stryd_df, how='left', left_on='activity_id', right_on='strava_activity_id')
+
+    # Remove bad data
+    df[metric].replace(0, np.nan, inplace=True)
+
     # Convert duration to minutes
     if metric == 'elapsed_time':
         df['duration'] = df[metric] / 60
@@ -726,12 +759,29 @@ def get_trend_chart(metric, sport='Run', days=90):
         df['average_pace'] = 60 / df[metric]
         metric = 'average_pace'
 
+    # Get all time PR of current metric
+    if metric in ['average_pace', 'average_ground_time', 'average_oscillation']:
+        pr = df[metric].min()
+    else:
+        pr = df[metric].max()
+
+    # Filter df to date selection made from dropdown
+    df = df[df['start_date_local_x'].dt.date >= date]
+
     # Resample to accurately plot line of best fit
     df = df.set_index('start_date_local_x')
     df = df[[metric]].resample('D').mean().reset_index()
     # Ignore dates with null values when running our model
     idx = np.isfinite(df[metric])
-    slope, intercept = np.polyfit(df.reset_index().index[idx], df[metric][idx], 1)
+    slope, intercept, r_value, p_value, std_err = scipy.stats.linregress(df.reset_index().index[idx], df[metric][idx])
+    # Color trend line but its strength of fit
+    if r_value >= .8 or r_value <= -.8:  # Strong fit
+        trend_strength = teal
+    elif (r_value < .8 and r_value >= .5) or (r_value > -.8 and r_value <= -.5):  # Medium Fit
+        trend_strength = light_blue
+    else:  # Weak fit
+        trend_strength = white
+
     df[metric + '_trend'] = (df.index * slope) + intercept
     # Change index back for the chart
     df = df.set_index('start_date_local_x')
@@ -747,13 +797,13 @@ def get_trend_chart(metric, sport='Run', days=90):
         go.Scatter(
             name=metric.title(),
             x=df.index,
-            y=df[metric],
+            y=[np.nan if x == pr else x for x in df[metric]],
             yaxis='y',
             text=text,
-            hoverinfo='text',
+            hoverinfo='x+text',
             mode='markers',
             line={'dash': 'dot',
-                  'color': teal,
+                  'color': 'rgba(220,220,220,.25)',
                   'width': 2},
             showlegend=False,
             marker={'size': 5},
@@ -765,32 +815,46 @@ def get_trend_chart(metric, sport='Run', days=90):
             yaxis='y',
             hoverinfo='none',
             mode='lines',
-            line={'color': white,
+            line={'color': trend_strength,
                   'width': 3},
             showlegend=False,
         ),
         # go.Scatter(
-        #     name='Average',
+        #     name='PR',
         #     x=df.index,
-        #     y=[df[metric].mean() for x in df.index],
+        #     y=[pr for x in df.index],
         #     mode='lines+text',
         #     text=[
-        #         'Avg: <b>{:.0f}'.format(
-        #             df[metric].mean()) if x == df.index.max() else ''
-        #         for x
-        #         in
-        #         df.index],
+        #         'PR: <b>{:.0f}'.format(pr) if x == df.index.max() else ''
+        #         for x in df.index],
         #     textfont=dict(
-        #         size=11,
-        #         color='rgb(150,150,150)'
+        #         size=10,
+        #         color=orange
         #     ),
         #     textposition='top left',
         #     hoverinfo='none',
         #     # opacity=0.7,
-        #     line={'dash': 'dot', 'color': 'rgb(150,150,150)', 'width': 1},
+        #     line={'dash': 'dot', 'color': orange, 'width': 1},
         #     showlegend=False,
         # )
     ]
+    if pr in df[metric].values:
+        data.append(
+            go.Scatter(
+                name=metric.title() + ' PR',
+                x=df.index,
+                y=[np.nan if x != pr else x for x in df[metric]],
+                yaxis='y',
+                text=text[df.index.get_loc(df.loc[df[metric] == pr].index.values[0])],
+                hoverinfo='x+text',
+                mode='markers',
+                line={'dash': 'dot',
+                      'color': orange,
+                      'width': 2},
+                showlegend=False,
+                marker={'size': 5},
+            )
+        )
 
     figure = {
         'data': data,
@@ -807,6 +871,7 @@ def get_trend_chart(metric, sport='Run', days=90):
                 tickformat='%b %d',
             ),
             yaxis=dict(
+                # range=[df[metric].min() - (df[metric].min() * .15), df[metric].max() * 1.15],
                 showticklabels=True,
                 showgrid=True,
                 gridcolor='rgb(73, 73, 73)',
@@ -815,7 +880,7 @@ def get_trend_chart(metric, sport='Run', days=90):
             showlegend=False,
             margin={'l': 25, 'b': 20, 't': 20, 'r': 0},
             autosize=True,
-            hovermode='x'
+            hovermode='closest'
         )
     }
 
@@ -2725,44 +2790,6 @@ def refresh_fitness_chart(ride_switch, run_switch, all_switch, power_switch, hr_
 
 # Zone and distribution callback for sport/date fitlers. Also update date label/card header with callback here
 @app.callback(
-    [Output('performance-time-selector', 'label'),
-     Output('performance-title', 'children'),
-     Output('l90d-running-icon', 'style'),
-     Output('l90d-bicycle-icon', 'style'),
-     Output('l90d-zones', 'children'),
-     Output('workout-type-distributions', 'data')],
-    [Input('performance-activity-type-toggle', 'value'),
-     Input('performance-time-selector-all', 'n_clicks_timestamp'),
-     Input('performance-time-selector-ytd', 'n_clicks_timestamp'),
-     Input('performance-time-selector-l90d', 'n_clicks_timestamp'),
-     Input('performance-time-selector-l6w', 'n_clicks_timestamp'),
-     Input('performance-time-selector-l30d', 'n_clicks_timestamp')]
-)
-def update_icon(*args):
-    inputs = dash.callback_context.inputs
-    sport = 'Run' if not inputs['performance-activity-type-toggle.value'] else 'Ride'
-    # Create dict of just date buttons
-    [inputs.pop(x) for x in list(inputs.keys()) if 'performance-time-selector' not in x]
-    date_days = {'all': 99999, 'ytd': int(datetime.now().strftime('%j')), 'l90d': 90, 'l6w': 42, 'l30d': 30}
-    last_click = max(inputs.items(), key=operator.itemgetter(1))[0].split('.')[0].replace(
-        'performance-time-selector-', '')
-    days = date_days[last_click]
-    label = last_click.upper()
-    if sport == 'Run':
-        run_style = {'fontSize': '1.5rem', 'display': 'inline-block', 'vertical-align': 'middle', 'color': teal}
-        ride_style = {'fontSize': '1.5rem', 'display': 'inline-block', 'vertical-align': 'middle'}
-    else:
-        run_style = {'fontSize': '1.5rem', 'display': 'inline-block', 'vertical-align': 'middle'}
-        ride_style = {'fontSize': '1.5rem', 'display': 'inline-block', 'vertical-align': 'middle', 'color': teal}
-
-    return label, html.H6(label + ' Performance', className='mb-0'), run_style, ride_style, zone_chart(days=days,
-                                                                                                       sport=sport,
-                                                                                                       height=200), workout_distribution(
-        sport=sport, days=days)
-
-
-# Trend chart callback for sport/date fitlers
-@app.callback(
     [Output('trend-chart', 'figure'),
      Output('trend-controls', 'children'), ],
     [Input('average-watts-trend-button', 'n_clicks_timestamp'),
@@ -2803,7 +2830,7 @@ def update_trend_chart(*args):
     use_power = True if use_run_power or use_cycle_power else False
     app.session.remove()
     ctx = dash.callback_context
-    sport = 'Run' if ctx.states['performance-activity-type-toggle.value'] == False else 'Ride'
+    sport = 'run' if ctx.states['performance-activity-type-toggle.value'] == False else 'ride'
 
     # Since the sport/date toggle can be the last trigger, we need to look at timestamp of date buttons and valueu of sport toggle to determine which date/sport to be using
 
@@ -2826,6 +2853,52 @@ def update_trend_chart(*args):
 
     figure = get_trend_chart(metric=metric, sport=sport, days=days)
     return figure, get_trend_controls(sport=sport, selected=metric)
+
+
+@app.callback(
+    [Output('performance-time-selector', 'label'),
+     Output('performance-title', 'children'),
+     Output('performance-trend-running-icon', 'style'),
+     Output('performance-trend-bicycle-icon', 'style'),
+     Output('performance-trend-zones', 'children'),
+     Output('workout-type-distributions', 'data'),
+     Output('performance-power-curve', 'figure'),
+     Output('performance-power-curve-container', 'style')],
+    [Input('performance-activity-type-toggle', 'value'),
+     Input('performance-time-selector-all', 'n_clicks_timestamp'),
+     Input('performance-time-selector-ytd', 'n_clicks_timestamp'),
+     Input('performance-time-selector-l90d', 'n_clicks_timestamp'),
+     Input('performance-time-selector-l6w', 'n_clicks_timestamp'),
+     Input('performance-time-selector-l30d', 'n_clicks_timestamp')]
+)
+def update_icon(*args):
+    athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1).first()
+    use_power = True if athlete_info.use_run_power or athlete_info.use_cycle_power else False
+    app.session.remove()
+
+    inputs = dash.callback_context.inputs
+    sport = 'run' if not inputs['performance-activity-type-toggle.value'] else 'ride'
+    # Create dict of just date buttons
+    [inputs.pop(x) for x in list(inputs.keys()) if 'performance-time-selector' not in x]
+    date_days = {'all': 99999, 'ytd': int(datetime.now().strftime('%j')), 'l90d': 90, 'l6w': 42, 'l30d': 30}
+    last_click = max(inputs.items(), key=operator.itemgetter(1))[0].split('.')[0].replace(
+        'performance-time-selector-', '')
+    days = date_days[last_click]
+    label = last_click.upper()
+    if sport == 'run':
+        run_style = {'fontSize': '1.5rem', 'display': 'inline-block', 'vertical-align': 'middle', 'color': teal}
+        ride_style = {'fontSize': '1.5rem', 'display': 'inline-block', 'vertical-align': 'middle'}
+    else:
+        run_style = {'fontSize': '1.5rem', 'display': 'inline-block', 'vertical-align': 'middle'}
+        ride_style = {'fontSize': '1.5rem', 'display': 'inline-block', 'vertical-align': 'middle', 'color': teal}
+
+    return label, html.H6(label + ' Performance', className='mb-0'), run_style, ride_style, \
+           zone_chart(days=days, sport=sport, height=200), workout_distribution(sport=sport, days=days), power_curve(
+        activity_type=sport, height=200, time_comparison=days) if use_power else {}, {
+               'display': 'normal'} if use_power else {'display': 'none'}
+
+
+# Trend chart callback for sport/date fitlers
 
 
 # Create YOY Chart
@@ -2943,8 +3016,7 @@ def modal_power_curve(activity, is_open):
         metric = activity.split('|')[2]
         # Only show power zone chart if power data exists
         if metric == 'power_zone':
-            figure, horverData = power_curve(last_id=activity_id, activity_type=activity_type, showlegend=True,
-                                             strydmetrics=False)
+            figure = power_curve(last_id=activity_id, activity_type=activity_type)
             return figure, {'height': '100%'}
         else:
             return {}, {'display': 'None'}
