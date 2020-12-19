@@ -382,13 +382,13 @@ def get_layout(**kwargs):
                                                      [
                                                          dbc.DropdownMenuItem("All Intensities",
                                                                               id="performance-intensity-selector-all",
-                                                                              n_clicks_timestamp=0),
+                                                                              n_clicks_timestamp=1),
                                                          dbc.DropdownMenuItem("High Intensity",
                                                                               id='performance-intensity-selector-high',
                                                                               n_clicks_timestamp=0),
                                                          dbc.DropdownMenuItem("Mod Intensity",
                                                                               id="performance-intensity-selector-mod",
-                                                                              n_clicks_timestamp=1),
+                                                                              n_clicks_timestamp=0),
                                                          dbc.DropdownMenuItem("Low Intensity",
                                                                               id='performance-intensity-selector-low',
                                                                               n_clicks_timestamp=0),
@@ -760,12 +760,15 @@ def get_trend_controls(selected=None, sport='Run'):
     return html.Div(className='row', children=controls)
 
 
-def get_trend_chart(metric, sport='Run', days=90):
+def get_trend_chart(metric, sport='Run', days=90, intensity='all'):
     date = datetime.now().date() - timedelta(days=days)
     df = pd.read_sql(
         sql=app.session.query(stravaSummary).filter(
             stravaSummary.type.like(sport), stravaSummary.elapsed_time > app.session.query(athlete).filter(
                 athlete.athlete_id == 1).first().min_non_warmup_workout_time).statement, con=engine)
+    if intensity != 'all':
+        df = df[df['workout_intensity'] == intensity]
+
     stryd_df = pd.read_sql(
         sql=app.session.query(strydSummary).statement, con=engine)
     app.session.remove()
@@ -796,16 +799,21 @@ def get_trend_chart(metric, sport='Run', days=90):
     df = df[[metric]].resample('D').mean().reset_index()
     # Ignore dates with null values when running our model
     idx = np.isfinite(df[metric])
-    slope, intercept, r_value, p_value, std_err = scipy.stats.linregress(df.reset_index().index[idx], df[metric][idx])
-    # Color trend line but its strength of fit
-    if r_value >= .8 or r_value <= -.8:  # Strong fit
-        trend_strength = teal
-    elif (r_value < .8 and r_value >= .5) or (r_value > -.8 and r_value <= -.5):  # Medium Fit
-        trend_strength = light_blue
-    else:  # Weak fit
-        trend_strength = white
+    if len(idx) > 1:
+        slope, intercept, r_value, p_value, std_err = scipy.stats.linregress(df.reset_index().index[idx],
+                                                                             df[metric][idx])
+        # Color trend line but its strength of fit
+        if r_value >= .8 or r_value <= -.8:  # Strong fit
+            trend_strength = teal
+        elif (r_value < .8 and r_value >= .5) or (r_value > -.8 and r_value <= -.5):  # Medium Fit
+            trend_strength = light_blue
+        else:  # Weak fit
+            trend_strength = white
 
-    df[metric + '_trend'] = (df.index * slope) + intercept
+        df[metric + '_trend'] = (df.index * slope) + intercept
+    else:
+        df[metric + '_trend'] = np.nan
+        trend_strength = white
     # Change index back for the chart
     df = df.set_index('start_date_local_x')
 
@@ -813,8 +821,10 @@ def get_trend_chart(metric, sport='Run', days=90):
     if metric in ['duration', 'average_pace']:
         text = ['{}: <b>{}'.format(metric.title().replace('_', ' '), str(timedelta(minutes=x)).split(".")[0]) for x in
                 df[metric].fillna(0)]
-    else:
+    elif metric in ['distance', 'average_oscillation', 'average_leg_spring']:
         text = ['{}: <b>{:.1f}'.format(metric.title().replace('_', ' '), x) for x in df[metric]]
+    else:
+        text = ['{}: <b>{:.0f}'.format(metric.title().replace('_', ' '), x) for x in df[metric]]
 
     data = [
         go.Scatter(
@@ -2309,7 +2319,7 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
     return figure, hoverData
 
 
-def workout_distribution(sport='Run', days=90):
+def workout_distribution(sport='Run', days=90, intensity='all'):
     min_non_warmup_workout_time = app.session.query(athlete).filter(
         athlete.athlete_id == 1).first().min_non_warmup_workout_time
 
@@ -2322,6 +2332,9 @@ def workout_distribution(sport='Run', days=90):
                 stravaSummary.high_intensity_seconds > 0)
         ).statement,
         con=engine, index_col='start_date_utc')
+
+    if intensity != 'all':
+        df_summary = df_summary[df_summary['workout_intensity'] == intensity]
 
     athlete_bookmarks = json.loads(app.session.query(athlete.peloton_auto_bookmark_ids).filter(
         athlete.athlete_id == 1).first().peloton_auto_bookmark_ids)
@@ -2829,7 +2842,12 @@ def refresh_fitness_chart(ride_switch, run_switch, all_switch, power_switch, hr_
      Input('performance-time-selector-ytd', 'n_clicks_timestamp'),
      Input('performance-time-selector-l90d', 'n_clicks_timestamp'),
      Input('performance-time-selector-l6w', 'n_clicks_timestamp'),
-     Input('performance-time-selector-l30d', 'n_clicks_timestamp')],
+     Input('performance-time-selector-l30d', 'n_clicks_timestamp'),
+     Input('performance-intensity-selector-all', 'n_clicks_timestamp'),
+     Input('performance-intensity-selector-high', 'n_clicks_timestamp'),
+     Input('performance-intensity-selector-mod', 'n_clicks_timestamp'),
+     Input('performance-intensity-selector-low', 'n_clicks_timestamp')
+     ],
     [State('average-watts-trend-button', 'n_clicks_timestamp'),
      State('average-heartrate-trend-button', 'n_clicks_timestamp'),
      State('tss-trend-button', 'n_clicks_timestamp'),
@@ -2844,7 +2862,12 @@ def refresh_fitness_chart(ride_switch, run_switch, all_switch, power_switch, hr_
      State('performance-time-selector-ytd', 'n_clicks_timestamp'),
      State('performance-time-selector-l90d', 'n_clicks_timestamp'),
      State('performance-time-selector-l6w', 'n_clicks_timestamp'),
-     State('performance-time-selector-l30d', 'n_clicks_timestamp')]
+     State('performance-time-selector-l30d', 'n_clicks_timestamp'),
+     State('performance-intensity-selector-all', 'n_clicks_timestamp'),
+     State('performance-intensity-selector-high', 'n_clicks_timestamp'),
+     State('performance-intensity-selector-mod', 'n_clicks_timestamp'),
+     State('performance-intensity-selector-low', 'n_clicks_timestamp')
+     ]
 )
 def update_trend_chart(*args):
     athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1).first()
@@ -2855,18 +2878,26 @@ def update_trend_chart(*args):
     ctx = dash.callback_context
     sport = 'run' if ctx.states['performance-activity-type-toggle.value'] == False else 'ride'
 
-    # Since the sport/date toggle can be the last trigger, we need to look at timestamp of date buttons and valueu of sport toggle to determine which date/sport to be using
+    # Since the sport/date toggle can be the last trigger, we need to look at timestamp of date buttons and value of sport toggle to determine which date/sport to be using
 
+    states = ctx.states
     # Create dict of just date buttons
-    date_buttons = ctx.states.copy()
+    date_buttons = states.copy()
     [date_buttons.pop(x) for x in list(date_buttons.keys()) if 'performance-time-selector' not in x]
     date_days = {'all': 99999, 'ytd': int(datetime.now().strftime('%j')), 'l90d': 90, 'l6w': 42, 'l30d': 30}
     days = date_days[max(date_buttons.items(), key=operator.itemgetter(1))[0].split('.')[0].replace(
         'performance-time-selector-', '')]
 
+    # Create dict of just intensity buttons
+    state_buttons = states.copy()
+    [state_buttons.pop(x) for x in list(state_buttons.keys()) if 'performance-intensity-selector' not in x]
+    last_intensity_click = max(state_buttons.items(), key=operator.itemgetter(1))[0].split('.')[0].replace(
+        'performance-intensity-selector-', '')
+
     if ctx.triggered:
         # Pop date buttons from main dict
-        [ctx.states.pop(x) for x in list(ctx.states.keys()) if 'performance-time-selector' in x]
+        [ctx.states.pop(x) for x in list(ctx.states.keys()) if
+         'performance-time-selector' in x or 'performance-intensity-selector' in x]
         # Remove sport toggle from dict, then get max of all timestamps
         ctx.states.pop('performance-activity-type-toggle.value')
         metric = max(ctx.states.items(), key=operator.itemgetter(1))[0].split(".")[0].replace('-trend-button',
@@ -2874,12 +2905,13 @@ def update_trend_chart(*args):
     else:
         metric = 'average_heartrate' if not use_power else 'average_watts'
 
-    figure = get_trend_chart(metric=metric, sport=sport, days=days)
+    figure = get_trend_chart(metric=metric, sport=sport, days=days, intensity=last_intensity_click)
     return figure, get_trend_controls(sport=sport, selected=metric)
 
 
 @app.callback(
     [Output('performance-time-selector', 'label'),
+     Output('performance-intensity-selector', 'label'),
      Output('performance-title', 'children'),
      Output('performance-trend-running-icon', 'style'),
      Output('performance-trend-bicycle-icon', 'style'),
@@ -2892,7 +2924,11 @@ def update_trend_chart(*args):
      Input('performance-time-selector-ytd', 'n_clicks_timestamp'),
      Input('performance-time-selector-l90d', 'n_clicks_timestamp'),
      Input('performance-time-selector-l6w', 'n_clicks_timestamp'),
-     Input('performance-time-selector-l30d', 'n_clicks_timestamp')]
+     Input('performance-time-selector-l30d', 'n_clicks_timestamp'),
+     Input('performance-intensity-selector-all', 'n_clicks_timestamp'),
+     Input('performance-intensity-selector-high', 'n_clicks_timestamp'),
+     Input('performance-intensity-selector-mod', 'n_clicks_timestamp'),
+     Input('performance-intensity-selector-low', 'n_clicks_timestamp')]
 )
 def update_icon(*args):
     athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1).first()
@@ -2901,13 +2937,6 @@ def update_icon(*args):
 
     inputs = dash.callback_context.inputs
     sport = 'run' if not inputs['performance-activity-type-toggle.value'] else 'ride'
-    # Create dict of just date buttons
-    [inputs.pop(x) for x in list(inputs.keys()) if 'performance-time-selector' not in x]
-    date_days = {'all': 99999, 'ytd': int(datetime.now().strftime('%j')), 'l90d': 90, 'l6w': 42, 'l30d': 30}
-    last_click = max(inputs.items(), key=operator.itemgetter(1))[0].split('.')[0].replace(
-        'performance-time-selector-', '')
-    days = date_days[last_click]
-    label = last_click.upper()
     if sport == 'run':
         run_style = {'fontSize': '1.5rem', 'display': 'inline-block', 'vertical-align': 'middle', 'color': teal}
         ride_style = {'fontSize': '1.5rem', 'display': 'inline-block', 'vertical-align': 'middle'}
@@ -2915,9 +2944,26 @@ def update_icon(*args):
         run_style = {'fontSize': '1.5rem', 'display': 'inline-block', 'vertical-align': 'middle'}
         ride_style = {'fontSize': '1.5rem', 'display': 'inline-block', 'vertical-align': 'middle', 'color': teal}
 
-    return label, html.H6(label + ' Performance', className='mb-0'), run_style, ride_style, \
-           zone_chart(days=days, sport=sport, height=200), workout_distribution(sport=sport, days=days), power_curve(
-        activity_type=sport, height=200, time_comparison=days) if use_power else {}, {
+    # Create dict of just date buttons
+    time_inputs = inputs.copy()
+    [time_inputs.pop(x) for x in list(time_inputs.keys()) if 'performance-time-selector' not in x]
+    date_days = {'all': 99999, 'ytd': int(datetime.now().strftime('%j')), 'l90d': 90, 'l6w': 42, 'l30d': 30}
+    last_time_click = max(time_inputs.items(), key=operator.itemgetter(1))[0].split('.')[0].replace(
+        'performance-time-selector-', '')
+    days = date_days[last_time_click]
+    time_label = last_time_click.upper()
+
+    # Create dict of just intensity buttons
+    intensity_inputs = inputs.copy()
+    [intensity_inputs.pop(x) for x in list(intensity_inputs.keys()) if 'performance-intensity-selector' not in x]
+    last_intensity_click = max(intensity_inputs.items(), key=operator.itemgetter(1))[0].split('.')[0].replace(
+        'performance-intensity-selector-', '')
+    intensity_label = last_intensity_click.title() + ' Intensity'
+
+    return time_label, intensity_label, html.H6(time_label + ' Performance', className='mb-0'), run_style, ride_style, \
+           zone_chart(days=days, sport=sport, height=200, intensity=last_intensity_click), workout_distribution(
+        sport=sport, days=days, intensity=last_intensity_click), power_curve(
+        activity_type=sport, height=200, time_comparison=days, intensity=last_intensity_click) if use_power else {}, {
                'display': 'normal'} if use_power else {'display': 'none'}
 
 

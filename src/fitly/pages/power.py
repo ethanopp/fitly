@@ -342,7 +342,8 @@ def stryd_training_distributions():
     return graphs
 
 
-def power_curve(activity_type='ride', power_unit='mmp', last_id=None, height=400, time_comparison=None):
+def power_curve(activity_type='ride', power_unit='mmp', last_id=None, height=400, time_comparison=None,
+                intensity='all'):
     # TODO: Add power curve model once sweatpy has been finished
     # https://sweatpy.gssns.io/features/Power%20duration%20modelling/#comparison-of-power-duration-models
     activity_type = '%' + activity_type + '%'
@@ -478,18 +479,55 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, height=400
         recent_best_interval_df['act_name'] = recent_best_interval_df['activity_id'].map(act_dict['act_name'])
 
     if time_comparison:
-        time_comparison_best_interval_df = pd.read_sql(
-            sql=app.session.query(
-                func.max(stravaBestSamples.mmp).label('mmp'), stravaBestSamples.activity_id, stravaBestSamples.ftp,
-                stravaBestSamples.interval, stravaBestSamples.time_interval,
-                stravaBestSamples.date, stravaBestSamples.timestamp_local, stravaBestSamples.watts_per_kg,
-            ).group_by(stravaBestSamples.interval).filter(stravaBestSamples.interval.in_(interval_lengths),
-                                                          stravaBestSamples.type.ilike(activity_type),
-                                                          stravaBestSamples.timestamp_local >= (
-                                                                  datetime.now() - timedelta(days=time_comparison))
-                                                          ).statement, con=engine, index_col='interval')
-        time_comparison_best_interval_df['act_name'] = time_comparison_best_interval_df['activity_id'].map(
-            act_dict['act_name'])
+        if intensity == 'all':
+            time_comparison_best_interval_df = pd.read_sql(
+                sql=app.session.query(
+                    func.max(stravaBestSamples.mmp).label('mmp'), stravaBestSamples.activity_id, stravaBestSamples.ftp,
+                    stravaBestSamples.interval, stravaBestSamples.time_interval,
+                    stravaBestSamples.date, stravaBestSamples.timestamp_local, stravaBestSamples.watts_per_kg,
+                ).group_by(stravaBestSamples.interval).filter(stravaBestSamples.interval.in_(interval_lengths),
+                                                              stravaBestSamples.type.ilike(activity_type),
+                                                              stravaBestSamples.timestamp_local >= (
+                                                                      datetime.now() - timedelta(days=time_comparison))
+                                                              ).statement, con=engine, index_col='interval')
+            time_comparison_best_interval_df['act_name'] = time_comparison_best_interval_df['activity_id'].map(
+                act_dict['act_name'])
+        else:
+            # Join in intensity data from strava summary
+
+            pd.read_sql(
+                sql=app.session.query(stravaSummary.activity_id, stravaSummary.workout_intensity).statement,
+                con=engine)
+
+            time_comparison_best_interval_df = pd.read_sql(
+                sql=app.session.query(
+                    func.max(stravaBestSamples.mmp).label('mmp'), stravaBestSamples.activity_id, stravaBestSamples.ftp,
+                    stravaBestSamples.interval, stravaBestSamples.time_interval,
+                    stravaBestSamples.date, stravaBestSamples.timestamp_local, stravaBestSamples.watts_per_kg,
+                ).join(stravaSummary, stravaBestSamples.activity_id == stravaSummary.activity_id,
+                       isouter=True).group_by(stravaBestSamples.interval).filter(
+                    stravaSummary.workout_intensity == intensity,
+                    stravaBestSamples.interval.in_(interval_lengths),
+                    stravaBestSamples.type.ilike(activity_type),
+                    stravaBestSamples.timestamp_local >= (
+                            datetime.now() - timedelta(days=time_comparison))
+                ).statement, con=engine, index_col='interval')
+            time_comparison_best_interval_df['act_name'] = time_comparison_best_interval_df['activity_id'].map(
+                act_dict['act_name'])
+
+            all_best_interval_df = pd.read_sql(
+                sql=app.session.query(
+                    func.max(stravaBestSamples.mmp).label('mmp'), stravaBestSamples.activity_id, stravaBestSamples.ftp,
+                    stravaBestSamples.interval, stravaBestSamples.time_interval,
+                    stravaBestSamples.date, stravaBestSamples.timestamp_local, stravaBestSamples.watts_per_kg,
+                ).join(stravaSummary, stravaBestSamples.activity_id == stravaSummary.activity_id,
+                       isouter=True).group_by(stravaBestSamples.interval).filter(
+                    stravaSummary.workout_intensity == intensity,
+                    stravaBestSamples.interval.in_(interval_lengths),
+                    stravaBestSamples.type.ilike(activity_type)
+                ).statement, con=engine, index_col='interval')
+            all_best_interval_df['act_name'] = all_best_interval_df['activity_id'].map(
+                act_dict['act_name'])
 
     app.session.remove()
 
@@ -908,7 +946,7 @@ def create_ftp_chart(activity_type='ride', power_unit='watts'):
 
 
 def zone_chart(activity_id=None, sport='run', metrics=['power_zone', 'hr_zone'], chart_id='zone-chart', days=90,
-               height=400):
+               height=400, intensity='all'):
     # If activity_id passed, filter only that workout, otherwise show distribution across last 6 weeks
 
     if activity_id:
@@ -918,12 +956,28 @@ def zone_chart(activity_id=None, sport='run', metrics=['power_zone', 'hr_zone'],
             index_col=['timestamp_local'])
 
     else:
-        df_samples = pd.read_sql(
-            sql=app.session.query(stravaSamples).filter(stravaSamples.type.like(sport),
-                                                        stravaSamples.timestamp_local >= (datetime.now() - timedelta(
-                                                            days=days))).statement,
-            con=engine,
-            index_col=['timestamp_local'])
+        if intensity == 'all':
+            df_samples = pd.read_sql(
+                sql=app.session.query(stravaSamples).filter(stravaSamples.type.like(sport),
+                                                            stravaSamples.timestamp_local >= (
+                                                                    datetime.now() - timedelta(
+                                                                days=days))).statement,
+                con=engine,
+                index_col=['timestamp_local'])
+        else:
+            # Join intensity from strava summary to samples and filter on intensity if passed as an argument
+            df_samples = pd.read_sql(
+                sql=app.session.query(stravaSamples).filter(stravaSamples.type.like(sport),
+                                                            stravaSamples.timestamp_local >= (
+                                                                    datetime.now() - timedelta(
+                                                                days=days))).statement,
+                con=engine,
+                index_col=['timestamp_local'])
+            df_samples = df_samples.merge(pd.read_sql(
+                sql=app.session.query(stravaSummary.activity_id, stravaSummary.workout_intensity).statement,
+                con=engine), how='left', left_on='activity_id', right_on='activity_id')
+
+            df_samples = df_samples[df_samples['workout_intensity'] == intensity]
 
     app.session.remove()
     data = []
