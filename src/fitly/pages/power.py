@@ -358,29 +358,24 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, height=400
         index_col='activity_id').to_dict()
 
     # Data points for Power Curve Training Disribution
+    # Join in weight at the time of workout for calculating FTP_W/kg at point in time (of workout)
     TD_df_L90D = pd.read_sql(
         sql=app.session.query(
             func.max(stravaBestSamples.mmp).label('mmp'), stravaBestSamples.activity_id, stravaBestSamples.ftp,
             stravaBestSamples.interval, stravaBestSamples.time_interval,
             stravaBestSamples.date, stravaBestSamples.timestamp_local, stravaBestSamples.watts_per_kg,
-        ).group_by(stravaBestSamples.interval).filter(stravaBestSamples.type.ilike(activity_type),
-                                                      stravaBestSamples.timestamp_local >= (
-                                                              datetime.now() - timedelta(days=90))
-                                                      ).statement, con=engine)
+            stravaSummary.weight
+        ).join(stravaSummary, stravaBestSamples.activity_id == stravaSummary.activity_id, isouter=True).group_by(
+            stravaBestSamples.interval).filter(stravaBestSamples.type.ilike(activity_type),
+                                               stravaBestSamples.timestamp_local >= (
+                                                       datetime.now() - timedelta(days=90))
+                                               ).statement, con=engine, index_col='interval')
 
     # Don't show TD date when plotting a small chart ( <400 height)
     td_data_exists = len(TD_df_L90D) > 0 and height >= 400
     # If training distribution data exists
     if td_data_exists:
         TD_df_L90D['act_name'] = TD_df_L90D['activity_id'].map(act_dict['act_name'])
-
-        # Join in weight at the time of workout for calculating FTP_W/kg at point in time (of workout)
-        TD_df_L90D = TD_df_L90D.merge(pd.read_sql(
-            sql=app.session.query(stravaSummary.activity_id, stravaSummary.weight).filter(
-                stravaSummary.activity_id.in_(TD_df_L90D['activity_id'].unique().tolist())).statement,
-            con=engine),
-            how='left', right_on='activity_id', left_on='activity_id')
-        TD_df_L90D.set_index(TD_df_L90D['interval'], inplace=True)
         TD_df_L90D['ftp_wkg'] = TD_df_L90D['ftp'] / (TD_df_L90D['weight'] * 0.453592)
 
         ### Calculations for L90D workouts based on todays weights for stryd comparisons ###
