@@ -338,7 +338,7 @@ def get_layout(**kwargs):
 
                                                      dbc.DropdownMenu(children=
                                                      [
-                                                         dbc.DropdownMenuItem("All",
+                                                         dbc.DropdownMenuItem("All Dates",
                                                                               id="performance-time-selector-all",
                                                                               n_clicks_timestamp=0),
                                                          dbc.DropdownMenuItem("YTD",
@@ -377,6 +377,28 @@ def get_layout(**kwargs):
                                                                  target="performance-activity-type-toggle"),
                                                      dbc.Tooltip('Analyze running activities',
                                                                  target="performance-trend-running-icon"),
+
+                                                     dbc.DropdownMenu(children=
+                                                     [
+                                                         dbc.DropdownMenuItem("All Intensities",
+                                                                              id="performance-intensity-selector-all",
+                                                                              n_clicks_timestamp=0),
+                                                         dbc.DropdownMenuItem("High Intensity",
+                                                                              id='performance-intensity-selector-high',
+                                                                              n_clicks_timestamp=0),
+                                                         dbc.DropdownMenuItem("Mod Intensity",
+                                                                              id="performance-intensity-selector-mod",
+                                                                              n_clicks_timestamp=1),
+                                                         dbc.DropdownMenuItem("Low Intensity",
+                                                                              id='performance-intensity-selector-low',
+                                                                              n_clicks_timestamp=0),
+                                                     ],
+                                                         label="All Intensities",
+                                                         bs_size='sm',
+                                                         className="mb-0",
+                                                         id='performance-intensity-selector',
+                                                         style={'display': 'inline-block', 'paddingLeft': '2vw'},
+                                                     ),
                                                  ]),
 
                                              # sport_filter_icons(id='zones'),
