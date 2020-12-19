@@ -626,15 +626,19 @@ class FitlyActivity(stravalib.model.Activity):
             try:
                 self.df_summary['low_intensity_seconds'] = [intensity_seconds.low]
             except AttributeError:
-                self.df_summary['low_intensity_seconds'] = None
+                self.df_summary['low_intensity_seconds'] = np.nan
             try:
-                self.df_summary['med_intensity_seconds'] = [intensity_seconds.med]
+                self.df_summary['mod_intensity_seconds'] = [intensity_seconds.med]
             except AttributeError:
-                self.df_summary['med_intensity_seconds'] = None
+                self.df_summary['mod_intensity_seconds'] = np.nan
             try:
                 self.df_summary['high_intensity_seconds'] = [intensity_seconds.high]
             except AttributeError:
-                self.df_summary['high_intensity_seconds'] = None
+                self.df_summary['high_intensity_seconds'] = np.nan
+
+            self.df_summary['workout_intensity'] = self.df_summary[
+                ['low_intensity_seconds', 'mod_intensity_seconds', 'high_intensity_seconds']].idxmax(
+                axis=1).values[0].replace('_intensity_seconds', '')
 
     def compute_mean_max_power(self, dbinsert=False):
         if self.max_watts is not None:

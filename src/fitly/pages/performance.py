@@ -387,21 +387,22 @@ def get_layout(**kwargs):
                                              ]),
                                              # populated by callback
                                              html.Div(className='col-lg-6 col-12 mt-2', children=[
-                                                 html.Div(className='col-lg-12',
-                                                          children=[
-                                                              html.P(['Training Distribution'], style={
-                                                                  'height': '20px',
-                                                                  'font-family': '"Open Sans", verdana, arial, sans-serif',
-                                                                  'font-size': '14px',
-                                                                  'color': white,
-                                                                  'fill': 'rgb(220, 220, 220)',
-                                                                  'line-height': '10px',
-                                                                  'opacity': 1,
-                                                                  'font-weight': 'normal',
-                                                                  'white-space': 'pre',
-                                                                  'marginBottom': 0})
-                                                          ]),
                                                  dbc.Spinner(color='info', children=[
+                                                     html.Div(className='col-lg-12',
+                                                              children=[
+                                                                  html.P(['Training Distribution'], style={
+                                                                      'height': '20px',
+                                                                      'font-family': '"Open Sans", verdana, arial, sans-serif',
+                                                                      'font-size': '14px',
+                                                                      'color': white,
+                                                                      'fill': 'rgb(220, 220, 220)',
+                                                                      'line-height': '10px',
+                                                                      'opacity': 1,
+                                                                      'font-weight': 'normal',
+                                                                      'white-space': 'pre',
+                                                                      'marginBottom': 0})
+                                                              ]),
+
                                                      html.Div(id='workout-distribution-table',
                                                               children=[
                                                                   dash_table.DataTable(
@@ -1329,10 +1330,10 @@ def create_activity_table(date=None):
 def create_growth_kpis(date, cy, cy_metric, ly, ly_metric, metric):
     cy_title, ly_title = f'{cy}: N/A', f'{ly}: N/A'
     if cy_metric and metric in ['elapsed_time', 'high_intensity_seconds', 'low_intensity_seconds',
-                                'med_intensity_seconds']:
+                                'mod_intensity_seconds']:
         cy_title = '{}: {}'.format(cy, timedelta(seconds=cy_metric))
     if ly_metric and metric in ['elapsed_time', 'high_intensity_seconds', 'low_intensity_seconds',
-                                'med_intensity_seconds']:
+                                'mod_intensity_seconds']:
         ly_title = '{}: {}'.format(ly, timedelta(seconds=ly_metric))
     if cy_metric and metric == 'distance':
         cy_title = '{}: {:.1f} mi.'.format(cy, cy_metric)
@@ -1376,7 +1377,7 @@ def create_growth_kpis(date, cy, cy_metric, ly, ly_metric, metric):
 def create_yoy_chart(metric, sport='all'):
     '''
 
-    :param metric: Allowed values from strava summary table [hrss, tss, trimp, distance, elapsed_time, high_intensity_seconds, med_intensity_seconds, low_intensity_seconds]
+    :param metric: Allowed values from strava summary table [hrss, tss, trimp, distance, elapsed_time, high_intensity_seconds, mod_intensity_seconds, low_intensity_seconds]
     :return:
     '''
 
@@ -1426,7 +1427,7 @@ def create_yoy_chart(metric, sport='all'):
     # Plot latest line first
     index, current_date, cy_metric, ly_metric, target = 0, None, None, None, None
     for year in list(df.columns)[::-1]:
-        if metric in ['elapsed_time', 'high_intensity_seconds', 'low_intensity_seconds', 'med_intensity_seconds']:
+        if metric in ['elapsed_time', 'high_intensity_seconds', 'low_intensity_seconds', 'mod_intensity_seconds']:
             text = ['{}: <b>{}'.format(str(year), timedelta(seconds=x)) for x in df[year].cumsum().fillna(0)]
         elif metric == 'distance':
             text = ['{}: <b>{:.1f} mi'.format(str(year), x) for x in df[year].cumsum().fillna(0)]
@@ -1672,7 +1673,7 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
     pmd.at[atl_df.index.max(), 'name'] = None
 
     pmd = pmd[
-        ['stress_score', 'tss', 'hrss', 'low_intensity_seconds', 'med_intensity_seconds', 'high_intensity_seconds',
+        ['stress_score', 'tss', 'hrss', 'low_intensity_seconds', 'mod_intensity_seconds', 'high_intensity_seconds',
          'tss_flag']].resample('D').sum()
 
     pmd['CTL'] = np.nan
@@ -1684,7 +1685,7 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
     pmd = pmd.merge(atl_df, how='right', right_index=True, left_index=True)
 
     pmd['l90d_low_intensity'] = pmd['low_intensity_seconds'].rolling(90).sum()
-    pmd['l90d_high_intensity'] = (pmd['med_intensity_seconds'] + pmd['high_intensity_seconds']).rolling(90).sum()
+    pmd['l90d_high_intensity'] = (pmd['mod_intensity_seconds'] + pmd['high_intensity_seconds']).rolling(90).sum()
 
     pmd['l90d_percent_high_intensity'] = pmd['l90d_high_intensity'] / (
             pmd['l90d_high_intensity'] + pmd['l90d_low_intensity'])
@@ -2295,7 +2296,7 @@ def workout_distribution(sport='Run', days=90):
             stravaSummary.start_date_utc >= datetime.utcnow() - timedelta(days=days),
             stravaSummary.type.like(sport),
             stravaSummary.elapsed_time > min_non_warmup_workout_time,
-            or_(stravaSummary.low_intensity_seconds > 0, stravaSummary.med_intensity_seconds > 0,
+            or_(stravaSummary.low_intensity_seconds > 0, stravaSummary.mod_intensity_seconds > 0,
                 stravaSummary.high_intensity_seconds > 0)
         ).statement,
         con=engine, index_col='start_date_utc')
@@ -2341,12 +2342,12 @@ def workout_distribution(sport='Run', days=90):
     df_summary.loc[df_summary['type'] == 'Hike', 'workout'] = 'Hike'
 
     # # Split into intensity subsets workout as low/med/high
-    # df_summary['high_intensity_seconds'] = df_summary['high_intensity_seconds'] + df_summary['med_intensity_seconds']
+    # df_summary['high_intensity_seconds'] = df_summary['high_intensity_seconds'] + df_summary['mod_intensity_seconds']
     # df_summary['intensity'] = df_summary[
-    #     ['low_intensity_seconds', 'med_intensity_seconds', 'high_intensity_seconds']].idxmax(axis=1)
+    #     ['low_intensity_seconds', 'mod_intensity_seconds', 'high_intensity_seconds']].idxmax(axis=1)
 
     # df_summary['total_intensity_seconds'] = df_summary['high_intensity_seconds'].fillna(0) + df_summary[
-    #     'med_intensity_seconds'].fillna(0) + \
+    #     'mod_intensity_seconds'].fillna(0) + \
     #                                         df_summary['low_intensity_seconds'].fillna(0)
 
     df_summary['total_intensity_seconds'] = df_summary['moving_time']  # Replacing different intensity groups for now

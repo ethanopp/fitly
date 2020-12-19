@@ -156,8 +156,9 @@ class stravaSummary(Base):
     variability_index = Column('variability_index', Float())
     trimp = Column('trimp', Float())
     low_intensity_seconds = Column('low_intensity_seconds', Integer())
-    med_intensity_seconds = Column('med_intensity_seconds', Integer())
+    mod_intensity_seconds = Column('mod_intensity_seconds', Integer())
     high_intensity_seconds = Column('high_intensity_seconds', Integer())
+    workout_intensity = Column('workout_intensity', String(4))
     weight = Column('weight', Float())
 
 
