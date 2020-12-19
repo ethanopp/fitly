@@ -773,7 +773,7 @@ def power_curve(activity_type='ride', power_unit='mmp', last_id=None, height=400
             # range=[best_interval_df.index.min(),best_interval_df.index.max()],
             # range=[np.log10(best_interval_df.index.min()), np.log10(best_interval_df.index.max())],
             type='log',
-
+            tickangle=45 if height < 400 else 0,
             tickvals=[1, 2, 5, 10, 30, 60, 120, 5 * 60, 10 * 60, 20 * 60, 60 * 60, 60 * 120],
             ticktext=['1s', '2s', '5s', '10s', '30s', '1m', '2m', '5m', '10m', '20m', '1h', '2h'],
         ),
