@@ -940,6 +940,7 @@ def reset_hrv_plan(n_clicks, metric_n_clicks, hrv_date):
                 query.athlete_id = 1
                 query.completed = 0
                 app.session.commit()
+            # Run the workflow
             athlete_info = app.session.query(athlete).filter(
                 athlete.athlete_id == 1).first()
             training_workflow(min_non_warmup_workout_time=athlete_info.min_non_warmup_workout_time,

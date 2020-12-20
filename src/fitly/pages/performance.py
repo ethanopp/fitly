@@ -626,16 +626,16 @@ def get_layout(**kwargs):
     ])
 
 
-def detect_trend(rmssd_7_slope_trivial, hr_lowest_7_slope_trivial, cv_rmssd_7_slope_trivial,
-                 hrv_normalized_7_slope_trivial, ctl_7_slope_trivial):
-    if rmssd_7_slope_trivial >= 0 and hr_lowest_7_slope_trivial <= 0 and cv_rmssd_7_slope_trivial < 0:
+def detect_trend(rmssd_7_slope_trivial, hr_average_7_slope_trivial, cv_rmssd_7_slope_trivial,
+                 rmssd_normalized_7_slope_trivial, ctl_7_slope_trivial):
+    if rmssd_7_slope_trivial >= 0 and hr_average_7_slope_trivial <= 0 and cv_rmssd_7_slope_trivial < 0:
         return 'Coping well'
-    elif rmssd_7_slope_trivial < 0 and hr_lowest_7_slope_trivial < 0 \
+    elif rmssd_7_slope_trivial < 0 and hr_average_7_slope_trivial < 0 \
             and ctl_7_slope_trivial >= 0:  # E.O Customization
         return 'Risk of accumulated fatigue'
-    elif hr_lowest_7_slope_trivial > 0 and cv_rmssd_7_slope_trivial > 0:
+    elif hr_average_7_slope_trivial > 0 and cv_rmssd_7_slope_trivial > 0:
         return 'Maladaptation'
-    elif rmssd_7_slope_trivial < 0 and hr_lowest_7_slope_trivial > 0 and cv_rmssd_7_slope_trivial < 0 \
+    elif rmssd_7_slope_trivial < 0 and hr_average_7_slope_trivial > 0 and cv_rmssd_7_slope_trivial < 0 \
             and ctl_7_slope_trivial > 0:  # E.O Customization:
         return 'Accumulated fatigue'
     else:
@@ -645,7 +645,7 @@ def detect_trend(rmssd_7_slope_trivial, hr_lowest_7_slope_trivial, cv_rmssd_7_sl
 def get_hrv_df():
     hrv_df = pd.read_sql(
         sql=app.session.query(ouraSleepSummary.report_date, ouraSleepSummary.summary_date, ouraSleepSummary.rmssd,
-                              ouraSleepSummary.hr_average, ouraSleepSummary.hr_lowest).statement,
+                              ouraSleepSummary.hr_average).statement,
         con=engine, index_col='report_date').sort_index(ascending=True)
     trimp_df = pd.read_sql(sql=app.session.query(stravaSummary.start_day_local, stravaSummary.trimp).statement,
                            con=engine, index_col='start_day_local').sort_index(ascending=True)
@@ -655,6 +655,7 @@ def get_hrv_df():
     # Calculate HRV metrics
     hrv_df.set_index(pd.to_datetime(hrv_df.index), inplace=True)
     hrv_df = hrv_df.resample('D').mean()
+    hrv_df['AVNN'] = 60000 / hrv_df['hr_average']
 
     # Hrv baseline
     hrv_df['rmssd_7'] = hrv_df['rmssd'].rolling(7, min_periods=0).mean()
@@ -2201,23 +2202,43 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
 
         # Automated trend detection: https://www.hrv4training.com/blog/interpreting-hrv-trends
         # HR baseline
-        actual['hr_lowest_7'] = actual['hr_lowest'].rolling(7, min_periods=0).mean()
+        actual['hr_average_7'] = actual['hr_average'].rolling(7, min_periods=0).mean()
         # Coefficient of Variation baseline
         actual['cv_rmssd_7'] = (actual['rmssd'].rolling(7, min_periods=0).std() / actual['rmssd_7']) * 100
         # HRV Normalized baseline
-        actual['hrv_normalized_7'] = actual['rmssd_7'] / actual['hr_average'].rolling(7, min_periods=0).mean()
+        actual['rmssd_normalized_7'] = actual['rmssd_7'] / actual['AVNN'].rolling(7, min_periods=0).mean()
 
         # # Calculate Slopes
         actual['rmssd_7_slope'] = actual['rmssd_7'].rolling(14).apply(
-            lambda x: np.polyfit(range(14), x, 1)[0], raw=True).values
-        actual['hr_lowest_7_slope'] = actual['hr_lowest_7'].rolling(14).apply(
-            lambda x: np.polyfit(range(14), x, 1)[0], raw=True).values
+            lambda x: scipy.stats.linregress(range(14), x).slope)
+
+        actual['rmssd_7_stderr'] = actual['rmssd_7'].rolling(14).apply(
+            lambda x: scipy.stats.linregress(range(14), x).stderr)
+
+
+
+
+        actual['hr_average_7_slope'] = actual['hr_average_7'].rolling(14).apply(
+            lambda x: scipy.stats.linregress(range(14), x).slope)
         actual['cv_rmssd_7_slope'] = actual['cv_rmssd_7'].rolling(14).apply(
-            lambda x: np.polyfit(range(14), x, 1)[0], raw=True).values
-        actual['hrv_normalized_7_slope'] = actual['hrv_normalized_7'].rolling(14).apply(
-            lambda x: np.polyfit(range(14), x, 1)[0], raw=True).values
+            lambda x: scipy.stats.linregress(range(14), x).slope)
+        actual['rmssd_normalized_7_slope'] = actual['rmssd_normalized_7'].rolling(14).apply(
+            lambda x: scipy.stats.linregress(range(14), x).slope)
 
         # Remove trivial changes
+
+        actual.loc[(
+                           (actual['rmssd_7'] > (
+                                   actual['rmssd'].rolling(60, min_periods=0).mean() + actual['rmssd'].rolling(60,
+                                                                                                               min_periods=0).std())
+                            ) |
+                           actual['rmssd_7'] < (
+                                   actual['rmssd'].rolling(60, min_periods=0).mean() - actual['rmssd'].rolling(60,
+                                                                                                               min_periods=0).std())
+                   ),
+                   'rmssd_7_slope_trivial'] = actual['rmssd_7_slope']
+
+
         actual.loc[
             (
                     (actual['rmssd_7_slope'] >
@@ -2227,11 +2248,11 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
             ), 'rmssd_7_slope_trivial'] = actual['rmssd_7_slope']
         actual.loc[
             (
-                    (actual['hr_lowest_7_slope'] >
-                     (actual['hr_lowest_7_slope'].rolling(14).mean() + actual['hr_lowest_7_slope'].rolling(14).std())) |
-                    (actual['hr_lowest_7_slope'] <
-                     (actual['hr_lowest_7_slope'].rolling(14).mean() - actual['hr_lowest_7_slope'].rolling(14).std()))
-            ), 'hr_lowest_7_slope_trivial'] = actual['hr_lowest_7_slope']
+                    (actual['hr_average_7_slope'] >
+                     (actual['hr_average_7_slope'].rolling(14).mean() + actual['hr_average_7_slope'].rolling(14).std())) |
+                    (actual['hr_average_7_slope'] <
+                     (actual['hr_average_7_slope'].rolling(14).mean() - actual['hr_average_7_slope'].rolling(14).std()))
+            ), 'hr_average_7_slope_trivial'] = actual['hr_average_7_slope']
 
         actual.loc[
             (
@@ -2243,19 +2264,22 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
 
         actual.loc[
             (
-                    (actual['hrv_normalized_7_slope'] >
-                     (actual['hrv_normalized_7_slope'].rolling(14).mean() + actual['hrv_normalized_7_slope'].rolling(
+                    (actual['rmssd_normalized_7_slope'] >
+                     (actual['rmssd_normalized_7_slope'].rolling(14).mean() + actual[
+                         'rmssd_normalized_7_slope'].rolling(
                          14).std())) |
-                    (actual['hrv_normalized_7_slope'] <
-                     (actual['hrv_normalized_7_slope'].rolling(14).mean() - actual['hrv_normalized_7_slope'].rolling(
+                    (actual['rmssd_normalized_7_slope'] <
+                     (actual['rmssd_normalized_7_slope'].rolling(14).mean() - actual[
+                         'rmssd_normalized_7_slope'].rolling(
                          14).std()))
-            ), 'hrv_normalized_7_slope_trivial'] = actual['hrv_normalized_7_slope']
+            ), 'rmssd_normalized_7_slope_trivial'] = actual['rmssd_normalized_7_slope']
 
         # E.O Customization
         # CTL Normalized baseline
         actual['ctl_7'] = actual['CTL'].rolling(7, min_periods=0).mean().fillna(0)
         actual['ctl_7_slope'] = actual['ctl_7'].rolling(14).apply(
-            lambda x: np.polyfit(range(14), x, 1)[0], raw=True).values
+            lambda x: scipy.stats.linregress(range(14), x).slope)
+
         actual.loc[
             (
                     (actual['ctl_7_slope'] >
@@ -2273,8 +2297,10 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
 
                 # Check for trend
         actual["detected_trend"] = actual[
-            ["rmssd_7_slope_trivial", "hr_lowest_7_slope_trivial", "cv_rmssd_7_slope_trivial",
-             "hrv_normalized_7_slope_trivial", "ctl_7_slope_trivial"]].apply(lambda x: detect_trend(*x), axis=1)
+            ["rmssd_7_slope_trivial", "hr_average_7_slope_trivial", "cv_rmssd_7_slope_trivial",
+             "rmssd_normalized_7_slope_trivial", "ctl_7_slope_trivial"]].apply(lambda x: detect_trend(*x), axis=1)
+
+        # actual.to_csv('actual.csv',sep=',')
 
         # hrv_df.to_csv('trends.csv', sep=',') # Debugging
         # TODO: Enable once trends are fixed
