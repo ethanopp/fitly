@@ -751,6 +751,7 @@ def training_workflow(min_non_warmup_workout_time, metric='hrv_baseline', athlet
 
         elif metric == 'hrv_baseline':
             metric_df = get_hrv_df()
+            metric_df['within_swc'] = metric_df['within_flowchart_swc']
 
         elif metric == 'readiness':
             metric_df = pd.read_sql(

@@ -661,33 +661,34 @@ def get_hrv_df():
     hrv_df['rmssd_7'] = hrv_df['rmssd'].rolling(7, min_periods=0).mean()
     hrv_df['rmssd_7_yesterday'] = hrv_df['rmssd_7'].shift(1)
 
+    # 30/60 day Stdev and means
     hrv_df['rmssd_30'] = hrv_df['rmssd'].rolling(30, min_periods=0).mean()
-    hrv_df['stdev_rmssd_30_threshold'] = hrv_df['rmssd'].rolling(30, min_periods=0).std()
+    hrv_df['rmssd_60'] = hrv_df['rmssd'].rolling(60, min_periods=0).mean()
+    hrv_df['rmssd_30_stdev'] = hrv_df['rmssd'].rolling(30, min_periods=0).std()
+    hrv_df['rmssd_60_stdev'] = hrv_df['rmssd'].rolling(60, min_periods=0).std()
 
-    # Normal value (SWC) thresholds for 7 day hrv baseline trends
-    hrv_df['swc_upper'] = hrv_df['rmssd_30'] + hrv_df['stdev_rmssd_30_threshold']
-    hrv_df['swc_lower'] = hrv_df['rmssd_30'] - hrv_df['stdev_rmssd_30_threshold']
+    # Normal value (SWC) thresholds for 7 day hrv baseline trends to analyze physiological changes
+    hrv_df['swc_baseline_upper'] = hrv_df['rmssd_60'] + hrv_df['rmssd_60_stdev']
+    hrv_df['swc_baseline_lower'] = hrv_df['rmssd_60'] - hrv_df['rmssd_60_stdev']
 
     # Normal value (SWC) thresholds for 7 day hrv baseline trends to guide workflow steps
-    hrv_df['swc_flowchart_upper'] = hrv_df['rmssd_30'] + (hrv_df['stdev_rmssd_30_threshold'] * .5)
-    hrv_df['swc_flowchart_lower'] = hrv_df['rmssd_30'] - (hrv_df['stdev_rmssd_30_threshold'] * .5)
-    hrv_df['within_swc'] = True
+    hrv_df['swc_flowchart_upper'] = hrv_df['rmssd_30'] + (hrv_df['rmssd_30_stdev'] * .5)
+    hrv_df['swc_flowchart_lower'] = hrv_df['rmssd_30'] - (hrv_df['rmssd_30_stdev'] * .5)
+    hrv_df['within_flowchart_swc'] = True
     hrv_df.loc[(hrv_df['rmssd_7'] < hrv_df['swc_flowchart_lower']) | (hrv_df['rmssd_7'] > hrv_df[
-        'swc_flowchart_upper']), 'within_swc'] = False
+        'swc_flowchart_upper']), 'within_flowchart_swc'] = False
 
     # Normal value thresholds (SWC) for daily rmssd
-    hrv_df['rmssd_60'] = hrv_df['rmssd'].rolling(60, min_periods=0).mean()
-    hrv_df['stdev_rmssd_60_threshold'] = hrv_df['rmssd'].rolling(60, min_periods=0).std()
-    hrv_df['swc_upper_60'] = hrv_df['rmssd_60'] + (hrv_df['stdev_rmssd_60_threshold'] * 1.5)
-    hrv_df['swc_lower_60'] = hrv_df['rmssd_60'] - (hrv_df['stdev_rmssd_60_threshold'] * 1.5)
+    hrv_df['swc_daily_upper'] = hrv_df['rmssd_60'] + (hrv_df['rmssd_60_stdev'] * 1.5)
+    hrv_df['swc_daily_lower'] = hrv_df['rmssd_60'] - (hrv_df['rmssd_60_stdev'] * 1.5)
     hrv_df['within_daily_swc'] = True
-    hrv_df.loc[(hrv_df['rmssd'] < hrv_df['swc_lower_60']) | (hrv_df['rmssd'] > hrv_df[
-        'swc_upper_60']), 'within_daily_swc'] = False
+    hrv_df.loc[(hrv_df['rmssd'] < hrv_df['swc_daily_lower']) | (hrv_df['rmssd'] > hrv_df[
+        'swc_daily_upper']), 'within_daily_swc'] = False
 
     # Threshold Flags
-    # hrv_df['under_low_threshold'] = hrv_df['rmssd_7'] < hrv_df['swc_lower']
+    # hrv_df['under_low_threshold'] = hrv_df['rmssd_7'] < hrv_df['swc_baseline_lower']
     # hrv_df['under_low_threshold_yesterday'] = hrv_df['under_low_threshold'].shift(1)
-    # hrv_df['over_upper_threshold'] = hrv_df['rmssd_7'] > hrv_df['swc_upper']
+    # hrv_df['over_upper_threshold'] = hrv_df['rmssd_7'] > hrv_df['swc_baseline_upper']
     # hrv_df['over_upper_threshold_yesterday'] = hrv_df['over_upper_threshold'].shift(1)
     # for i in hrv_df.index:
     #     if hrv_df.at[i, 'under_low_threshold_yesterday'] == False and hrv_df.at[
@@ -984,11 +985,11 @@ def create_daily_recommendations(hrv, hrv_change, hrv7, hrv7_change, plan_rec):
         plan_rationale = data[2]
         oura_recommendation = data[3]
         readiness_score = int(data[4])
-        swc_lower = float(data[5])
-        swc_upper = float(data[6])
-        swc_lower_60 = float(data[7])
-        swc_upper_60 = float(data[8])
-        swc = (swc_upper_60 - swc_lower_60) / 2  # 1.5 stdev
+        swc_baseline_lower = float(data[5])
+        swc_baseline_upper = float(data[6])
+        swc_daily_lower = float(data[7])
+        swc_daily_upper = float(data[8])
+        swc = (swc_daily_upper - swc_daily_lower) / 2  # 1.5 stdev
         gague_spacing = (swc * 4) / 5  # stdev (-3 to 3) over 5 gauge icons
 
         hrv = hrv if hrv is not None else 'N/A'
@@ -1011,7 +1012,7 @@ def create_daily_recommendations(hrv, hrv_change, hrv7, hrv7_change, plan_rec):
             oura_recommendation, oura_rationale = 'N/A', 'N/A'
 
     else:
-        hrv, hrv_change, hrv_yesterday, hrv7, hrv7_change, hrv7_yesterday, plan_rationale, plan_recommendation, oura_recommendation, recovery_metric_label, readiness_score, oura_rationale, swc_lower, swc_upper, spacing, plan_step = \
+        hrv, hrv_change, hrv_yesterday, hrv7, hrv7_change, hrv7_yesterday, plan_rationale, plan_recommendation, oura_recommendation, recovery_metric_label, readiness_score, oura_rationale, swc_baseline_lower, swc_baseline_upper, spacing, plan_step = \
             'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', None, None, None, None, None, None
 
     readiness_score = round(readiness_score) if readiness_score else 'N/A'
@@ -1105,7 +1106,7 @@ def create_daily_recommendations(hrv, hrv_change, hrv7, hrv7_change, plan_rec):
                                           figure={
                                               'data': [
                                                   go.Bar(
-                                                      x=[(swc_lower_60 - swc) + gague_spacing,
+                                                      x=[(swc_daily_lower - swc) + gague_spacing,
                                                          gague_spacing * .2,
                                                          gague_spacing * .8,
                                                          gague_spacing,
@@ -1129,8 +1130,8 @@ def create_daily_recommendations(hrv, hrv_change, hrv7, hrv7_change, plan_rec):
                                                   ),
                                                   xaxis=dict(
                                                       showticklabels=True,
-                                                      range=[swc_lower_60 - swc,
-                                                             swc_upper_60 + swc],
+                                                      range=[swc_daily_lower - swc,
+                                                             swc_daily_upper + swc],
                                                       tickvals=[hrv],
                                                   ),
                                                   yaxis=dict(
@@ -1146,7 +1147,7 @@ def create_daily_recommendations(hrv, hrv_change, hrv7, hrv7_change, plan_rec):
                                                   hovermode='x'
                                               )
                                           }
-                                          ) if swc_lower and swc_upper else None
+                                          ) if swc_baseline_lower and swc_baseline_upper else None
                             ]),
                             html.Div(className='row', children=[
                                 html.Div(className='col-lg-6', children=[
@@ -1762,8 +1763,8 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
                                  actual['rationale'] + '|' + actual[
                                      'score'].fillna(0).apply(
             readiness_score_recommendation) + '|' + actual['score'].fillna(0).astype('int').astype('str') + '|' + \
-                                 actual['swc_lower'].astype('str') + '|' + actual['swc_upper'].astype('str') + '|' + \
-                                 actual['swc_lower_60'].astype('str') + '|' + actual['swc_upper_60'].astype('str')
+                                 actual['swc_baseline_lower'].astype('str') + '|' + actual['swc_baseline_upper'].astype('str') + '|' + \
+                                 actual['swc_daily_lower'].astype('str') + '|' + actual['swc_daily_upper'].astype('str')
         hover_rec = actual['workout_plan'].tail(1).values[0]
 
     stress_bar_colors = []
@@ -2118,7 +2119,7 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
             go.Scatter(
                 name='HRV SWC (Upper)',
                 x=actual.index,
-                y=actual['swc_upper'],
+                y=actual['swc_baseline_upper'],
                 text='swc upper',
                 yaxis='y3',
                 mode='lines',
@@ -2128,7 +2129,7 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
             go.Scatter(
                 name='HRV SWC (Lower)',
                 x=actual.index,
-                y=actual['swc_lower'],
+                y=actual['swc_baseline_lower'],
                 text='swc lower',
                 yaxis='y3',
                 mode='lines',
@@ -2176,7 +2177,7 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
                     name='HRV SWC Flowchart (Lower)',
                     x=actual.index,
                     y=actual[
-                        'swc_flowchart_lower' if athlete_info.recovery_metric == 'hrv_baseline' else 'swc_lower_60'],
+                        'swc_flowchart_lower' if athlete_info.recovery_metric == 'hrv_baseline' else 'swc_daily_lower'],
                     yaxis='y3',
                     mode='lines',
                     hoverinfo='none',
@@ -2188,7 +2189,7 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
                     name='HRV SWC Flowchart (Upper)',
                     x=actual.index,
                     y=actual[
-                        'swc_flowchart_upper' if athlete_info.recovery_metric == 'hrv_baseline' else 'swc_upper_60'],
+                        'swc_flowchart_upper' if athlete_info.recovery_metric == 'hrv_baseline' else 'swc_daily_upper'],
                     yaxis='y3',
                     mode='lines',
                     hoverinfo='none',
@@ -2215,9 +2216,6 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
         actual['rmssd_7_stderr'] = actual['rmssd_7'].rolling(14).apply(
             lambda x: scipy.stats.linregress(range(14), x).stderr)
 
-
-
-
         actual['hr_average_7_slope'] = actual['hr_average_7'].rolling(14).apply(
             lambda x: scipy.stats.linregress(range(14), x).slope)
         actual['cv_rmssd_7_slope'] = actual['cv_rmssd_7'].rolling(14).apply(
@@ -2227,51 +2225,51 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
 
         # Remove trivial changes
 
-        actual.loc[(
-                           (actual['rmssd_7'] > (
-                                   actual['rmssd'].rolling(60, min_periods=0).mean() + actual['rmssd'].rolling(60,
-                                                                                                               min_periods=0).std())
-                            ) |
-                           actual['rmssd_7'] < (
-                                   actual['rmssd'].rolling(60, min_periods=0).mean() - actual['rmssd'].rolling(60,
-                                                                                                               min_periods=0).std())
-                   ),
-                   'rmssd_7_slope_trivial'] = actual['rmssd_7_slope']
-
+        # actual.loc[(
+        #                    (actual['rmssd_7'] > (
+        #                            actual['rmssd'].rolling(60, min_periods=0).mean() + actual['rmssd'].rolling(60,
+        #                                                                                                        min_periods=0).std())
+        #                     ) |
+        #                    actual['rmssd_7'] < (
+        #                            actual['rmssd'].rolling(60, min_periods=0).mean() - actual['rmssd'].rolling(60,
+        #                                                                                                        min_periods=0).std())
+        #            ),
+        #            'rmssd_7_slope_trivial'] = actual['rmssd_7_slope']
 
         actual.loc[
             (
                     (actual['rmssd_7_slope'] >
-                     (actual['rmssd_7_slope'].rolling(14).mean() + actual['rmssd_7_slope'].rolling(14).std())) |
+                     (actual['rmssd_7_slope'].rolling(4).mean() + actual['rmssd_7_slope'].rolling(4).std())) |
                     (actual['rmssd_7_slope'] <
-                     (actual['rmssd_7_slope'].rolling(14).mean() - actual['rmssd_7_slope'].rolling(14).std()))
+                     (actual['rmssd_7_slope'].rolling(4).mean() - actual['rmssd_7_slope'].rolling(4).std()))
             ), 'rmssd_7_slope_trivial'] = actual['rmssd_7_slope']
         actual.loc[
             (
                     (actual['hr_average_7_slope'] >
-                     (actual['hr_average_7_slope'].rolling(14).mean() + actual['hr_average_7_slope'].rolling(14).std())) |
+                     (actual['hr_average_7_slope'].rolling(4).mean() + actual['hr_average_7_slope'].rolling(
+                         4).std())) |
                     (actual['hr_average_7_slope'] <
-                     (actual['hr_average_7_slope'].rolling(14).mean() - actual['hr_average_7_slope'].rolling(14).std()))
+                     (actual['hr_average_7_slope'].rolling(4).mean() - actual['hr_average_7_slope'].rolling(4).std()))
             ), 'hr_average_7_slope_trivial'] = actual['hr_average_7_slope']
 
         actual.loc[
             (
                     (actual['cv_rmssd_7_slope'] >
-                     (actual['cv_rmssd_7_slope'].rolling(14).mean() + actual['cv_rmssd_7_slope'].rolling(14).std())) |
+                     (actual['cv_rmssd_7_slope'].rolling(4).mean() + actual['cv_rmssd_7_slope'].rolling(4).std())) |
                     (actual['cv_rmssd_7_slope'] <
-                     (actual['cv_rmssd_7_slope'].rolling(14).mean() - actual['cv_rmssd_7_slope'].rolling(14).std()))
+                     (actual['cv_rmssd_7_slope'].rolling(4).mean() - actual['cv_rmssd_7_slope'].rolling(4).std()))
             ), 'cv_rmssd_7_slope_trivial'] = actual['cv_rmssd_7_slope']
 
         actual.loc[
             (
                     (actual['rmssd_normalized_7_slope'] >
-                     (actual['rmssd_normalized_7_slope'].rolling(14).mean() + actual[
+                     (actual['rmssd_normalized_7_slope'].rolling(4).mean() + actual[
                          'rmssd_normalized_7_slope'].rolling(
-                         14).std())) |
+                         4).std())) |
                     (actual['rmssd_normalized_7_slope'] <
-                     (actual['rmssd_normalized_7_slope'].rolling(14).mean() - actual[
+                     (actual['rmssd_normalized_7_slope'].rolling(4).mean() - actual[
                          'rmssd_normalized_7_slope'].rolling(
-                         14).std()))
+                         4).std()))
             ), 'rmssd_normalized_7_slope_trivial'] = actual['rmssd_normalized_7_slope']
 
         # E.O Customization
@@ -2283,11 +2281,11 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
         actual.loc[
             (
                     (actual['ctl_7_slope'] >
-                     (actual['ctl_7_slope'].rolling(14).mean() + actual['ctl_7_slope'].rolling(
-                         14).std())) |
+                     (actual['ctl_7_slope'].rolling(4).mean() + actual['ctl_7_slope'].rolling(
+                         4).std())) |
                     (actual['ctl_7_slope'] <
-                     (actual['ctl_7_slope'].rolling(14).mean() - actual['ctl_7_slope'].rolling(
-                         14).std()))
+                     (actual['ctl_7_slope'].rolling(4).mean() - actual['ctl_7_slope'].rolling(
+                         4).std()))
             ), 'ctl_7_slope_trivial'] = actual['ctl_7_slope']
 
         # Fill slopes with 0 when non trivial for trend detection
@@ -2302,7 +2300,6 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
 
         # actual.to_csv('actual.csv',sep=',')
 
-        # hrv_df.to_csv('trends.csv', sep=',') # Debugging
         # TODO: Enable once trends are fixed
         # for trend in ['Coping well', 'Risk of accumulated fatigue', 'Maladaptation', 'Accumulated fatigue']:
         #     actual.loc[actual['detected_trend'] == trend, trend] = actual['rmssd_7']
