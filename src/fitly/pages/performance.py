@@ -2285,7 +2285,10 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
             ["rmssd_7_slope_trivial", "hr_average_7_slope_trivial", "cv_rmssd_7_slope_trivial",
              "rmssd_normalized_7_slope_trivial", "ctl_7_slope_trivial"]].apply(lambda x: detect_trend(*x), axis=1)
 
-        actual.to_csv('actual.csv', sep=',')
+        # Debugging
+        # actual[
+        #     ["rmssd_7_slope_trivial", "hr_average_7_slope_trivial", "cv_rmssd_7_slope_trivial",
+        #      "rmssd_normalized_7_slope_trivial"]].to_csv('actual.csv', sep=',')
 
         # TODO: Enable once trends are fixed
         # for trend in ['Coping well', 'Risk of accumulated fatigue', 'Maladaptation', 'Accumulated fatigue']:

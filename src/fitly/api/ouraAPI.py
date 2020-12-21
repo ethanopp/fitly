@@ -1,6 +1,6 @@
 from oura import OuraClient
 from ..api.sqlalchemy_declarative import ouraReadinessSummary, ouraActivitySummary, \
-    ouraActivitySamples, ouraSleepSamples, ouraSleepSummary, apiTokens, correlations
+    ouraActivitySamples, ouraSleepSamples, ouraSleepSummary, apiTokens
 from ..api.database import engine
 from sqlalchemy import func, delete
 from datetime import datetime, timedelta
@@ -310,9 +310,9 @@ def insert_sleep_data(df_sleep_summary, df_sleep_samples, days_back=7):
         app.server.logger.error(e)
 
 
-def insert_oura_correlations(lookback_days=42):
+def generate_oura_correlations(lookback_days=180):
     '''
-    Generates 6 week correlations of oura metrics and stores in table 'oura_correlations'
+    Generates correlations of oura metrics
 
     '''
     lookback = pd.to_datetime(datetime.today() - timedelta(days=lookback_days)).date()
@@ -404,14 +404,14 @@ def insert_oura_correlations(lookback_days=42):
     df['rolling_days'] = lookback_days
     df.index.name = 'Metric'
 
-    df.to_sql('correlations', engine, if_exists='replace', index=True)
+    # df.to_sql('correlations', engine, if_exists='replace', index=True)
 
     app.session.remove()
     return df
 
 
-def top_n_correlations(n, column):
-    df = pd.read_sql(sql=app.session.query(correlations).statement, con=engine, index_col='Metric')
+def top_n_correlations(n, column, days=180):
+    df = generate_oura_correlations(lookback_days=days)
     positive = df[column].nlargest(n).reset_index()
     positive.columns = ['Positive', 'Pos Corr Coef.']
 
@@ -436,9 +436,9 @@ def pull_oura_data():
         insert_activity_data(df_activity_summary, df_activity_samples, days_back)
         insert_sleep_data(df_sleep_summary, df_sleep_samples, days_back)
 
-        # Generate correlation table
-        # TODO: Add control to settings to allow end user to control lookback days for generating correlations table
-        insert_oura_correlations(lookback_days=9999)
+
+        # # Generate correlation table - Depricated, no longer storing in table
+        # generate_oura_correlations(lookback_days=9999)
 
         return df_sleep_summary.index.max() == df_readiness_summary.index.max()  # == df_activity_summary.index.max()
 

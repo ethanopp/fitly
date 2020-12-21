@@ -30,8 +30,8 @@ grey = 'rgb(50,50,50)'
 chartHeight = 150
 
 
-def generate_correlation_table(n, metric):
-    df = top_n_correlations(n, metric)
+def generate_correlation_table(n, metric, lookback_days=180):
+    df = top_n_correlations(n, metric, lookback_days)
     df['Pos Corr Coef.'] = df['Pos Corr Coef.'].map('{:,.3f}'.format)
     df['Neg Corr Coef.'] = df['Neg Corr Coef.'].map('{:,.3f}'.format)
     return dash_table.DataTable(
@@ -1669,9 +1669,9 @@ def generate_sleep_modal_summary(days=7):
         html.Div(className='row', children=[
             html.Div(id='sleep-score-correlations', className='col-lg-6', children=[
                 html.Div(id='sleep-score-correlation-title', className='col-lg-12 text-center',
-                         children=[html.P('Sleep Score Correlations')]),
+                         children=[html.P('Sleep Score Correlations (L6M)')]),
                 html.Div(id='sleep-score-correlation-chart', className='col-lg-12',
-                         children=[generate_correlation_table(10, 'Sleep score')]
+                         children=[generate_correlation_table(10, 'Sleep score', 180)]
                          )
             ]),
 
@@ -2337,9 +2337,9 @@ def generate_readiness_modal_summary(days=7):
         html.Div(className='row', children=[
             html.Div(id='readiness-score-correlations', className='col-lg-6', children=[
                 html.Div(id='readiness-score-correlation-title', className='col-lg-12 text-center',
-                         children=[html.P('Readiness Score Correlations')]),
+                         children=[html.P('Readiness Score Correlations (L6M)')]),
                 html.Div(id='readiness-score-correlation-chart', className='col-lg-12',
-                         children=[generate_correlation_table(10, 'Readiness score')]
+                         children=[generate_correlation_table(10, 'Readiness score', 180)]
                          )
             ]),
 
@@ -2827,9 +2827,9 @@ def generate_activity_modal_summary(days=7):
         html.Div(className='row', children=[
             html.Div(id='activity-score-correlations', className='col-lg-6', children=[
                 html.Div(id='activity-score-correlation-title', className='col-lg-12 text-center',
-                         children=[html.P('Activity Score Correlations')]),
+                         children=[html.P('Activity Score Correlations (L6M)')]),
                 html.Div(id='activity-score-correlation-chart', className='col-lg-12',
-                         children=[generate_correlation_table(10, 'Activity score')]
+                         children=[generate_correlation_table(10, 'Activity score', 180)]
                          )
             ]),
 
