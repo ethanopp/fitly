@@ -658,14 +658,14 @@ def get_hrv_df():
     hrv_df['AVNN'] = 60000 / hrv_df['hr_average']
 
     # Hrv baseline
-    hrv_df['rmssd_7'] = hrv_df['rmssd'].rolling(7, min_periods=0).mean()
+    hrv_df['rmssd_7'] = hrv_df['rmssd'].rolling(7).mean()
     hrv_df['rmssd_7_yesterday'] = hrv_df['rmssd_7'].shift(1)
 
     # 30/60 day Stdev and means
-    hrv_df['rmssd_30'] = hrv_df['rmssd'].rolling(30, min_periods=0).mean()
-    hrv_df['rmssd_60'] = hrv_df['rmssd'].rolling(60, min_periods=0).mean()
-    hrv_df['rmssd_30_stdev'] = hrv_df['rmssd'].rolling(30, min_periods=0).std()
-    hrv_df['rmssd_60_stdev'] = hrv_df['rmssd'].rolling(60, min_periods=0).std()
+    hrv_df['rmssd_30'] = hrv_df['rmssd'].rolling(30).mean()
+    hrv_df['rmssd_60'] = hrv_df['rmssd'].rolling(60).mean()
+    hrv_df['rmssd_30_stdev'] = hrv_df['rmssd'].rolling(30).std()
+    hrv_df['rmssd_60_stdev'] = hrv_df['rmssd'].rolling(60).std()
 
     # Normal value (SWC) thresholds for 7 day hrv baseline trends to analyze physiological changes
     hrv_df['swc_baseline_upper'] = hrv_df['rmssd_60'] + hrv_df['rmssd_60_stdev']
@@ -1197,11 +1197,12 @@ def create_daily_recommendations(hrv, hrv_change, hrv7, hrv7_change, plan_rec):
 def create_fitness_kpis(date, ctl, ramp, rr_min_threshold, rr_max_threshold, atl, tsb, hrv7):
     # TODO: Remove ramp rate?
     if atl is not None and ctl is not None:
-        ctl = round(ctl, 1) if ctl else 'N/A'
-        tsb = round(tsb, 1) if tsb else 'N/A'
+        ctl = round(ctl, 1)
+        tsb = round(tsb, 1)
 
-        if round(ctl, 1) == 0 or ctl == 'N/A':
+        if ctl == 0 or ctl == 'N/A':
             hrv4training_injury_risk = 'No Fitness'
+            atl_ctl_ratio = 'N/A'
         else:
             atl_ctl_ratio = atl / ctl
             if atl_ctl_ratio > 1.75:
@@ -1213,9 +1214,7 @@ def create_fitness_kpis(date, ctl, ramp, rr_min_threshold, rr_max_threshold, atl
             elif 0.8 >= atl_ctl_ratio:
                 hrv4training_injury_risk = 'Loss of Fitness'
     else:
-        hrv4training_injury_risk = 'N/A'
-        atl_ctl_ratio = None
-
+        hrv4training_injury_risk, ctl, atl, atl_ctl_ratio = 'N/A', 'N/A', 'N/A', 'N/A'
     # injury_risk = 'High' if ramp >= rr_max_threshold else 'Medium' if ramp >= rr_min_threshold else 'Low'
 
     hrv7 = round(hrv7, 1) if hrv7 else 'N/A'
@@ -1246,7 +1245,7 @@ def create_fitness_kpis(date, ctl, ramp, rr_min_threshold, rr_max_threshold, atl
         ### ATL KPI ###
         html.Div(id='atl-kpi', className='col-lg-2', children=[
             html.Div(children=[
-                html.H6('Fatigue {:.1f}'.format(atl),
+                html.H6('Fatigue {}'.format(round(atl, 1) if atl != 'N/A' else 'N/A'),
                         className='d-inline-block',
                         style={'color': atl_color, 'marginTop': '0', 'marginBottom': '0'}),
             ]),
@@ -1277,8 +1276,9 @@ def create_fitness_kpis(date, ctl, ramp, rr_min_threshold, rr_max_threshold, atl
             ]),
         ]),
         # dbc.Tooltip('7 day CTL △ = {:.1f}'.format(ramp), target='injury-risk'),
-        dbc.Tooltip('ATL to CTL ratio = {}'.format(round(atl_ctl_ratio, 1) if atl_ctl_ratio else 'N/A'),
-                    target='injury-risk'),
+        dbc.Tooltip(
+            'ATL to CTL ratio = {}'.format(round(atl_ctl_ratio, 1) if atl_ctl_ratio != 'N/A' else 'N/A'),
+            target='injury-risk'),
 
         ### HRV7 KPI ###
         html.Div(id='hrv7-kpi', className='col-lg-2', children=[
@@ -1789,6 +1789,7 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
                             {'y': latest['TSB'].max(), 'text': 'Form'},
                             ]
                  }
+
     if oura_credentials_supplied:
         hoverData['points'].extend([{'text': 'HRV: <b>{:.0f} ({}{:.0f})'.format(latest['rmssd'].max(),
                                                                                 '+' if latest['rmssd'].max() -
@@ -2050,10 +2051,12 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
                              label='ALL',
                              step='day',
                              stepmode='backward'),
-                        dict(count=1,
+                        # Forecast goes into next year, so in December end of year, using 'year' shows the next year
+                        # Count the number of days in year instead
+                        dict(count=actual.index.max().timetuple().tm_yday + forecast_days,
                              label='YTD',
-                             step='year',
-                             stepmode='todate'),
+                             step='day',
+                             stepmode='backward'),
                         dict(count=89 + forecast_days,
                              label='L90D',
                              step='day',
@@ -2203,11 +2206,11 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
 
         # Automated trend detection: https://www.hrv4training.com/blog/interpreting-hrv-trends
         # HR baseline
-        actual['hr_average_7'] = actual['hr_average'].rolling(7, min_periods=0).mean()
+        actual['hr_average_7'] = actual['hr_average'].rolling(7).mean()
         # Coefficient of Variation baseline
-        actual['cv_rmssd_7'] = (actual['rmssd'].rolling(7, min_periods=0).std() / actual['rmssd_7']) * 100
+        actual['cv_rmssd_7'] = (actual['rmssd'].rolling(7).std() / actual['rmssd_7']) * 100
         # HRV Normalized baseline
-        actual['rmssd_normalized_7'] = actual['rmssd_7'] / actual['AVNN'].rolling(7, min_periods=0).mean()
+        actual['rmssd_normalized_7'] = actual['rmssd_7'] / actual['AVNN'].rolling(7).mean()
 
         # Calculate 2 Week Slopes
         actual['rmssd_7_slope'] = actual['rmssd_7'].rolling(14).apply(
@@ -2270,7 +2273,7 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
 
         # E.O Customization
         # CTL Normalized baseline
-        actual['ctl_7'] = actual['CTL'].rolling(7, min_periods=0).mean().fillna(0)
+        actual['ctl_7'] = actual['CTL'].rolling(7).mean().fillna(0)
         actual['ctl_7_slope'] = actual['ctl_7'].rolling(14).apply(
             lambda x: scipy.stats.linregress(range(14), x).slope)
 
