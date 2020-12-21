@@ -2120,19 +2120,9 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
                                     {'y': hrv_df.tail(1)['rmssd_7'].values[0], 'text': '7 Day'}])
         figure['data'].extend([
             go.Scatter(
-                name='HRV SWC (Upper)',
-                x=actual.index,
-                y=actual['swc_baseline_upper'],
-                text='swc upper',
-                yaxis='y3',
-                mode='lines',
-                hoverinfo='none',
-                line={'color': dark_blue},
-            ),
-            go.Scatter(
-                name='HRV SWC (Lower)',
-                x=actual.index,
-                y=actual['swc_baseline_lower'],
+                name='SWC Threshold',
+                x=actual.index.append(actual.index[::-1]),
+                y=pd.concat([actual['swc_baseline_upper'], actual['swc_baseline_lower'][::-1]]),
                 text='swc lower',
                 yaxis='y3',
                 mode='lines',
