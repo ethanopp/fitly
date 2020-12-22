@@ -742,57 +742,56 @@ def get_peloton_class_names():
             peloton_class_dict = json.load(file)
         if pd.to_datetime(peloton_class_dict['last_refresh']).date() > (datetime.today() - timedelta(days=30)).date():
             app.server.logger.debug('Peloton class type json not older than 30 days, skipping refresh')
-            del peloton_class_dict['last_refresh']
-            return peloton_class_dict
 
-    app.server.logger.info('Refreshing peloton class type dict...')
-    uri = '/api/v2/ride/archived'
-    params = {
-        'content_format': 'audio,video',
-        'limit': 10,
-        'page': 0,
-        'sort_by': 'original_air_time',
-        'desc': 'true'
-    }
+    else:
+        app.server.logger.info('Refreshing peloton class type dict...')
+        uri = '/api/v2/ride/archived'
+        params = {
+            'content_format': 'audio,video',
+            'limit': 10,
+            'page': 0,
+            'sort_by': 'original_air_time',
+            'desc': 'true'
+        }
 
-    # Get our first page, which includes number of successive pages
-    res = PelotonAPI._api_request(uri=uri, params=params).json()
+        # Get our first page, which includes number of successive pages
+        res = PelotonAPI._api_request(uri=uri, params=params).json()
 
-    fitness_disciplines = res['fitness_disciplines']
-    fitness_disciplines.append({'id': 'outdoor', 'name': 'Outdoor'})
-    peloton_class_dict = {}
+        fitness_disciplines = res['fitness_disciplines']
+        fitness_disciplines.append({'id': 'outdoor', 'name': 'Outdoor'})
+        peloton_class_dict = {}
 
-    # for x in fitness_disciplines:
-    for x in fitness_disciplines:
-        fitness_discipline = x['id']
-        # api still returning 'circuit' for Tread bootcamp when it should be 'bootcamp' so override value from response
-        if fitness_discipline == 'circuit':
-            fitness_discipline = 'bootcamp'
+        # for x in fitness_disciplines:
+        for x in fitness_disciplines:
+            fitness_discipline = x['id']
+            # api still returning 'circuit' for Tread bootcamp when it should be 'bootcamp' so override value from response
+            if fitness_discipline == 'circuit':
+                fitness_discipline = 'bootcamp'
 
-        # If fitness_discipline node not already in dict, add it
-        if not peloton_class_dict.get(fitness_discipline):
-            peloton_class_dict[fitness_discipline] = {}
+            # If fitness_discipline node not already in dict, add it
+            if not peloton_class_dict.get(fitness_discipline):
+                peloton_class_dict[fitness_discipline] = {}
 
-        # Try to grab series id's from each fitness_discipline and add to sub_dict
-        try:
-            # Query schedule to get all types of classes within respective fitness discipline
-            df = get_schedule(fitness_discipline, limit=500)[['title']]
-            df = df.sort_values(by='title')
-            df = df.drop_duplicates()
+            # Try to grab series id's from each fitness_discipline and add to sub_dict
+            try:
+                # Query schedule to get all types of classes within respective fitness discipline
+                df = get_schedule(fitness_discipline, limit=500)[['title']]
+                df = df.sort_values(by='title')
+                df = df.drop_duplicates()
 
-            if len(df) > 0:
-                for index, row in df.iterrows():
-                    peloton_class_dict[fitness_discipline][row['title']] = fitness_discipline
-        except:
-            pass
+                if len(df) > 0:
+                    for index, row in df.iterrows():
+                        peloton_class_dict[fitness_discipline][row['title']] = fitness_discipline
+            except:
+                pass
 
-    with open(peloton_class_names_file, 'w') as file:
-        peloton_class_dict['last_refresh'] = str(datetime.today().date())
-        file.write(json.dumps(peloton_class_dict))
+        with open(peloton_class_names_file, 'w') as file:
+            peloton_class_dict['last_refresh'] = str(datetime.today().date())
+            file.write(json.dumps(peloton_class_dict))
 
-    del peloton_class_dict['last_refresh']
-    app.server.logger.info('Peloton class type dict refresh complete')
-    return peloton_class_dict
+        del peloton_class_dict['last_refresh']
+        app.server.logger.info('Peloton class type dict refresh complete')
+        return peloton_class_dict
 
 
 def add_bookmark(ride_id):
@@ -815,6 +814,7 @@ def get_bookmarks():
 
 
 def set_peloton_workout_recommendations():
+    app.server.logger.info('Bookmarking peloton recommendations...')
     # Query worktypes by effort level settings
     athlete_bookmarks = json.loads(app.session.query(athlete.peloton_auto_bookmark_ids).filter(
         athlete.athlete_id == 1).first().peloton_auto_bookmark_ids)

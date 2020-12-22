@@ -31,13 +31,13 @@ def calctime(time_sec, startdate):
     return timestamp
 
 
-def get_peloton_cache(act_start_date_utc):
+def get_peloton_workout_summary_cache(act_start_date_utc):
     pelton_cache_dir = os.path.join(os.getcwd(), 'peloton-cache.csv')
     # Check if there is already a file
     cache_exists = os.path.isfile(pelton_cache_dir)
     # Parse through max date
     if not cache_exists:
-        app.server.logger.debug('Fetching new peloton cache')
+        app.server.logger.debug('Fetching new peloton worokout summary cache')
         peloton_mapping_df().to_csv(pelton_cache_dir, sep=',')
     else:
         # If latest workout is more than 15 minutes newer than max workout in cache, refresh the cache
@@ -134,7 +134,7 @@ class FitlyActivity(stravalib.model.Activity):
     def get_peloton_workout_title(self, write_to_strava=True):
         ## Assumes recorded ride is started within 5 minutes of peloton video
         client = get_strava_client()
-        peloton_df = get_peloton_cache(self.start_date)
+        peloton_df = get_peloton_workout_summary_cache(self.start_date)
         peloton_df['start'] = pd.to_datetime(peloton_df['start'])
         peloton_df['created_at'] = pd.to_datetime(peloton_df['created_at'])
         start = roundTime(self.start_date)
