@@ -791,7 +791,8 @@ def get_peloton_class_names():
 
         del peloton_class_dict['last_refresh']
         app.server.logger.info('Peloton class type dict refresh complete')
-        return peloton_class_dict
+
+    return peloton_class_dict
 
 
 def add_bookmark(ride_id):
