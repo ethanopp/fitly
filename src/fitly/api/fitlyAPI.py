@@ -146,7 +146,6 @@ class FitlyActivity(stravalib.model.Activity):
                     peloton_df['created_at'] <= (start + timedelta(minutes=10))))
             ]
 
-
         if len(activity) > 0:
             # Remove 'Just Run/Ride' titles from being updated to strava
             if ' Just ' not in activity.name.values[0]:
