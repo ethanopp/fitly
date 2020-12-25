@@ -145,11 +145,15 @@ class FitlyActivity(stravalib.model.Activity):
             ((peloton_df['created_at'] >= (start - timedelta(minutes=10))) & (
                     peloton_df['created_at'] <= (start + timedelta(minutes=10))))
             ]
+
+
         if len(activity) > 0:
-            self.peloton_title = activity.name.values[0]
-            self.name = self.peloton_title if len(self.peloton_title) > 0 else self.name
-            if write_to_strava and client.get_activity(activity_id=self.id).name != self.peloton_title:
-                client.update_activity(activity_id=self.id, name=self.peloton_title)
+            # Remove 'Just Run/Ride' titles from being updated to strava
+            if ' Just ' not in activity.name.values[0]:
+                self.peloton_title = activity.name.values[0]
+                self.name = self.peloton_title if len(self.peloton_title) > 0 else self.name
+                if write_to_strava and client.get_activity(activity_id=self.id).name != self.peloton_title:
+                    client.update_activity(activity_id=self.id, name=self.peloton_title)
 
     def get_rest_hr(self):
         # TODO: Build this out so hearrate data can be pulled from other data sources
