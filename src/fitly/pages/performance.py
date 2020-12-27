@@ -2209,7 +2209,7 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
         # HR baseline
         actual['hr_average_7'] = actual['hr_average'].rolling(7).mean()
         # Coefficient of Variation baseline
-        actual['cv_rmssd_7'] = (actual['rmssd'].rolling(7).std() / actual['rmssd_7']) * 100
+        actual['cv_rmssd_7'] = (actual['ln_rmssd'].rolling(7).std() / actual['ln_rmssd'].rolling(7).mean()) * 100
         # HRV Normalized baseline
         actual['ln_rmssd_normalized_7'] = actual['ln_rmssd_7'] / actual['AVNN'].rolling(7).mean()
 
