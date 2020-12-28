@@ -147,8 +147,8 @@ class FitlyActivity(stravalib.model.Activity):
             ]
 
         if len(activity) > 0:
-            # Remove 'Just Run/Ride' titles from being updated to strava
-            if ' Just ' not in activity.name.values[0]:
+            # Remove 'Just Run/Ride' and 'Scenic' titles from being updated to strava
+            if ' Just ' not in activity.name.values[0] and ' Scenic ' not in activity.name.values[0]:
                 self.peloton_title = activity.name.values[0]
                 self.name = self.peloton_title if len(self.peloton_title) > 0 else self.name
                 if write_to_strava and client.get_activity(activity_id=self.id).name != self.peloton_title:
