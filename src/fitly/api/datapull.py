@@ -4,14 +4,13 @@ from ..api.api_withings import pull_withings_data
 from ..api.fitbodAPI import pull_fitbod_data
 from ..api.pelotonApi import get_peloton_class_names
 from ..api.strydAPI import pull_stryd_data
-from ..api.spotifyAPI import save_spotify_play_history
 from ..api.sqlalchemy_declarative import *
 from sqlalchemy import func, delete
 import datetime
 from ..api.fitlyAPI import *
 import pandas as pd
 from ..app import app
-from ..utils import config, withings_credentials_supplied, oura_credentials_supplied, nextcloud_credentials_supplied, spotify_credentials_supplied
+from ..utils import config, withings_credentials_supplied, oura_credentials_supplied, nextcloud_credentials_supplied
 
 
 def latest_refresh():
@@ -167,10 +166,11 @@ def refresh_database(refresh_method='system', truncate=False, truncateDate=None)
                     app.server.logger.info('Pulling stryd data...')
                     pull_stryd_data()
 
-                ### Pull Spotify Data ###
-                if spotify_credentials_supplied:
-                    app.server.logger.info('Pulling spotify play history...')
-                    save_spotify_play_history()
+                ### This has been moved to crontab as spotify refresh is required more frequently than hourly ###
+                # ### Pull Spotify Data ###
+                # if spotify_credentials_supplied:
+                #     app.server.logger.info('Pulling spotify play history...')
+                #     save_spotify_play_history()
 
                 ### Pull Strava Data ###
 

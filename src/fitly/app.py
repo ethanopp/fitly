@@ -1,6 +1,7 @@
 from . import create_flask, create_dash, db_startup
 from .layouts import main_layout_header, main_layout_sidebar
 from apscheduler.schedulers.background import BackgroundScheduler
+from .utils import spotify_credentials_supplied
 
 # The Flask instance
 server = create_flask()
@@ -38,6 +39,13 @@ with server.app_context():
 
             scheduler = BackgroundScheduler()
             scheduler.add_job(func=refresh_database, trigger="cron", hour='*')
+
+            # Add spotify job on 20 min schedule since API only allows grabbing the last 50 songs
+            if spotify_credentials_supplied:
+                from .api.spotifyAPI import save_spotify_play_history
+
+                scheduler.add_job(func=save_spotify_play_history, trigger="cron", minute='*/20')
+
             app.server.logger.info('Starting cron jobs')
             scheduler.start()
         except BaseException as e:
@@ -50,5 +58,3 @@ with server.app_context():
     # configure the Dash instance's layout
     app.layout = main_layout_header()
     # app.layout = main_layout_sidebar()
-
-
