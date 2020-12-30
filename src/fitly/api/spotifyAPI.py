@@ -88,6 +88,7 @@ def save_spotify_play_history():
     :return:
     '''
     if spotify_connected():
+        app.server.logger.info('Pulling spotify play history...')
         spotify = get_spotify_client()
         # Get latest tracks
         tracks = spotify.playback_recently_played(limit=50).items
