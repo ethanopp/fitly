@@ -180,6 +180,9 @@ nextcloud_credentials_supplied = True if config.get('nextcloud', 'username').str
                                                                                                     'password') and config.get(
     'nextcloud', 'fitbod_path').strip() else False
 
+spotify_credentials_supplied = True if config.get('spotify', 'client_id').strip() and config.get('spotify',
+                                                                                           'client_secret').strip() else False
+
 A_OK_HTTP_CODES = [
     200,
     207

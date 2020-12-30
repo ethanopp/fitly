@@ -7,9 +7,10 @@ hourly_pull = False
 [settings]
 password =
 
-[SPOTIFY] # currently not being used
+[spotify]
 client_id =
 client_secret =
+redirect_uri =
 
 [peloton]
 username =

@@ -8,8 +8,10 @@ from oura import OuraOAuth2Client
 from ..api.ouraAPI import oura_connected, connect_oura_link, save_oura_token
 from ..api.stravaApi import strava_connected, get_strava_client, connect_strava_link, save_strava_token
 from ..api.api_withings import withings_connected, connect_withings_link, save_withings_token
+from ..api.spotifyAPI import spotify_connected, connect_spotify_link, save_spotify_token
 from ..api.pelotonApi import get_peloton_class_names
 from withings_api import WithingsAuth, AuthScope
+import tekore as tk
 from ..api.sqlalchemy_declarative import stravaSummary, ouraSleepSummary, athlete, workoutStepLog, dbRefreshStatus
 from ..api.database import engine
 from ..api.datapull import refresh_database
@@ -20,10 +22,11 @@ from datetime import datetime
 from ..api.fitlyAPI import training_workflow
 from ..app import app
 from flask import current_app as server
-import re
 from ..utils import peloton_credentials_supplied, oura_credentials_supplied, withings_credentials_supplied, config
 import json
 import ast
+import urllib.parse as urlparse
+from urllib.parse import parse_qs
 
 strava_auth_client = get_strava_client()
 withings_auth_client = WithingsAuth(config.get('withings', 'client_id'), config.get('withings', 'client_secret'),
@@ -32,6 +35,10 @@ withings_auth_client = WithingsAuth(config.get('withings', 'client_id'), config.
     ))
 oura_auth_client = OuraOAuth2Client(client_id=config.get('oura', 'client_id'),
                                     client_secret=config.get('oura', 'client_secret'))
+
+spotify_auth_client = tk.UserAuth(tk.Credentials(client_id=config.get('spotify', 'client_id'),
+                                                 client_secret=config.get('spotify', 'client_secret'),
+                                                 redirect_uri=config.get('spotify', 'redirect_uri')), tk.scope.every)
 
 
 def get_layout(**kwargs):
@@ -81,6 +88,17 @@ def check_strava_connection():
                       href=connect_strava_link(get_strava_client()))
     else:
         return html.H4('Strava Connected!', className='col-lg-12', )
+
+
+def check_spotify_connection():
+    # If not connected, send to auth app page to start token request
+    if not spotify_connected():
+        return html.A(className='col-lg-12', children=[
+            dbc.Button('Connect Spotify', id='connect-spotify-button', color='primary', className='mb-2',
+                       size='sm')],
+                      href=connect_spotify_link(spotify_auth_client))
+    else:
+        return html.H4('Spotify Connected!', className='col-lg-12', )
 
 
 def check_withings_connection():
@@ -453,7 +471,8 @@ def generate_settings_dashboard():
                               children=[
                                   dbc.Card(className='mb-2', children=[
                                       dbc.CardHeader(html.H4(className='text-left mb-0', children='App Connections')),
-                                      dbc.CardBody(children=html.Div(id='api-connections'))
+                                      dbc.CardBody(
+                                          children=dbc.Spinner(color='info', children=[html.Div(id='api-connections')]))
                                   ]),
                               ]),
                      html.Div(id='hr-zones', className='col-lg-3', children=generate_hr_zone_card()),
@@ -899,7 +918,8 @@ def update_api_connection_status(n_clicks):
         return html.Div(children=[
             html.Div(className='row ', children=[check_oura_connection()]),
             html.Div(className='row', children=[check_strava_connection()]),
-            html.Div(className='row', children=[check_withings_connection()])
+            html.Div(className='row', children=[check_withings_connection()]),
+            html.Div(className='row', children=[check_spotify_connection()]),
         ])
 
 
@@ -1066,29 +1086,30 @@ def set_log_level(info_n_clicks, error_n_clicks, debug_n_clicks):
               [State(server.config["LOCATION_COMPONENT_ID"], 'search')]
               )
 def update_tokens(n_clicks, search):
+    query_params = urlparse.urlparse(search)
     if 'oura' in search:
         if not oura_connected():
-            search = search.replace('?oura', '')
-            auth_code = re.findall('=(?<=code\=)(.*?)(?=\&)', search)[0]
-            oura_auth_client.fetch_access_token(auth_code)
+            oura_auth_client.fetch_access_token(parse_qs(query_params.query)['code'][0])
             save_oura_token(oura_auth_client.session.token)
 
     if 'strava' in search:
         if not strava_connected():
-            search = search.replace('?strava', '')
-            auth_code = re.findall('=(?<=code\=)(.*?)(?=\&)', search)[0]
             token_response = strava_auth_client.exchange_code_for_token(client_id=config.get('strava', 'client_id'),
                                                                         client_secret=config.get('strava',
                                                                                                  'client_secret'),
-                                                                        code=auth_code)
+                                                                        code=parse_qs(query_params.query)['code'][0])
         save_strava_token(token_response)
 
     if 'withings' in search:
         if not withings_connected():
-            search = search.replace('?withings', '')
-            auth_code = re.findall('=(?<=code\=)(.*?)(?=\&)', search)[0]
-            creds = withings_auth_client.get_credentials(auth_code)
+            creds = withings_auth_client.get_credentials(parse_qs(query_params.query)['code'][0])
             save_withings_token(creds)
+
+    if 'spotify' in search:
+        if not spotify_connected():
+            creds = spotify_auth_client.request_token(parse_qs(query_params.query)['code'][0],
+                                                      parse_qs(query_params.query)['state'][0])
+            save_spotify_token(creds)
 
     return None
 

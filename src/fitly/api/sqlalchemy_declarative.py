@@ -442,6 +442,37 @@ class ouraSleepSamples(Base):
 #     Total_sleep_next = Column('Total sleep (next)', Float())
 
 
+class spotifyPlayHistory(Base):
+    __tablename__ = 'spotify_play_history'
+    played_at = Column('played_at', DateTime(), index=True, primary_key=True)
+    track_id = Column('track_id', String(255))
+    track_name = Column('track_name', String(255))
+    track_url = Column('track_url', String(255))
+    track_isrc = Column('track_isrc', String(255))
+    track_popularity = Column('track_popularity', Integer())
+    explicit = Column('explicit', Boolean())
+    artist_id = Column('artist_id', String(255))
+    artist_name = Column('artist_name', String(255))
+    artist_url = Column('artist_url', String(255))
+    album_id = Column('album_id', String(255))
+    album_name = Column('album_name', String(255))
+    analysis_url = Column('analysis_url', String(255))
+    duration_ms = Column('duration_ms', Integer())
+    acousticness = Column('acousticness', Float())
+    danceability = Column('danceability', Float())
+    energy = Column('energy', Float())
+    instrumentalness = Column('instrumentalness', Float())
+    key = Column('key', Integer())
+    liveness = Column('liveness', Float())
+    loudness = Column('loudness', Float())
+    mode = Column('mode', Integer())
+    speechiness = Column('speechiness', Float())
+    tempo = Column('tempo', Float())
+    time_signature = Column('time_signature', Integer())
+    valence = Column('valence', Float())
+    track_href = Column('track_href', String(255))
+
+
 class apiTokens(Base):
     __tablename__ = 'api_tokens'
     date_utc = Column('date_utc', DateTime(), index=True, primary_key=True)
