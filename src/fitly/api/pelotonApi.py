@@ -789,9 +789,9 @@ def get_peloton_class_names():
             peloton_class_dict['last_refresh'] = str(datetime.today().date())
             file.write(json.dumps(peloton_class_dict))
 
-        del peloton_class_dict['last_refresh']
         app.server.logger.info('Peloton class type dict refresh complete')
 
+    del peloton_class_dict['last_refresh']
     return peloton_class_dict
 
 
