@@ -15,3 +15,4 @@ stravalib
 sweat==0.4.0
 click
 tekore
+sklearn

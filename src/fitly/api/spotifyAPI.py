@@ -9,6 +9,9 @@ from sqlalchemy import delete, func
 from datetime import datetime
 import ast
 import time
+from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans
+import numpy as np
 
 client_id = config.get('spotify', 'client_id')
 client_secret = config.get('spotify', 'client_secret')
@@ -134,7 +137,7 @@ def save_spotify_play_history():
             track_table.to_sql('spotify_play_history', engine, if_exists='append', index=True)
 
 
-def get_workout_tracks(workout_intensity=None, sport=None):
+def get_played_tracks(workouts_only=False, workout_intensity=None, sport=None):
     '''
 
     :param workout_intensity: (Optional) Filters the spotify tracks by the intensity of the workout that was done
@@ -145,22 +148,25 @@ def get_workout_tracks(workout_intensity=None, sport=None):
         sql=app.session.query(stravaSummary.start_date_utc, stravaSummary.activity_id, stravaSummary.name,
                               stravaSummary.elapsed_time, stravaSummary.type,
                               stravaSummary.workout_intensity).statement, con=engine)
+
     df_summary['end_date_utc'] = df_summary['start_date_utc'] + pd.to_timedelta(df_summary['elapsed_time'], 's')
     df_summary.drop(columns=['elapsed_time'], inplace=True)
     df_tracks = pd.read_sql(sql=app.session.query(spotifyPlayHistory).statement, con=engine)
     # Full Cross Join
-    df_tracks = df_tracks.assign(key=1)
-    df_summary = df_summary.assign(key=1)
-    df_merge = pd.merge(df_summary, df_tracks, on='key').drop('key', axis=1)
+    df_tracks = df_tracks.assign(join_key=1)
+    df_summary = df_summary.assign(join_key=1)
+    df_merge = pd.merge(df_summary, df_tracks, on='join_key').drop('join_key', axis=1)
     # Filter only on tracks performed during workout times
     df_merge = df_merge.query('played_at >= start_date_utc and played_at <= end_date_utc')
     # Join back to original date range table and drop key column
-    df = df_tracks.merge(df_merge, on=['played_at'], how='left').fillna('').drop('key', axis=1)
+    df = df_tracks.merge(df_merge, on=['played_at'], how='left').fillna('').drop('join_key', axis=1)
     # Cleanup the end resulting df
     df = df[[c for c in df.columns if '_y' not in c]]
     df.columns = [c.replace('_x', '') for c in df.columns]
     df = df.rename(columns={'type': 'workout_type', 'name': 'workout_name'})
-    df = df[df['start_date_utc'] != '']
+    # If workouts only
+    if workouts_only:
+        df = df[df['start_date_utc'] != '']
     # If workout intensity passed, filter on it
     if workout_intensity:
         df = df[df['workout_intensity'] == workout_intensity]
@@ -174,16 +180,67 @@ def get_workout_tracks(workout_intensity=None, sport=None):
     return df
 
 
-def get_recommendations():
+def get_recommendations(workouts_only=False, workout_intensity=None, sport=None, normalize=True, num_clusters=100,
+                        num_playlists=3):
+    # TODO: Update number of clusters to be based on number of songs per playlist? (i.e. total tracks / number of songs)
     '''
     Queries the users play history table and passes filters specified by user in UI for recommendations
     :return:
     '''
-    # TODO: Finish writing this function
-    if spotify_connected():
-        spotify = get_spotify_client()
-        # Recommendations
-        play_history = app.session.query(spotifyPlayHistory)
+    # Query tracks to use as seeds for generating recommendations
+    df = get_played_tracks(workouts_only=workouts_only, workout_intensity=workout_intensity, sport=sport).reset_index()
 
-        recommendations = spotify.recommendations(track_ids=top_track_ids, limit=50).tracks
-        spotify.recommendations()
+    _audiofeat_df = df[['track_id', 'track_popularity', 'time_signature', 'duration_ms', 'acousticness', 'danceability',
+                        'energy', 'instrumentalness', 'key', 'liveness', 'loudness', 'mode', 'speechiness',
+                        'tempo', 'valence']]
+
+    # scale audio features (if desired)
+    if normalize:
+        scaler = StandardScaler()
+        audiofeat = scaler.fit_transform(_audiofeat_df.drop(['track_id'], axis=1))
+        audiofeat_df = pd.DataFrame(audiofeat, columns=_audiofeat_df.drop('track_id', axis=1).columns)
+        audiofeat_df['track_id'] = _audiofeat_df['track_id']
+    else:
+        audiofeat_df = _audiofeat_df
+
+    # Run the K-Means to cluster all tracks
+    kmeans = KMeans(n_clusters=num_clusters).fit(audiofeat_df.drop(['track_id'], axis=1))
+    audiofeat_df['cluster'] = pd.Series(kmeans.labels_) + 1
+
+    # Join cluster back to main track df
+    df = df.merge(audiofeat_df[['track_id', 'cluster']], how='left', left_on='track_id', right_on='track_id')
+
+    ### Choose N (num_playlists) random clusters to get tracks to be used as seed for getting recommendations as creating playlists
+    rand_clusters = np.random.choice(df['cluster'].unique(), num_playlists, False).tolist()
+
+    ## Testing ##
+    # Put every cluster into its own playlist to see if model is working
+    spotify = get_spotify_client()
+    user_id = spotify.current_user().id
+    df['track_uri'] = df['track_id'].apply(lambda x: f'spotify:track:{x}')
+    # df['artist_uri'] = df['artist_id'].apply(lambda x: f'spotify:artist:{x}')
+    playlists = {}
+
+    # Clear all Fitly playlists
+    for x in spotify.playlists(user_id).items:
+        playlists[x.name] = x.id
+        if 'Fitly' in x.name:
+            spotify.playlist_clear(x.id)
+
+    # Create the playlists!
+    import random
+    for i in range(1, len(rand_clusters) + 1):
+        # Grab playlist id if it already exists otherwise create the playlist
+        playlist_id = playlists.get(f'Fitly Playlist {i}')
+        if not playlist_id:
+            playlist_id = spotify.playlist_create(user_id=user_id, name=f'Fitly Playlist {i}', public=False).id
+
+        # Get 5 random tracks from the cluster to use as seeds for recommendation
+        track_uris = df[df['cluster'] == i]['track_id'].unique().tolist()
+        seed_tracks = random.sample(track_uris, 5 if len(track_uris) > 5 else len(track_uris))
+        # Get recommendations from spotify
+        recommendations = spotify.recommendations(track_ids=seed_tracks, limit=50).tracks
+        # Add recommended tracks to the playlist
+        spotify.playlist_add(playlist_id=playlist_id, uris=[x.uri for x in recommendations])
+
+    return df
