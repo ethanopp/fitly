@@ -627,16 +627,16 @@ def get_layout(**kwargs):
 
 
 def detect_trend(ln_rmssd_7_slope_trivial, hr_average_7_slope_trivial, cv_rmssd_7_slope_trivial,
-                 ln_rmssd_normalized_7_slope_trivial, ctl_7_slope_trivial):
+                 ln_rmssd_normalized_7_slope_trivial, atl_7_slope_trivial):
     if ln_rmssd_7_slope_trivial >= 0 and hr_average_7_slope_trivial <= 0 and cv_rmssd_7_slope_trivial < 0:
         return 'Coping well'
     elif ln_rmssd_7_slope_trivial < 0 and hr_average_7_slope_trivial < 0 \
-            and ctl_7_slope_trivial >= 0:  # E.O Customization
+            and atl_7_slope_trivial >= 0:  # E.O Customization
         return 'Risk of accumulated fatigue'
     elif hr_average_7_slope_trivial > 0 and cv_rmssd_7_slope_trivial > 0:
         return 'Maladaptation'
     elif ln_rmssd_7_slope_trivial < 0 and hr_average_7_slope_trivial > 0 and cv_rmssd_7_slope_trivial < 0 \
-            and ctl_7_slope_trivial > 0:  # E.O Customization:
+            and atl_7_slope_trivial > 0:  # E.O Customization:
         return 'Accumulated fatigue'
     else:
         return 'No Relevant Trends'
@@ -2273,18 +2273,18 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
             ), 'ln_rmssd_normalized_7_slope_trivial'] = actual['ln_rmssd_normalized_7_slope']
 
         # E.O Customization
-        # CTL Normalized baseline
-        actual['ctl_7'] = actual['CTL'].rolling(7).mean().fillna(0)
-        actual['ctl_7_slope'] = actual['ctl_7'].rolling(14).apply(
+        # ATL Normalized baseline
+        actual['atl_7'] = actual['ATL'].rolling(7).mean().fillna(0)
+        actual['atl_7_slope'] = actual['atl_7'].rolling(14).apply(
             lambda x: scipy.stats.linregress(range(14), x).slope)
 
         actual.loc[
             (
-                    (actual['ctl_7_slope'] >
-                     (actual['ctl_7_slope'].rolling(60).mean() + actual['ctl_7_slope'].rolling(60).std())) |
-                    (actual['ctl_7_slope'] <
-                     (actual['ctl_7_slope'].rolling(60).mean() - actual['ctl_7_slope'].rolling(60).std()))
-            ), 'ctl_7_slope_trivial'] = actual['ctl_7_slope']
+                    (actual['atl_7_slope'] >
+                     (actual['atl_7_slope'].rolling(60).mean() + actual['atl_7_slope'].rolling(60).std())) |
+                    (actual['atl_7_slope'] <
+                     (actual['atl_7_slope'].rolling(60).mean() - actual['atl_7_slope'].rolling(60).std()))
+            ), 'atl_7_slope_trivial'] = actual['atl_7_slope']
 
         # Fill slopes with 0 when non trivial for trend detection
         for col in actual.columns:
@@ -2294,7 +2294,7 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
         # Check for trend
         actual["detected_trend"] = actual[
             ["ln_rmssd_7_slope_trivial", "hr_average_7_slope_trivial", "cv_rmssd_7_slope_trivial",
-             "ln_rmssd_normalized_7_slope_trivial", "ctl_7_slope_trivial"]].apply(lambda x: detect_trend(*x), axis=1)
+             "ln_rmssd_normalized_7_slope_trivial", "atl_7_slope_trivial"]].apply(lambda x: detect_trend(*x), axis=1)
 
         ### Depricated: This overwrites any other trends identified within the rolling 14 days
         # Highlight the 14 days that the trend is actually calculated on
