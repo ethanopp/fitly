@@ -2,7 +2,7 @@ import dash_html_components as html
 
 from .app import app
 from .utils import DashRouter, DashNavBar
-from .pages import home, lifting, performance, power, settings
+from .pages import home, lifting, performance, power, music, settings
 from .components import fa
 from dash.dependencies import Input, Output, State
 from .api.sqlalchemy_declarative import dbRefreshStatus, athlete
@@ -20,6 +20,7 @@ urls = (
     ("performance", performance.get_layout),
     ("power", power.get_layout),
     ("lifting", lifting.get_layout),
+    ("music", music.get_layout),
     ("settings", settings.get_layout),
 
 )
@@ -33,11 +34,7 @@ nav_items = (
     ("performance", html.Div([fa("fas fa-seedling"), "Performance"])),
     ("power", html.Div([fa("fas fa-bolt"), "Power"])),
     ("lifting", html.Div([fa("fas fa-dumbbell"), "Lifting"])),
-    ("settings", html.Div([fa("fa fa-sliders-h"), "Settings"])),
-) if use_power else (
-    ("home", html.Div([fa("fas fa-home"), "Home"])),
-    ("performance", html.Div([fa("fas fa-seedling"), "Performance"])),
-    ("lifting", html.Div([fa("fas fa-dumbbell"), "Lifting"])),
+    ("music", html.Div([fa("fas fa-music"), "Music"])),
     ("settings", html.Div([fa("fa fa-sliders-h"), "Settings"])),
 )
 
