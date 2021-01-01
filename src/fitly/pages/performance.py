@@ -630,13 +630,13 @@ def detect_trend(ln_rmssd_7_slope_trivial, hr_average_7_slope_trivial, cv_rmssd_
                  ln_rmssd_normalized_7_slope_trivial, ctl_7_slope_trivial):
     if ln_rmssd_7_slope_trivial >= 0 and hr_average_7_slope_trivial <= 0 and cv_rmssd_7_slope_trivial < 0:
         return 'Coping well'
-    elif ln_rmssd_7_slope_trivial < 0 and hr_average_7_slope_trivial < 0:  # \
-        # and ctl_7_slope_trivial >= 0:  # E.O Customization
+    elif ln_rmssd_7_slope_trivial < 0 and hr_average_7_slope_trivial < 0 \
+            and ctl_7_slope_trivial >= 0:  # E.O Customization
         return 'Risk of accumulated fatigue'
     elif hr_average_7_slope_trivial > 0 and cv_rmssd_7_slope_trivial > 0:
         return 'Maladaptation'
-    elif ln_rmssd_7_slope_trivial < 0 and hr_average_7_slope_trivial > 0 and cv_rmssd_7_slope_trivial < 0:  # \
-        # and ctl_7_slope_trivial > 0:  # E.O Customization:
+    elif ln_rmssd_7_slope_trivial < 0 and hr_average_7_slope_trivial > 0 and cv_rmssd_7_slope_trivial < 0 \
+            and ctl_7_slope_trivial > 0:  # E.O Customization:
         return 'Accumulated fatigue'
     else:
         return 'No Relevant Trends'
@@ -2291,44 +2291,50 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
             if 'trivial' in col:
                 actual[col] = actual[col].fillna(0)
 
-                # Check for trend
+        # Check for trend
         actual["detected_trend"] = actual[
             ["ln_rmssd_7_slope_trivial", "hr_average_7_slope_trivial", "cv_rmssd_7_slope_trivial",
              "ln_rmssd_normalized_7_slope_trivial", "ctl_7_slope_trivial"]].apply(lambda x: detect_trend(*x), axis=1)
+
+        ### Depricated: This overwrites any other trends identified within the rolling 14 days
+        # Highlight the 14 days that the trend is actually calculated on
+        # For every trend that has been detected, highlight the 14 days prior to that day with the trend
+        # for i in actual.index:
+        #     for d in range(0, 14):
+        #         if actual.loc[i]['detected_trend'] != 'No Relevant Trends':
+        #             actual.at[i - timedelta(days=d + 1), 'detected_trend'] = actual.loc[i]['detected_trend']
 
         # Debugging
         # actual[
         #     ["ln_rmssd_7_slope_trivial", "hr_average_7_slope_trivial", "cv_rmssd_7_slope_trivial",
         #      "ln_rmssd_normalized_7_slope_trivial"]].to_csv('actual.csv', sep=',')
 
-        # TODO: Enable once trends are fixed
-        # for trend in ['Coping well', 'Risk of accumulated fatigue', 'Maladaptation', 'Accumulated fatigue']:
-        # actual.loc[actual['detected_trend'] == trend, trend] = actual['rmssd_7']
-        #
-        # if trend == 'Coping well':
-        #     color = 'green'
-        # if trend == 'Risk of accumulated fatigue':
-        #     color = 'yellow'
-        # elif trend == 'Maladaptation':
-        #     color = 'orange'
-        # elif trend == 'Accumulated fatigue':
-        #     color = 'red'
-        #
-        #
-        # ### Detected Trends ###
-        # figure['data'].append(
-        #     go.Scatter(
-        #         name=trend,
-        #         x=actual.index,
-        #         y=actual[trend],
-        #         text=actual['detected_trend'],
-        #         yaxis='y3',
-        #         mode='markers',
-        #         hoverinfo='text',
-        #         # marker={'size': 8},
-        #         line={'color': color},
-        #     )
-        # )
+        for trend in ['Coping well', 'Risk of accumulated fatigue', 'Maladaptation', 'Accumulated fatigue']:
+            actual.loc[actual['detected_trend'] == trend, trend] = actual['ln_rmssd_7']
+
+            if trend == 'Coping well':
+                color = 'green'
+            if trend == 'Risk of accumulated fatigue':
+                color = 'yellow'
+            elif trend == 'Maladaptation':
+                color = 'orange'
+            elif trend == 'Accumulated fatigue':
+                color = 'red'
+
+            ### Detected Trends ###
+            figure['data'].append(
+                go.Scatter(
+                    name=trend,
+                    x=actual.index,
+                    y=actual[trend],
+                    text=actual['detected_trend'],
+                    yaxis='y3',
+                    mode='markers',
+                    hoverinfo='text',
+                    # marker={'size': 8},
+                    line={'color': color},
+                )
+            )
 
         figure['layout']['yaxis3'] = dict(
             # domain=[.85, 1],
