@@ -1458,7 +1458,7 @@ def create_yoy_chart(metric, sport='all'):
         df[datetime.now().year] = np.nan
 
     # Resample so every day of year is shown on x axis and for yearly goal
-    df.at[pd.to_datetime(datetime(1971, 1, 1)), df.columns[0]] = None
+    df.at[pd.to_datetime(datetime(1970, 1, 1)), df.columns[0]] = None
     df = df.resample('D').sum()
     df = df[:-1]
 
