@@ -34,6 +34,8 @@ def get_layout(**kwargs):
                                    style={'marginRight': '1vw'}),
                         dbc.Button('Last 6 Months', id='l6m-button', color='primary', size='sm',
                                    style={'marginRight': '1vw'}),
+                        dbc.Button('Last 90 Days', id='l90d-button', color='primary', size='sm',
+                                   style={'marginRight': '1vw'}),
                         dbc.Button('Last 6 Weeks', id='l6w-button', color='primary', size='sm',
                                    style={'marginRight': '1vw'}),
                     ]),
@@ -121,6 +123,8 @@ def generate_exercise_charts(timeframe, muscle_options, sort_ascending=True):
     elif timeframe == 'l6m':
         # df = df[df['date_UTC'].dt.date >= (datetime.now().date() - timedelta(months=6))]
         daterange = [datetime.now().date() - relativedelta(months=6), datetime.today().date()]
+    elif timeframe == 'l90d':
+        daterange = [datetime.now().date() - relativedelta(days=90), datetime.today().date()]
     else:
         # Dummy start date for 'All'
         daterange = [date(1980, 1, 1)]
@@ -311,27 +315,33 @@ def generate_exercise_charts(timeframe, muscle_options, sort_ascending=True):
                Output('all-button', 'style'),
                Output('ytd-button', 'style'),
                Output('l6m-button', 'style'),
+               Output('l90d-button', 'style'),
                Output('l6w-button', 'style')],
               [Input('muscle-options', 'value'),
                Input('all-button', 'n_clicks'),
                Input('ytd-button', 'n_clicks'),
                Input('l6m-button', 'n_clicks'),
+               Input('l90d-button', 'n_clicks'),
                Input('l6w-button', 'n_clicks')],
               [State('all-button', 'style'),
                State('ytd-button', 'style'),
                State('l6m-button', 'style'),
+               State('l90d-button', 'style'),
                State('l6w-button', 'style')]
               )
-def update_exercise_charts(muscle_options, all_n_clicks, ytd_n_clicks, l6m_n_clicks, l6w_n_clicks, all_style, ytd_style,
-                           l6m_style, l6w_style):
-    latest_dict = {'all-button': 'all', 'ytd-button': 'ytd', 'l6m-button': 'l6m', 'l6w-button': 'l6w'}
+def update_exercise_charts(muscle_options, all_n_clicks, ytd_n_clicks, l6m_n_clicks, l90d_n_clicks, l6w_n_clicks,
+                           all_style, ytd_style,
+                           l6m_style, l90d_style, l6w_style):
+    latest_dict = {'all-button': 'all', 'ytd-button': 'ytd', 'l6m-button': 'l6m', 'l90d-button': 'l90d',
+                   'l6w-button': 'l6w'}
     style = {'all': {'marginRight': '1vw'}, 'ytd': {'marginRight': '1vw'}, 'l6m': {'marginRight': '1vw'},
-             'l6w': {'marginRight': '1vw'}}
+             'l90d': {'marginRight': '1vw'}, 'l6w': {'marginRight': '1vw'}}
     ctx = dash.callback_context
     if not ctx.triggered:
         latest = 'ytd'
     elif ctx.triggered[0]['prop_id'] == 'muscle-options.value':
-        for key, value in {'all': all_style, 'ytd': ytd_style, 'l6m': l6m_style, 'l6w': l6w_style}.items():
+        for key, value in {'all': all_style, 'ytd': ytd_style, 'l6m': l6m_style, 'l90d': l90d_style,
+                           'l6w': l6w_style}.items():
             if value == {'marginRight': '1vw', 'color': '#64D9EC', 'borderColor': '#64D9EC'}:
                 latest = key
     else:
@@ -340,4 +350,4 @@ def update_exercise_charts(muscle_options, all_n_clicks, ytd_n_clicks, l6m_n_cli
     style[latest] = {'marginRight': '1vw', 'color': '#64D9EC', 'borderColor': '#64D9EC'}
 
     return generate_exercise_charts(timeframe=latest, muscle_options=muscle_options), style['all'], style['ytd'], style[
-        'l6m'], style['l6w']
+        'l6m'], style['l90d'], style['l6w']
