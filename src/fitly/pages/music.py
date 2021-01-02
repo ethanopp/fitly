@@ -133,23 +133,24 @@ def get_layout(**kwargs):
     ])
 
 
+# TODO: Add graph for top artists/tracks
+# TODO: Add chart for PR tracks; implement
+
+
 def get_radar_chart(workout_intensity, sport, pop_time_period):
     df_tracks = get_played_tracks(workout_intensity=workout_intensity, sport=sport, pop_time_period=pop_time_period)
 
-    df_tracks_cur = df_tracks[df_tracks['Period'] == 'Current'][
-        ['acousticness', 'danceability', 'energy', 'instrumentalness', 'liveness', 'loudness', 'speechiness', 'tempo',
-         'valence']]
-    df_tracks_prev = df_tracks[df_tracks['Period'] == 'Previous'][
-        ['acousticness', 'danceability', 'energy', 'instrumentalness', 'liveness', 'loudness', 'speechiness', 'tempo',
-         'valence']]
+    radar_features = ['acousticness', 'danceability', 'energy', 'instrumentalness', 'liveness', 'loudness',
+                      'speechiness', 'tempo', 'valence']
+    df_tracks_cur = df_tracks[df_tracks['Period'] == 'Current'][radar_features]
+    df_tracks_prev = df_tracks[df_tracks['Period'] == 'Previous'][radar_features]
     data = []
 
     if len(df_tracks_prev) > 0:
         df_tracks_prev.loc[:] = MinMaxScaler().fit_transform(df_tracks_prev.loc[:])
         data.append(
             go.Scatterpolar(
-                r=df_tracks_prev[['acousticness', 'danceability', 'energy', 'instrumentalness', 'liveness', 'loudness',
-                                  'speechiness', 'valence']].mean() * 100,
+                r=df_tracks_prev.mean() * 100,
                 theta=[x.title() for x in df_tracks_prev.columns],
                 text='r',
                 fill='toself',
