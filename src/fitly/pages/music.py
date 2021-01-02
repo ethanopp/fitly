@@ -134,7 +134,7 @@ def get_layout(**kwargs):
 
 
 # TODO: Add graph for top artists/tracks
-# TODO: Add chart for PR tracks; implement
+# TODO: Add chart for PR tracks
 
 
 def get_radar_chart(workout_intensity, sport, pop_time_period):
