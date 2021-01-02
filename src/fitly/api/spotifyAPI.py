@@ -138,7 +138,7 @@ def save_spotify_play_history():
             track_table.to_sql('spotify_play_history', engine, if_exists='append', index=True)
 
 
-def get_played_tracks(workout_intensity=None, sport=None, pop_time_period='all'):
+def get_played_tracks(workout_intensity='all', sport=None, pop_time_period='all'):
     '''
 
     :param workout_intensity: (Optional) Filters the spotify tracks by the intensity of the workout that was done
@@ -184,14 +184,14 @@ def get_played_tracks(workout_intensity=None, sport=None, pop_time_period='all')
     df_merge = df_merge.query('played_at >= start_date_utc and played_at <= end_date_utc')
     # Join back to original date range table and drop key column
     df = df_tracks.merge(df_merge, on=['played_at'], how='left').fillna('').drop('join_key', axis=1)
+    # Days with no workout_intensity are rest days
+    df.at[df['start_date_utc'] == '', 'workout_intensity'] = 'rest'
     # Cleanup the end resulting df
     df = df[[c for c in df.columns if '_y' not in c]]
     df.columns = [c.replace('_x', '') for c in df.columns]
     df = df.rename(columns={'type': 'workout_type', 'name': 'workout_name'})
     # If workout intensity passed, filter on it (pass 'all' to get only tacks played during workout)
-    if workout_intensity == 'all':
-        df = df[df['start_date_utc'] != '']
-    elif workout_intensity:
+    if workout_intensity != 'all':
         df = df[df['workout_intensity'] == workout_intensity]
     if sport is not None and sport != 'all':
         df = df[df['workout_type'] == sport.title()]

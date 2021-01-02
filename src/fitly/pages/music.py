@@ -6,10 +6,13 @@ import dash_core_components as dcc
 import dash_html_components as html
 from ..app import app
 from ..api.spotifyAPI import get_played_tracks
+from ..api.database import engine
+from ..api.sqlalchemy_declarative import stravaSummary
 import plotly.graph_objs as go
 from ..utils import config
 from sklearn.preprocessing import MinMaxScaler
 import operator
+import re
 
 transition = int(config.get('dashboard', 'transition'))
 default_icon_color = 'rgb(220, 220, 220)'
@@ -22,93 +25,52 @@ grey = 'rgb(50,50,50)'
 
 
 def get_layout(**kwargs):
+    sports = app.session.query(stravaSummary.type).distinct().all()
+    app.session.remove()
+    sport_options = [{'label': 'All Sports', 'value': 'all'}]
+    sport_options.extend([{'label': re.sub(r"(\w)([A-Z])", r"\1 \2", x[0]), 'value': x[0]} for x in sports])
+
     return html.Div([
-        html.Div(className='row', id='music-filter-shelf',
-                 children=[html.Div(className='col-12 align-items-center text-center mt-2 mb-2', children=[
-                     dbc.DropdownMenu(children=
-                     [
-                         dbc.DropdownMenuItem("All Listening",
-                                              id="music-intensity-selector-none-none",
-                                              n_clicks_timestamp=0),
-                         dbc.DropdownMenuItem(divider=True),
-                         dbc.DropdownMenuItem("All Workout Types", header=True),
-                         dbc.DropdownMenuItem("All Intensities",
-                                              id="music-intensity-selector-all-all",
-                                              n_clicks_timestamp=1),
-                         dbc.DropdownMenuItem("High Intensity",
-                                              id='music-intensity-selector-all-high',
-                                              n_clicks_timestamp=0),
-                         dbc.DropdownMenuItem("Mod Intensity",
-                                              id="music-intensity-selector-all-mod",
-                                              n_clicks_timestamp=0),
-                         dbc.DropdownMenuItem("Low Intensity",
-                                              id='music-intensity-selector-all-low',
-                                              n_clicks_timestamp=0),
-
-                         dbc.DropdownMenuItem(divider=True),
-                         dbc.DropdownMenuItem("Running", header=True),
-                         dbc.DropdownMenuItem("All Intensities",
-                                              id="music-intensity-selector-run-all",
-                                              n_clicks_timestamp=0),
-                         dbc.DropdownMenuItem("High Intensity",
-                                              id='music-intensity-selector-run-high',
-                                              n_clicks_timestamp=0),
-                         dbc.DropdownMenuItem("Mod Intensity",
-                                              id="music-intensity-selector-run-mod",
-                                              n_clicks_timestamp=0),
-                         dbc.DropdownMenuItem("Low Intensity",
-                                              id='music-intensity-selector-run-low',
-                                              n_clicks_timestamp=0),
-
-                         dbc.DropdownMenuItem(divider=True),
-                         dbc.DropdownMenuItem("Cycling", header=True),
-                         dbc.DropdownMenuItem("All Intensities",
-                                              id="music-intensity-selector-ride-all",
-                                              n_clicks_timestamp=0),
-                         dbc.DropdownMenuItem("High Intensity",
-                                              id='music-intensity-selector-ride-high',
-                                              n_clicks_timestamp=0),
-                         dbc.DropdownMenuItem("Mod Intensity",
-                                              id="music-intensity-selector-ride-mod",
-                                              n_clicks_timestamp=0),
-                         dbc.DropdownMenuItem("Low Intensity",
-                                              id='music-intensity-selector-ride-low',
-                                              n_clicks_timestamp=0),
-                     ],
-                         label="All Workouts",
-                         bs_size='sm',
-                         className="mb-0",
-                         id='music-intensity-selector',
-                         style={'display': 'inline-block', 'paddingRight': '2vw'},
-                     ),
-
-                     dbc.DropdownMenu(children=
-                     [
-                         dbc.DropdownMenuItem("All Dates",
-                                              id="music-time-selector-all",
-                                              n_clicks_timestamp=0),
-                         dbc.DropdownMenuItem("YTD",
-                                              id='music-time-selector-ytd',
-                                              n_clicks_timestamp=0),
-                         dbc.DropdownMenuItem("L90D",
-                                              id="music-time-selector-l90d",
-                                              n_clicks_timestamp=1),
-                         dbc.DropdownMenuItem("L6W",
-                                              id='music-time-selector-l6w',
-                                              n_clicks_timestamp=0),
-                         dbc.DropdownMenuItem("L30D",
-                                              id="music-time-selector-l30d",
-                                              n_clicks_timestamp=0),
-                     ],
-                         label="L90D",
-                         bs_size='sm',
-                         className="mb-0",
-                         id='music-time-selector',
-                         style={'display': 'inline-block', 'paddingLeft': '2vw'},
-                     ),
-
-                 ])
-                           ]),
+        html.Div(children=[
+            html.Div(id='music-filter-shelf', className='row align-items-center text-center mt-2 mb-2',
+                     children=[
+                         html.Div(className='col-lg-4', children=[
+                             dcc.Dropdown(
+                                 id='music-time-selector',
+                                 options=[
+                                     {'label': 'All History', 'value': 'all'},
+                                     {'label': 'Year to Date', 'value': 'ytd'},
+                                     {'label': 'Last 90 days', 'value': 'l90d'},
+                                     {'label': 'Last 6 weeks', 'value': 'l6w'},
+                                     {'label': 'Last 30 days', 'value': 'l30d'}],
+                                 value='l90d',
+                                 multi=False
+                             ),
+                         ]),
+                         html.Div(className='col-lg-4', children=[
+                             dcc.Dropdown(
+                                 id='music-intensity-selector',
+                                 placeholder="Workout Intensity",
+                                 options=[
+                                     {'label': 'All Intensities', 'value': 'all'},
+                                     {'label': 'High Intensity', 'value': 'high'},
+                                     {'label': 'Mod Intensity', 'value': 'mod'},
+                                     {'label': 'Low Intensity', 'value': 'low'},
+                                     {'label': 'Rest Day', 'value': 'rest'}],
+                                 value='all',
+                                 multi=False
+                             ),
+                         ]),
+                         html.Div(className='col-lg-4', children=[
+                             dcc.Dropdown(
+                                 id='music-sport-selector',
+                                 options=sport_options,
+                                 value='all',
+                                 multi=False
+                             ),
+                         ]),
+                     ])
+        ]),
 
         html.Div(className='row', children=[
             html.Div(className='col-lg-6', children=[
@@ -197,7 +159,7 @@ def get_radar_chart(workout_intensity, sport, pop_time_period):
                 )),
             showlegend=True,
             legend=dict(bgcolor='rgba(127, 127, 127, 0)'),
-            margin={'l': 20, 'b': 20, 't': 20, 'r': 20},
+            margin={'l': 50, 'b': 25, 't': 25, 'r': 50},
 
         )
     }
@@ -208,71 +170,20 @@ def get_radar_chart(workout_intensity, sport, pop_time_period):
 # Create Radar Chart
 # Zone and distribution callback for sport/date fitlers. Also update date label/card header with callback here
 @app.callback(
-    [Output('music-intensity-selector', 'label'),
-     Output('music-time-selector', 'label'),
-     Output('radar-chart', 'figure')],
-    [Input('music-intensity-selector-none-none', 'n_clicks_timestamp'),
-     Input('music-intensity-selector-all-all', 'n_clicks_timestamp'),
-     Input('music-intensity-selector-all-high', 'n_clicks_timestamp'),
-     Input('music-intensity-selector-all-mod', 'n_clicks_timestamp'),
-     Input('music-intensity-selector-all-low', 'n_clicks_timestamp'),
-     Input('music-intensity-selector-run-all', 'n_clicks_timestamp'),
-     Input('music-intensity-selector-run-high', 'n_clicks_timestamp'),
-     Input('music-intensity-selector-run-mod', 'n_clicks_timestamp'),
-     Input('music-intensity-selector-run-low', 'n_clicks_timestamp'),
-     Input('music-intensity-selector-ride-all', 'n_clicks_timestamp'),
-     Input('music-intensity-selector-ride-high', 'n_clicks_timestamp'),
-     Input('music-intensity-selector-ride-mod', 'n_clicks_timestamp'),
-     Input('music-intensity-selector-ride-low', 'n_clicks_timestamp'),
-     Input('music-time-selector-all', 'n_clicks_timestamp'),
-     Input('music-time-selector-ytd', 'n_clicks_timestamp'),
-     Input('music-time-selector-l90d', 'n_clicks_timestamp'),
-     Input('music-time-selector-l6w', 'n_clicks_timestamp'),
-     Input('music-time-selector-l30d', 'n_clicks_timestamp')],
-    [State('music-intensity-selector-none-none', 'n_clicks_timestamp'),
-     State('music-intensity-selector-all-all', 'n_clicks_timestamp'),
-     State('music-intensity-selector-all-high', 'n_clicks_timestamp'),
-     State('music-intensity-selector-all-mod', 'n_clicks_timestamp'),
-     State('music-intensity-selector-all-low', 'n_clicks_timestamp'),
-     State('music-intensity-selector-run-all', 'n_clicks_timestamp'),
-     State('music-intensity-selector-run-high', 'n_clicks_timestamp'),
-     State('music-intensity-selector-run-mod', 'n_clicks_timestamp'),
-     State('music-intensity-selector-run-low', 'n_clicks_timestamp'),
-     State('music-intensity-selector-ride-all', 'n_clicks_timestamp'),
-     State('music-intensity-selector-ride-high', 'n_clicks_timestamp'),
-     State('music-intensity-selector-ride-mod', 'n_clicks_timestamp'),
-     State('music-intensity-selector-ride-low', 'n_clicks_timestamp'),
-     State('music-time-selector-all', 'n_clicks_timestamp'),
-     State('music-time-selector-ytd', 'n_clicks_timestamp'),
-     State('music-time-selector-l90d', 'n_clicks_timestamp'),
-     State('music-time-selector-l6w', 'n_clicks_timestamp'),
-     State('music-time-selector-l30d', 'n_clicks_timestamp')]
+    Output('radar-chart', 'figure'),
+    [Input('music-intensity-selector', 'value'),
+     Input('music-time-selector', 'value'),
+     Input('music-sport-selector', 'value')],
+    [State('music-intensity-selector', 'value'),
+     State('music-time-selector', 'value'),
+     State('music-sport-selector', 'value'),
+     ]
 )
 def update_radar_chart(*args):
     ctx = dash.callback_context
-
-    states = ctx.states
-    # Create dict of just date buttons
-    date_buttons = states.copy()
-    [date_buttons.pop(x) for x in list(date_buttons.keys()) if 'music-time-selector' not in x]
-    pop_time_period = max(date_buttons.items(), key=operator.itemgetter(1))[0].split('.')[0].replace(
-        'music-intensity-selector-', '').split('-')[3]
-
-    # Create dict of just intensity buttons
-    intensity_buttons = states.copy()
-    [intensity_buttons.pop(x) for x in list(intensity_buttons.keys()) if 'music-intensity-selector' not in x]
-    workout_intensity_clicked = max(intensity_buttons.items(), key=operator.itemgetter(1))[0].split('.')[0].replace(
-        'music-intensity-selector-', '').split('-')
-
-    sport = workout_intensity_clicked[0] if workout_intensity_clicked[0] != 'none' else None
-    workout_intensity = workout_intensity_clicked[1] if workout_intensity_clicked[1] != 'none' else None
-
-    if not sport and not workout_intensity:
-        workout_intensity_label = 'All Play History'
-    else:
-        workout_intensity_label = (sport.title() if sport else 'All') + ' ' + workout_intensity.title()
-
-    workout_intensity_label = 'All Workouts' if workout_intensity_label == 'All All' else workout_intensity_label
+    pop_time_period = ctx.states['music-time-selector.value']
+    workout_intensity = ctx.states['music-intensity-selector.value']
+    sport = ctx.states['music-sport-selector.value']
 
     figure = get_radar_chart(workout_intensity=workout_intensity, sport=sport, pop_time_period=pop_time_period)
-    return workout_intensity_label, pop_time_period.upper() if pop_time_period.title() != 'All' else 'All Time', figure
+    return figure
