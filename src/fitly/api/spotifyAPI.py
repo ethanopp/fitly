@@ -138,7 +138,7 @@ def save_spotify_play_history():
             track_table.to_sql('spotify_play_history', engine, if_exists='append', index=True)
 
 
-def get_played_tracks(workout_intensity='all', sport=None, pop_time_period='all'):
+def get_played_tracks(workout_intensity='all', sport='all', pop_time_period='all'):
     '''
 
     :param workout_intensity: (Optional) Filters the spotify tracks by the intensity of the workout that was done
@@ -193,7 +193,7 @@ def get_played_tracks(workout_intensity='all', sport=None, pop_time_period='all'
     # If workout intensity passed, filter on it (pass 'all' to get only tacks played during workout)
     if workout_intensity != 'all':
         df = df[df['workout_intensity'] == workout_intensity]
-    if sport is not None and sport != 'all':
+    if sport != 'all':
         df = df[df['workout_type'] == sport.title()]
 
     df.drop(columns=['start_date_utc', 'end_date_utc'], inplace=True)
@@ -203,68 +203,73 @@ def get_played_tracks(workout_intensity='all', sport=None, pop_time_period='all'
     return df
 
 
-def generate_recommendation_playlists(workout_intensity=None, sport=None, normalize=True, num_clusters=30,
+def generate_recommendation_playlists(workout_intensity='all', sport='all', normalize=True, num_clusters=30,
                                       num_playlists=3):
     '''
 
     :return:
     '''
-    # Query tracks to use as seeds for generating recommendations
-    df = get_played_tracks(workout_intensity=workout_intensity, sport=sport).reset_index()
 
-    _audiofeat_df = df[['track_id', 'track_popularity', 'time_signature', 'duration_ms', 'acousticness', 'danceability',
-                        'energy', 'instrumentalness', 'key', 'liveness', 'loudness', 'mode', 'speechiness',
-                        'tempo', 'valence']]
-
-    # scale audio features (if desired)
-    if normalize:
-        scaler = StandardScaler()
-        audiofeat = scaler.fit_transform(_audiofeat_df.drop(['track_id'], axis=1))
-        audiofeat_df = pd.DataFrame(audiofeat, columns=_audiofeat_df.drop('track_id', axis=1).columns)
-        audiofeat_df['track_id'] = _audiofeat_df['track_id']
-    else:
-        audiofeat_df = _audiofeat_df
-
-    # Run the K-Means to cluster all tracks
-    kmeans = KMeans(n_clusters=num_clusters).fit(audiofeat_df.drop(['track_id'], axis=1))
-    audiofeat_df['cluster'] = pd.Series(kmeans.labels_) + 1
-
-    # Join cluster back to main track df
-    df = df.merge(audiofeat_df[['track_id', 'cluster']], how='left', left_on='track_id', right_on='track_id')
-
-    ### Choose N (num_playlists) random clusters to get tracks to be used as seeds for getting recommendations as creating playlists
-    rand_clusters = np.random.choice(df['cluster'].unique(), num_playlists, False).tolist()
-
+    # Clear all Fitly playlists
     spotify = get_spotify_client()
     user_id = spotify.current_user().id
 
-    # Clear all Fitly playlists
     playlists = {}
     for x in spotify.playlists(user_id).items:
         playlists[x.name] = x.id
         if 'Fitly' in x.name:
             spotify.playlist_clear(x.id)
 
-    # Create the playlists!
-    for i in range(1, len(rand_clusters) + 1):
-        # Grab playlist id if it already exists otherwise create the playlist
-        sport = sport + ' ' if sport else ''
-        playlist_id = playlists.get(f'{sport}Fitly Playlist {i}')
-        if not playlist_id:
-            playlist_id = spotify.playlist_create(user_id=user_id, name=f'Fitly Playlist {i}', public=False).id
+    # Query tracks to use as seeds for generating recommendations
+    df = get_played_tracks(workout_intensity=workout_intensity, sport=sport).reset_index()
+    if len(df) > 0:
 
-        # Get 5 random tracks from the cluster to use as seeds for recommendation
-        track_uris = df[df['cluster'] == i]['track_id'].unique().tolist()
-        # artist_uris = df[df['cluster'] == i]['artist_id'].unique().tolist()
+        _audiofeat_df = df[
+            ['track_id', 'track_popularity', 'time_signature', 'duration_ms', 'acousticness', 'danceability',
+             'energy', 'instrumentalness', 'key', 'liveness', 'loudness', 'mode', 'speechiness',
+             'tempo', 'valence']]
 
-        seed_tracks = random.sample(track_uris, 5 if len(track_uris) > 5 else len(track_uris))
-        # seed_artists = random.sample(artist_uris, 5 if len(artist_uris) > 5 else len(artist_uris))
+        # scale audio features (if desired)
+        if normalize:
+            scaler = StandardScaler()
+            audiofeat = scaler.fit_transform(_audiofeat_df.drop(['track_id'], axis=1))
+            audiofeat_df = pd.DataFrame(audiofeat, columns=_audiofeat_df.drop('track_id', axis=1).columns)
+            audiofeat_df['track_id'] = _audiofeat_df['track_id']
+        else:
+            audiofeat_df = _audiofeat_df
 
-        # Get recommendations from spotify
-        recommendations = spotify.recommendations(track_ids=seed_tracks, limit=50).tracks
-        # recommendations = spotify.recommendations(artist_ids=artist_uris, limit=50).tracks
+        # Run the K-Means to cluster all tracks
+        kmeans = KMeans(n_clusters=num_clusters).fit(audiofeat_df.drop(['track_id'], axis=1))
+        audiofeat_df['cluster'] = pd.Series(kmeans.labels_) + 1
 
-        # Add recommended tracks to the playlist
-        spotify.playlist_add(playlist_id=playlist_id, uris=[x.uri for x in recommendations])
+        # Join cluster back to main track df
+        df = df.merge(audiofeat_df[['track_id', 'cluster']], how='left', left_on='track_id', right_on='track_id')
 
-    return df
+        ### Choose N (num_playlists) random clusters to get tracks to be used as seeds for getting recommendations as creating playlists
+        rand_clusters = np.random.choice(df['cluster'].unique(), num_playlists, False).tolist()
+
+        # Create the playlists!
+        for i in range(1, len(rand_clusters) + 1):
+            # Grab playlist id if it already exists otherwise create the playlist
+            sport = sport + ' ' if sport else ''
+            playlist_id = playlists.get(f'{sport}Fitly Playlist {i}')
+            if not playlist_id:
+                playlist_id = spotify.playlist_create(user_id=user_id, name=f'Fitly Playlist {i}', public=False).id
+
+            # Get 5 random tracks from the cluster to use as seeds for recommendation
+            track_uris = df[df['cluster'] == i]['track_id'].unique().tolist()
+            # artist_uris = df[df['cluster'] == i]['artist_id'].unique().tolist()
+
+            seed_tracks = random.sample(track_uris, 5 if len(track_uris) > 5 else len(track_uris))
+            # seed_artists = random.sample(artist_uris, 5 if len(artist_uris) > 5 else len(artist_uris))
+
+            # Get recommendations from spotify
+            recommendations = spotify.recommendations(track_ids=seed_tracks, limit=50).tracks
+            # recommendations = spotify.recommendations(artist_ids=artist_uris, limit=50).tracks
+
+            # Add recommended tracks to the playlist
+            spotify.playlist_add(playlist_id=playlist_id, uris=[x.uri for x in recommendations])
+
+    else:
+        app.server.logger.debug(
+            f'No tracks found for "{workout_intensity}" intensity and "{sport}" workouts. Skipping playlist generation')

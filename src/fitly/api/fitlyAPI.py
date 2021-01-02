@@ -9,6 +9,7 @@ from sweat.metrics.core import weighted_average_power
 from sweat.metrics.power import *
 import stravalib
 from ..api.stravaApi import get_strava_client
+from ..api.spotifyAPI import generate_recommendation_playlists
 from stravalib import unithelper
 from ..api.pelotonApi import peloton_mapping_df, roundTime, set_peloton_workout_recommendations
 from dateutil.relativedelta import relativedelta
@@ -904,6 +905,12 @@ def training_workflow(min_non_warmup_workout_time, metric='hrv_baseline', athlet
             df['date'] = df['date'].dt.date
             df.to_sql('workout_step_log', engine, if_exists='append', index=False)
 
+            # Create spotify playlist based on workout intensity recommendation
+            if config.get('spotify', 'daily_playlist_recommendations').lower() == 'true':
+                generate_recommendation_playlists(
+                    workout_intensity=df['workout_step_desc'].tail(1).values[0].lower().replace('hiit', 'mod'),
+                    normalize=True, num_playlists=3)
+            # Bookmark peloton classes
             if peloton_credentials_supplied:
                 set_peloton_workout_recommendations()
 
