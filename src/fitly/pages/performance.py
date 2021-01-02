@@ -2602,7 +2602,8 @@ def workout_details(df_samples, start_seconds=None, end_seconds=None):
                         color=white
                     ),
                     # TODO: Subplot unified tooltip not yet supported https://github.com/plotly/plotly.js/issues/4755
-                    hovermode='x unified',
+                    # hovermode='x unified',
+                    hovermode='x',
                     paper_bgcolor='rgb(66,66,66)',
                     plot_bgcolor='rgba(0,0,0,0)',
                     margin={'l': 40, 'b': 25, 't': 5, 'r': 40},

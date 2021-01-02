@@ -787,10 +787,6 @@ def generate_content_kpi_trend(df_name, metric):
                               ),
                           ),
                           yaxis=dict(
-                              # TODO: Update once plotly auto updates y axis when using range selector buttons
-                              # https://github.com/plotly/plotly.py/issues/932
-                              range=[df[df.index.year == datetime.now().year][metric].min(),
-                                     df[df.index.year == datetime.now().year][metric].max()],
                               showgrid=False,
                               showticklabels=True,
                               gridcolor='rgb(73, 73, 73)',
