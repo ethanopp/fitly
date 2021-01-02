@@ -5,8 +5,8 @@ from ..utils import config
 from ..app import app
 from ..api.database import engine
 from ..api.sqlalchemy_declarative import apiTokens, spotifyPlayHistory, stravaSummary
-from sqlalchemy import delete, func
-from datetime import datetime
+from sqlalchemy import delete, func, extract
+from datetime import datetime, timedelta
 import ast
 import time
 from sklearn.preprocessing import StandardScaler
@@ -138,21 +138,44 @@ def save_spotify_play_history():
             track_table.to_sql('spotify_play_history', engine, if_exists='append', index=True)
 
 
-def get_played_tracks(workouts_only=False, workout_intensity=None, sport=None):
+def get_played_tracks(workout_intensity=None, sport=None, pop_time_period='all'):
     '''
 
     :param workout_intensity: (Optional) Filters the spotify tracks by the intensity of the workout that was done
     :return: df of spotify tracks that were done during a workout
     '''
-    # Query tracks and workouts
+
+    # Query tracks
+    if pop_time_period == 'all':
+        df_tracks = pd.read_sql(sql=app.session.query(spotifyPlayHistory).statement, con=engine)
+        df_tracks['Period'] = 'Current'
+
+    elif pop_time_period == 'ytd':
+        df_tracks = pd.read_sql(sql=app.session.query(spotifyPlayHistory).filter(
+            extract('year', spotifyPlayHistory.played_at) >= (datetime.utcnow().year - 1)).statement, con=engine)
+
+        df_tracks['Period'] = 'Current'
+        df_tracks.at[df_tracks['played_at'].dt.year == (datetime.utcnow().date().year - 1), 'Period'] = 'Previous'
+
+    elif pop_time_period in ['l90d', 'l6w', 'l30d']:
+        days = {'l90d': 180, 'l6w': 84, 'l30d': 60}
+        df_tracks = pd.read_sql(sql=app.session.query(spotifyPlayHistory).filter(
+            spotifyPlayHistory.played_at >= (
+                    datetime.utcnow().date() - timedelta(days=days[pop_time_period]))).statement,
+                                con=engine)
+        df_tracks['Period'] = 'Current'
+        df_tracks.at[
+            df_tracks['played_at'].dt.date <= (
+                    datetime.utcnow().date() - timedelta(days=days[pop_time_period] / 2)), 'Period'] = 'Previous'
+
+    # Query workouts
     df_summary = pd.read_sql(
         sql=app.session.query(stravaSummary.start_date_utc, stravaSummary.activity_id, stravaSummary.name,
                               stravaSummary.elapsed_time, stravaSummary.type,
                               stravaSummary.workout_intensity).statement, con=engine)
-
     df_summary['end_date_utc'] = df_summary['start_date_utc'] + pd.to_timedelta(df_summary['elapsed_time'], 's')
     df_summary.drop(columns=['elapsed_time'], inplace=True)
-    df_tracks = pd.read_sql(sql=app.session.query(spotifyPlayHistory).statement, con=engine)
+
     # Full Cross Join
     df_tracks = df_tracks.assign(join_key=1)
     df_summary = df_summary.assign(join_key=1)
@@ -165,14 +188,13 @@ def get_played_tracks(workouts_only=False, workout_intensity=None, sport=None):
     df = df[[c for c in df.columns if '_y' not in c]]
     df.columns = [c.replace('_x', '') for c in df.columns]
     df = df.rename(columns={'type': 'workout_type', 'name': 'workout_name'})
-    # If workouts only
-    if workouts_only:
+    # If workout intensity passed, filter on it (pass 'all' to get only tacks played during workout)
+    if workout_intensity == 'all':
         df = df[df['start_date_utc'] != '']
-    # If workout intensity passed, filter on it
-    if workout_intensity:
+    elif workout_intensity:
         df = df[df['workout_intensity'] == workout_intensity]
-    if sport:
-        df = df[df['workout_type'] == workout_intensity]
+    if sport is not None and sport != 'all':
+        df = df[df['workout_type'] == sport.title()]
 
     df.drop(columns=['start_date_utc', 'end_date_utc'], inplace=True)
 
@@ -181,14 +203,14 @@ def get_played_tracks(workouts_only=False, workout_intensity=None, sport=None):
     return df
 
 
-def generate_recommendation_playlists(workouts_only=False, workout_intensity=None, sport=None, normalize=True, num_clusters=30,
+def generate_recommendation_playlists(workout_intensity=None, sport=None, normalize=True, num_clusters=30,
                                       num_playlists=3):
     '''
 
     :return:
     '''
     # Query tracks to use as seeds for generating recommendations
-    df = get_played_tracks(workouts_only=workouts_only, workout_intensity=workout_intensity, sport=sport).reset_index()
+    df = get_played_tracks(workout_intensity=workout_intensity, sport=sport).reset_index()
 
     _audiofeat_df = df[['track_id', 'track_popularity', 'time_signature', 'duration_ms', 'acousticness', 'danceability',
                         'energy', 'instrumentalness', 'key', 'liveness', 'loudness', 'mode', 'speechiness',
