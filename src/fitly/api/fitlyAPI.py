@@ -712,7 +712,7 @@ def training_workflow(min_non_warmup_workout_time, metric='hrv_baseline', athlet
         if metric == 'hrv':
             min_oura_date = pd.to_datetime(
                 app.session.query(func.min(ouraSleepSummary.report_date))[0][0] + timedelta(59)).date()
-        if metric == 'hrv_baseline':
+        if metric in ['hrv_baseline', 'zscore']:
             min_oura_date = pd.to_datetime(
                 app.session.query(func.min(ouraSleepSummary.report_date))[0][0] + timedelta(29)).date()
         elif metric == 'readiness':
@@ -763,6 +763,10 @@ def training_workflow(min_non_warmup_workout_time, metric='hrv_baseline', athlet
                 con=engine, index_col='report_date').sort_index(ascending=False)
             metric_df['within_swc'] = True
             metric_df.loc[metric_df['score'] < 70, 'within_swc'] = False
+
+        elif metric == 'zscore':
+            metric_df = get_hrv_df()
+            metric_df['within_swc'] = metric_df['within_zscore_swc']
 
         # Wait for today's hrv to be loaded into cloud
         if metric_df.index.max() == datetime.today().date():  # or (datetime.now() - timedelta(hours=12)) > pd.to_datetime(datetime.today().date()):

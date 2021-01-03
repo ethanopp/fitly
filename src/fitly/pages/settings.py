@@ -314,7 +314,8 @@ def athlete_card():
 
                                           options=[
                                               {'label': 'HRV', 'value': 'hrv'},
-                                              {'label': '7-Day HRV Baseline', 'value': 'hrv_baseline'},
+                                              {'label': 'HRV Baseline', 'value': 'hrv_baseline'},
+                                              {'label': 'HRV & HR Baseline', 'value': 'zscore'},
                                               {'label': 'Oura Readiness Score', 'value': 'readiness'}],
                                           value=athlete_info.recovery_metric,
                                           multi=False
