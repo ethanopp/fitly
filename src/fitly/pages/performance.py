@@ -626,20 +626,62 @@ def get_layout(**kwargs):
     ])
 
 
-def detect_trend(ln_rmssd_7_slope_trivial, hr_average_7_slope_trivial, cv_rmssd_7_slope_trivial,
-                 ln_rmssd_normalized_7_slope_trivial, atl_7_slope_trivial):
-    if ln_rmssd_7_slope_trivial >= 0 and hr_average_7_slope_trivial <= 0 and cv_rmssd_7_slope_trivial < 0:
-        return 'Coping well'
-    elif ln_rmssd_7_slope_trivial < 0 and hr_average_7_slope_trivial < 0 \
-            and atl_7_slope_trivial >= 0:  # E.O Customization
-        return 'Risk of accumulated fatigue'
-    elif hr_average_7_slope_trivial > 0 and cv_rmssd_7_slope_trivial > 0:
-        return 'Maladaptation'
-    elif ln_rmssd_7_slope_trivial < 0 and hr_average_7_slope_trivial > 0 and cv_rmssd_7_slope_trivial < 0 \
-            and atl_7_slope_trivial > 0:  # E.O Customization:
-        return 'Accumulated fatigue'
+# def detect_trend(ln_rmssd_7_slope_trivial, hr_average_7_slope_trivial, cv_rmssd_7_slope_trivial,
+#                  ln_rmssd_normalized_7_slope_trivial, atl_7_slope_trivial):
+#     if ln_rmssd_7_slope_trivial >= 0 and hr_average_7_slope_trivial <= 0 and cv_rmssd_7_slope_trivial < 0:
+#         return 'Coping well'
+#     elif ln_rmssd_7_slope_trivial < 0 and hr_average_7_slope_trivial < 0 \
+#             and atl_7_slope_trivial >= 0:  # E.O Customization
+#         return 'Risk of accumulated fatigue'
+#     elif hr_average_7_slope_trivial > 0 and cv_rmssd_7_slope_trivial > 0:
+#         return 'Maladaptation'
+#     elif ln_rmssd_7_slope_trivial < 0 and hr_average_7_slope_trivial > 0 and cv_rmssd_7_slope_trivial < 0 \
+#             and atl_7_slope_trivial > 0:  # E.O Customization:
+#         return 'Accumulated fatigue'
+#     else:
+#         return 'No Relevant Trends'
+
+
+def zscore(x, y, window):
+    '''
+
+    :param x: metric to compare to mean & std
+    :param y: metric to do the rolling calculation on
+    :param window: number of days to rollback
+    :return:
+    '''
+    r = y.rolling(window=window)
+    m = r.mean()  # .shift(1)
+    s = r.std(ddof=0)  # .shift(1)
+    z = (x - m) / s
+    return z
+
+
+def detect_z_trend(hrv_z_score, hr_z_score):
+    # https://www.myithlete.com/how-to-use-the-ithlete-pro-training-guide/
+    x, y = hrv_z_score, hr_z_score
+    if -1 < x < 0 and 0 < y < 1.75:
+        return 'Competition Ready'
+    elif 0 < x < 1.5 and -2 < y < 0:
+        return 'Coping Well'
+    elif -2.25 < x < -1 and 0 < y < 1.75:
+        return 'Not Coping Well'
     else:
-        return 'No Relevant Trends'
+        return 'No Trend Detected'
+
+
+def z_recommendation(hrv_z_score, hr_z_score):
+    # https://www.myithlete.com/how-to-use-the-ithlete-pro-training-guide/
+    x, y = hrv_z_score, hr_z_score
+
+    if (x < -1 and y > 1.75) or (x < -1 and y < -2):
+        return 'Rest'
+    elif (x < -1 and -2 < y < 1.75) or (x > -1 and y > 1.75) or (x > -1 and y < -2):
+        return 'Low'
+    elif (-1 < x < 1 and -2 < y < 1.75) or (x > 1 and -2 < y < -1) or (x > 1 and 1 < y < 1.75):
+        return 'Mod'
+    elif (x > 1 and -1 < y < 1):
+        return 'High'
 
 
 def get_hrv_df():
@@ -693,6 +735,11 @@ def get_hrv_df():
     hrv_df['within_daily_swc'] = True
     hrv_df.loc[(hrv_df['ln_rmssd'] < hrv_df['swc_daily_lower']) | (hrv_df['ln_rmssd'] > hrv_df[
         'swc_daily_upper']), 'within_daily_swc'] = False
+
+    hrv_df['hrv_z_score'] = zscore(x=hrv_df['ln_rmssd_7'], y=hrv_df['ln_rmssd'], window=28)
+    hrv_df['hr_z_score'] = zscore(x=hrv_df['hr_average'].rolling(7).mean(), y=hrv_df['hr_average'], window=28)
+    # Detect trend
+    hrv_df["detected_trend"] = hrv_df[["hrv_z_score", "hr_z_score"]].apply(lambda x: detect_z_trend(*x), axis=1)
 
     # Threshold Flags
     # hrv_df['under_low_threshold'] = hrv_df['ln_rmssd_7'] < hrv_df['swc_baseline_lower']
@@ -1204,7 +1251,7 @@ def create_daily_recommendations(hrv, hrv_change, hrv7, hrv7_change, plan_rec):
                     ])
 
 
-def create_fitness_kpis(date, ctl, ramp, rr_min_threshold, rr_max_threshold, atl, tsb, hrv7):
+def create_fitness_kpis(date, ctl, ramp, rr_min_threshold, rr_max_threshold, atl, tsb, hrv7, trend):
     # TODO: Remove ramp rate?
     if atl is not None and ctl is not None:
         ctl = round(ctl, 1)
@@ -1228,6 +1275,15 @@ def create_fitness_kpis(date, ctl, ramp, rr_min_threshold, rr_max_threshold, atl
     # injury_risk = 'High' if ramp >= rr_max_threshold else 'Medium' if ramp >= rr_min_threshold else 'Low'
 
     hrv7 = round(hrv7, 1) if hrv7 else 'N/A'
+
+    if trend == 'Coping Well':
+        detected_trend_color = light_blue
+    elif trend == 'Competition Ready':
+        detected_trend_color = teal
+    elif trend == 'Not Coping Well':
+        detected_trend_color = orange
+    else:
+        detected_trend_color = white
 
     return [html.Div(className='row', children=[
 
@@ -1290,17 +1346,31 @@ def create_fitness_kpis(date, ctl, ramp, rr_min_threshold, rr_max_threshold, atl
             'ATL to CTL ratio = {}'.format(round(atl_ctl_ratio, 1) if atl_ctl_ratio != 'N/A' else 'N/A'),
             target='injury-risk'),
 
-        ### HRV7 KPI ###
-        html.Div(id='hrv7-kpi', className='col-lg-2', children=[
+        ### Detected Trend ###
+        html.Div(id='detected-trend-kpi', className='col-lg-2', children=[
             html.Div(children=[
-                html.H6('7 Day HRV {}'.format(hrv7),
+                html.H6(trend if trend else 'No Trend Detected',
                         className='d-inline-block',
-                        style={'color': teal, 'marginTop': '0', 'marginBottom': '0'})
+                        style={'color': detected_trend_color, 'marginTop': '0', 'marginBottom': '0'})
             ]),
         ] if oura_credentials_supplied else []),
         dbc.Tooltip(
-            "Rolling 7 Day HRV Average. Falling below the baseline threshold indicates you are not recovered and should hold back on intense training. Staying within the thresholds indicates you should stay on course, and exceeding the thresholds indicates a positive adaptation and workout intensity can be increased.",
-            target="hrv7-kpi", ),
+            "Identified training adaption from physiological trends",
+            target="detected-trend-kpi"
+        )
+
+        # ### HRV 7 Day Average ###
+        # html.Div(id='hrv7-kpi', className='col-lg-2', children=[
+        #     html.Div(children=[
+        #         html.H6('7 Day HRV {}'.format(hrv7),
+        #                 className='d-inline-block',
+        #                 style={'color': teal, 'marginTop': '0', 'marginBottom': '0'})
+        #     ]),
+        # ] if oura_credentials_supplied else []),
+        # dbc.Tooltip(
+        #     "Rolling 7 Day HRV Average. Falling below the baseline threshold indicates you are not recovered and should hold back on intense training. Staying within the thresholds indicates you should stay on course, and exceeding the thresholds indicates a positive adaptation and workout intensity can be increased.",
+        #     target="hrv7-kpi"
+        # )
 
     ]),
 
@@ -1814,7 +1884,9 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
                                                                                                      'rmssd_7'].max() > 0 else '',
                                                                                           latest['rmssd_7'].max() -
                                                                                           yesterday[
-                                                                                              'rmssd_7'].max())}])
+                                                                                              'rmssd_7'].max())},
+                                    {'y': latest['detected_trend'],
+                                     'text': f'Detected Trend: <b>{latest["detected_trend"]}'}])
 
     figure = {
         'data': [
@@ -2202,124 +2274,134 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
                 )
             ])
 
-        ### Trends ###
-
-        # Automated trend detection: https://www.hrv4training.com/blog/interpreting-hrv-trends
-        actual['ln_rmssd_7'] = actual['ln_rmssd'].rolling(7).mean()
-        # HR baseline
-        actual['hr_average_7'] = actual['hr_average'].rolling(7).mean()
-        # Coefficient of Variation baseline
-        actual['cv_rmssd_7'] = (actual['ln_rmssd'].rolling(7).std() / actual['ln_rmssd'].rolling(7).mean()) * 100
-        # HRV Normalized baseline
-        actual['ln_rmssd_normalized_7'] = actual['ln_rmssd_7'] / actual['AVNN'].rolling(7).mean()
-
-        # Calculate 2 Week Slopes
-        actual['ln_rmssd_7_slope'] = actual['ln_rmssd_7'].rolling(14).apply(
-            lambda x: scipy.stats.linregress(range(14), x).slope)
-        actual['hr_average_7_slope'] = actual['hr_average_7'].rolling(14).apply(
-            lambda x: scipy.stats.linregress(range(14), x).slope)
-        actual['cv_rmssd_7_slope'] = actual['cv_rmssd_7'].rolling(14).apply(
-            lambda x: scipy.stats.linregress(range(14), x).slope)
-        actual['ln_rmssd_normalized_7_slope'] = actual['ln_rmssd_normalized_7'].rolling(14).apply(
-            lambda x: scipy.stats.linregress(range(14), x).slope)
-
-        # Get Stdev and mean for last 60 days worth of slopes
-
-        # Remove trivial changes
-
-        # actual.loc[(
-        #                    (actual['ln_rmssd_7'] > (
-        #                            actual['ln_rmssd'].rolling(60, min_periods=0).mean() + actual['ln_rmssd'].rolling(60,
-        #                                                                                                        min_periods=0).std())
-        #                     ) |
-        #                    actual['ln_rmssd_7'] < (
-        #                            actual['ln_rmssd'].rolling(60, min_periods=0).mean() - actual['ln_rmssd'].rolling(60,
-        #                                                                                                        min_periods=0).std())
-        #            ),
-        #            'ln_rmssd_7_slope_trivial'] = actual['ln_rmssd_7_slope']
-
-        actual.loc[
-            (
-                    (actual['ln_rmssd_7_slope'] >
-                     (actual['ln_rmssd_7_slope'].rolling(60).mean() + actual['ln_rmssd_7_slope'].rolling(60).std())) |
-                    (actual['ln_rmssd_7_slope'] <
-                     (actual['ln_rmssd_7_slope'].rolling(60).mean() - actual['ln_rmssd_7_slope'].rolling(60).std()))
-            ), 'ln_rmssd_7_slope_trivial'] = actual['ln_rmssd_7_slope']
-        actual.loc[
-            (
-                    (actual['hr_average_7_slope'] >
-                     (actual['hr_average_7_slope'].rolling(60).mean() + actual['hr_average_7_slope'].rolling(
-                         60).std())) |
-                    (actual['hr_average_7_slope'] <
-                     (actual['hr_average_7_slope'].rolling(60).mean() - actual['hr_average_7_slope'].rolling(60).std()))
-            ), 'hr_average_7_slope_trivial'] = actual['hr_average_7_slope']
-
-        actual.loc[
-            (
-                    (actual['cv_rmssd_7_slope'] >
-                     (actual['cv_rmssd_7_slope'].rolling(60).mean() + actual['cv_rmssd_7_slope'].rolling(60).std())) |
-                    (actual['cv_rmssd_7_slope'] <
-                     (actual['cv_rmssd_7_slope'].rolling(60).mean() - actual['cv_rmssd_7_slope'].rolling(60).std()))
-            ), 'cv_rmssd_7_slope_trivial'] = actual['cv_rmssd_7_slope']
-
-        actual.loc[
-            (
-                    (actual['ln_rmssd_normalized_7_slope'] >
-                     (actual['ln_rmssd_normalized_7_slope'].rolling(60).mean() + actual[
-                         'ln_rmssd_normalized_7_slope'].rolling(60).std())) |
-                    (actual['ln_rmssd_normalized_7_slope'] <
-                     (actual['ln_rmssd_normalized_7_slope'].rolling(60).mean() - actual[
-                         'ln_rmssd_normalized_7_slope'].rolling(60).std()))
-            ), 'ln_rmssd_normalized_7_slope_trivial'] = actual['ln_rmssd_normalized_7_slope']
-
-        # E.O Customization
-        # ATL Normalized baseline
-        actual['atl_7'] = actual['ATL'].rolling(7).mean().fillna(0)
-        actual['atl_7_slope'] = actual['atl_7'].rolling(14).apply(
-            lambda x: scipy.stats.linregress(range(14), x).slope)
-
-        actual.loc[
-            (
-                    (actual['atl_7_slope'] >
-                     (actual['atl_7_slope'].rolling(60).mean() + actual['atl_7_slope'].rolling(60).std())) |
-                    (actual['atl_7_slope'] <
-                     (actual['atl_7_slope'].rolling(60).mean() - actual['atl_7_slope'].rolling(60).std()))
-            ), 'atl_7_slope_trivial'] = actual['atl_7_slope']
-
-        # Fill slopes with 0 when non trivial for trend detection
-        for col in actual.columns:
-            if 'trivial' in col:
-                actual[col] = actual[col].fillna(0)
-
-        # Check for trend
-        actual["detected_trend"] = actual[
-            ["ln_rmssd_7_slope_trivial", "hr_average_7_slope_trivial", "cv_rmssd_7_slope_trivial",
-             "ln_rmssd_normalized_7_slope_trivial", "atl_7_slope_trivial"]].apply(lambda x: detect_trend(*x), axis=1)
-
-        ### Depricated: This overwrites any other trends identified within the rolling 14 days
-        # Highlight the 14 days that the trend is actually calculated on
-        # For every trend that has been detected, highlight the 14 days prior to that day with the trend
-        # for i in actual.index:
-        #     for d in range(0, 14):
-        #         if actual.loc[i]['detected_trend'] != 'No Relevant Trends':
-        #             actual.at[i - timedelta(days=d + 1), 'detected_trend'] = actual.loc[i]['detected_trend']
-
-        # Debugging
-        # actual[
+        # ### Trends ###
+        #
+        # # Automated trend detection: https://www.hrv4training.com/blog/interpreting-hrv-trends
+        # actual['ln_rmssd_7'] = actual['ln_rmssd'].rolling(7).mean()
+        # # HR baseline
+        # actual['hr_average_7'] = actual['hr_average'].rolling(7).mean()
+        # # Coefficient of Variation baseline
+        # actual['cv_rmssd_7'] = (actual['ln_rmssd'].rolling(7).std() / actual['ln_rmssd'].rolling(7).mean()) * 100
+        # # HRV Normalized baseline
+        # actual['ln_rmssd_normalized_7'] = actual['ln_rmssd_7'] / actual['AVNN'].rolling(7).mean()
+        #
+        # # Calculate 2 Week Slopes
+        # actual['ln_rmssd_7_slope'] = actual['ln_rmssd_7'].rolling(14).apply(
+        #     lambda x: scipy.stats.linregress(range(14), x).slope)
+        # actual['hr_average_7_slope'] = actual['hr_average_7'].rolling(14).apply(
+        #     lambda x: scipy.stats.linregress(range(14), x).slope)
+        # actual['cv_rmssd_7_slope'] = actual['cv_rmssd_7'].rolling(14).apply(
+        #     lambda x: scipy.stats.linregress(range(14), x).slope)
+        # actual['ln_rmssd_normalized_7_slope'] = actual['ln_rmssd_normalized_7'].rolling(14).apply(
+        #     lambda x: scipy.stats.linregress(range(14), x).slope)
+        #
+        # # Get Stdev and mean for last 60 days worth of slopes
+        #
+        # # Remove trivial changes
+        #
+        # # actual.loc[(
+        # #                    (actual['ln_rmssd_7'] > (
+        # #                            actual['ln_rmssd'].rolling(60, min_periods=0).mean() + actual['ln_rmssd'].rolling(60,
+        # #                                                                                                        min_periods=0).std())
+        # #                     ) |
+        # #                    actual['ln_rmssd_7'] < (
+        # #                            actual['ln_rmssd'].rolling(60, min_periods=0).mean() - actual['ln_rmssd'].rolling(60,
+        # #                                                                                                        min_periods=0).std())
+        # #            ),
+        # #            'ln_rmssd_7_slope_trivial'] = actual['ln_rmssd_7_slope']
+        #
+        # actual.loc[
+        #     (
+        #             (actual['ln_rmssd_7_slope'] >
+        #              (actual['ln_rmssd_7_slope'].rolling(60).mean() + actual['ln_rmssd_7_slope'].rolling(60).std())) |
+        #             (actual['ln_rmssd_7_slope'] <
+        #              (actual['ln_rmssd_7_slope'].rolling(60).mean() - actual['ln_rmssd_7_slope'].rolling(60).std()))
+        #     ), 'ln_rmssd_7_slope_trivial'] = actual['ln_rmssd_7_slope']
+        # actual.loc[
+        #     (
+        #             (actual['hr_average_7_slope'] >
+        #              (actual['hr_average_7_slope'].rolling(60).mean() + actual['hr_average_7_slope'].rolling(
+        #                  60).std())) |
+        #             (actual['hr_average_7_slope'] <
+        #              (actual['hr_average_7_slope'].rolling(60).mean() - actual['hr_average_7_slope'].rolling(60).std()))
+        #     ), 'hr_average_7_slope_trivial'] = actual['hr_average_7_slope']
+        #
+        # actual.loc[
+        #     (
+        #             (actual['cv_rmssd_7_slope'] >
+        #              (actual['cv_rmssd_7_slope'].rolling(60).mean() + actual['cv_rmssd_7_slope'].rolling(60).std())) |
+        #             (actual['cv_rmssd_7_slope'] <
+        #              (actual['cv_rmssd_7_slope'].rolling(60).mean() - actual['cv_rmssd_7_slope'].rolling(60).std()))
+        #     ), 'cv_rmssd_7_slope_trivial'] = actual['cv_rmssd_7_slope']
+        #
+        # actual.loc[
+        #     (
+        #             (actual['ln_rmssd_normalized_7_slope'] >
+        #              (actual['ln_rmssd_normalized_7_slope'].rolling(60).mean() + actual[
+        #                  'ln_rmssd_normalized_7_slope'].rolling(60).std())) |
+        #             (actual['ln_rmssd_normalized_7_slope'] <
+        #              (actual['ln_rmssd_normalized_7_slope'].rolling(60).mean() - actual[
+        #                  'ln_rmssd_normalized_7_slope'].rolling(60).std()))
+        #     ), 'ln_rmssd_normalized_7_slope_trivial'] = actual['ln_rmssd_normalized_7_slope']
+        #
+        # # E.O Customization
+        # # ATL Normalized baseline
+        # actual['atl_7'] = actual['ATL'].rolling(7).mean().fillna(0)
+        # actual['atl_7_slope'] = actual['atl_7'].rolling(14).apply(
+        #     lambda x: scipy.stats.linregress(range(14), x).slope)
+        #
+        # actual.loc[
+        #     (
+        #             (actual['atl_7_slope'] >
+        #              (actual['atl_7_slope'].rolling(60).mean() + actual['atl_7_slope'].rolling(60).std())) |
+        #             (actual['atl_7_slope'] <
+        #              (actual['atl_7_slope'].rolling(60).mean() - actual['atl_7_slope'].rolling(60).std()))
+        #     ), 'atl_7_slope_trivial'] = actual['atl_7_slope']
+        #
+        # # Fill slopes with 0 when non trivial for trend detection
+        # for col in actual.columns:
+        #     if 'trivial' in col:
+        #         actual[col] = actual[col].fillna(0)
+        #
+        # # Check for trend
+        # actual["detected_trend"] = actual[
         #     ["ln_rmssd_7_slope_trivial", "hr_average_7_slope_trivial", "cv_rmssd_7_slope_trivial",
-        #      "ln_rmssd_normalized_7_slope_trivial"]].to_csv('actual.csv', sep=',')
+        #      "ln_rmssd_normalized_7_slope_trivial", "atl_7_slope_trivial"]].apply(lambda x: detect_trend(*x), axis=1)
+        #
+        # ### Depricated: This overwrites any other trends identified within the rolling 14 days
+        # # Highlight the 14 days that the trend is actually calculated on
+        # # For every trend that has been detected, highlight the 14 days prior to that day with the trend
+        # # for i in actual.index:
+        # #     for d in range(0, 14):
+        # #         if actual.loc[i]['detected_trend'] != 'No Relevant Trends':
+        # #             actual.at[i - timedelta(days=d + 1), 'detected_trend'] = actual.loc[i]['detected_trend']
+        #
+        # # Debugging
+        # # actual[
+        # #     ["ln_rmssd_7_slope_trivial", "hr_average_7_slope_trivial", "cv_rmssd_7_slope_trivial",
+        # #      "ln_rmssd_normalized_7_slope_trivial"]].to_csv('actual.csv', sep=',')
+        #
 
-        for trend in ['Coping well', 'Risk of accumulated fatigue', 'Maladaptation', 'Accumulated fatigue']:
+        # Plot the trend on the hrv 7 day average line
+        for trend in ['Competition Ready', 'Coping Well', 'Not Coping Well']:
             actual.loc[actual['detected_trend'] == trend, trend] = actual['ln_rmssd_7']
 
-            if trend == 'Coping well':
-                color = 'green'
-            if trend == 'Risk of accumulated fatigue':
-                color = 'yellow'
-            elif trend == 'Maladaptation':
-                color = 'orange'
-            elif trend == 'Accumulated fatigue':
-                color = 'red'
+            if trend == 'Coping Well':
+                color = light_blue
+            elif trend == 'Competition Ready':
+                color = teal
+            elif trend == 'Not Coping Well':
+                color = orange
+            # elif trend == 'No Trend Detected':
+            #     color='white'
+            # if trend == 'Coping well':
+            #     color = 'green'
+            # if trend == 'Risk of accumulated fatigue':
+            #     color = 'yellow'
+            # elif trend == 'Maladaptation':
+            #     color = 'orange'
+            # elif trend == 'Accumulated fatigue':
+            #     color = 'red'
 
             ### Detected Trends ###
             figure['data'].append(
@@ -2327,7 +2409,7 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
                     name=trend,
                     x=actual.index,
                     y=actual[trend],
-                    text=actual['detected_trend'],
+                    text=[f'Detected Trend: <b>{trend}' for x in actual['detected_trend']],
                     yaxis='y3',
                     mode='markers',
                     hoverinfo='text',
@@ -2786,7 +2868,7 @@ def create_annotation_table():
      Output('pmd-kpi', 'children')],
     [Input('pm-chart', 'hoverData')])
 def update_fitness_kpis(hoverData):
-    date, fitness, ramp, fatigue, form, hrv, hrv_change, hrv7, hrv7_change, plan_rec = None, None, None, None, None, None, None, None, None, None
+    date, fitness, ramp, fatigue, form, hrv, hrv_change, hrv7, hrv7_change, plan_rec, trend = None, None, None, None, None, None, None, None, None, None, None
     if hoverData is not None:
         if len(hoverData['points']) > 3:
             date = hoverData['points'][0]['x']
@@ -2812,12 +2894,15 @@ def update_fitness_kpis(hoverData):
                         hrv7_change = float(re.findall(r'\((.*?)\)', point['text'].replace('+', ''))[0])
                     if 'rec_' in point['text']:
                         plan_rec = point['text']
+                    if 'Trend' in point['text']:
+                        trend = point['text'].replace("Detected Trend: <b>", '')
                 except:
                     continue
 
             return create_daily_recommendations(hrv, hrv_change, hrv7, hrv7_change,
                                                 plan_rec) if oura_credentials_supplied else [], \
-                   create_fitness_kpis(date, fitness, ramp, rr_max_threshold, rr_min_threshold, fatigue, form, hrv7)
+                   create_fitness_kpis(date, fitness, ramp, rr_max_threshold, rr_min_threshold, fatigue, form, hrv7,
+                                       trend)
 
 
 # PMD Boolean Switches
