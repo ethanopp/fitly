@@ -204,10 +204,16 @@ def get_played_tracks(workout_intensity='all', sport='all', pop_time_period='all
 
 
 def generate_recommendation_playlists(workout_intensity='all', sport='all', normalize=True, num_clusters=30,
-                                      num_playlists=3):
+                                      num_playlists=3, time_period='l90d'):
     '''
 
-    :return:
+    :param workout_intensity: specify intensity for querying seeds
+    :param sport: specify workout type for querying seeds
+    :param normalize: boolean for normalizing audio features
+    :param num_clusters: number of clusters K-Means will use
+    :param num_playlists: number of spotify playlists to be generated
+    :param time_period: time period for querying seeds
+    :return: None; generates spotify playlists
     '''
 
     # Clear all Fitly playlists
@@ -221,7 +227,8 @@ def generate_recommendation_playlists(workout_intensity='all', sport='all', norm
             spotify.playlist_clear(x.id)
 
     # Query tracks to use as seeds for generating recommendations
-    df = get_played_tracks(workout_intensity=workout_intensity, sport=sport).reset_index()
+    df = get_played_tracks(workout_intensity=workout_intensity, sport=sport, pop_time_period=time_period).reset_index()
+    df = df[df['Period'] == 'Current']
     if len(df) > 0:
 
         _audiofeat_df = df[
