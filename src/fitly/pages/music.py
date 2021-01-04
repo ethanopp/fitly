@@ -61,6 +61,7 @@ def get_layout(**kwargs):
                                  multi=False
                              ),
                          ]),
+                         # TODO: Only show workout types where there is music history available
                          html.Div(className='col-lg-4', children=[
                              dcc.Dropdown(
                                  id='music-sport-selector',
