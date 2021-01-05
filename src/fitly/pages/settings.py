@@ -1089,6 +1089,7 @@ def set_log_level(info_n_clicks, error_n_clicks, debug_n_clicks):
 def update_tokens(n_clicks, search):
     query_params = urlparse.urlparse(search)
     if 'oura' in search:
+        query_params = urlparse.urlparse(search.replace('oura?', ''))
         if not oura_connected():
             oura_auth_client.fetch_access_token(parse_qs(query_params.query)['code'][0])
             save_oura_token(oura_auth_client.session.token)
