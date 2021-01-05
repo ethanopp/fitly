@@ -101,6 +101,11 @@ def pull_readiness_data(oura, days_back=7):
         # To align with charts when filtering on date use readiness summary_date + 1 day
         df_readiness_summary['report_date'] = (
                 pd.to_datetime(df_readiness_summary['summary_date']) + timedelta(days=1)).dt.date
+
+        # Only take max period_id from readiness data (don't want naps in our readiness data screwing up main daily scores)
+        df_readiness_summary = df_readiness_summary.loc[
+            df_readiness_summary.reset_index().groupby(['summary_date'])['period_id'].idxmax()]
+
         df_readiness_summary.set_index('report_date', inplace=True)
 
         return df_readiness_summary
@@ -429,13 +434,13 @@ def pull_oura_data():
         oura = OuraClient(client_id=client_id, client_secret=client_secret, access_token=token_dict['access_token'],
                           refresh_token=token_dict['refresh_token'], refresh_callback=save_oura_token)
         df_readiness_summary = pull_readiness_data(oura, days_back)
+        df_readiness_summary.to_csv('readiness.csv', sep=',')
         df_activity_summary, df_activity_samples = pull_activity_data(oura, days_back)
         df_sleep_summary, df_sleep_samples = pull_sleep_data(oura, days_back)
 
         insert_readiness_data(df_readiness_summary, days_back)
         insert_activity_data(df_activity_summary, df_activity_samples, days_back)
         insert_sleep_data(df_sleep_summary, df_sleep_samples, days_back)
-
 
         # # Generate correlation table - Depricated, no longer storing in table
         # generate_oura_correlations(lookback_days=9999)
