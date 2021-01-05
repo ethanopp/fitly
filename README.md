@@ -38,7 +38,7 @@ Edit the `config.ini.example` file on your local mount path with your settings (
 ### Strava
 Copy your client key and secret into your config.ini file.
 
-In your strava settings click "My Api Application" and set the autorization callback to **127.0.0.1:8050?strava**. All other fields you can update as you'd like.
+In your strava settings (https://www.strava.com/settings/api) set the autorization callback to **127.0.0.1:8050?strava**. All other fields you can update as you'd like.
 
 ## Optional data sources
 Some charts will not work unless these data sources are provided, or until new data sources are added that can pull similar data
@@ -85,6 +85,8 @@ Fitbod allows exporting your data via the mobile app (Log > Settings icon > Expo
 Export your fitbod file to a nextcloud location, and provide that nextcloud location in your config.ini for fit.ly to incorporate into the dashboards.
 
 ### Spotify
+The spotify connections is currently required to generate the music page.
+
 Fitly can keep a history of every song you listen to on spotify for > 30 seconds. Listening behavior can then be analyzed by activity type and intensity (i.e what music do you listen to during high intensity runs), clustered into music type (K-means cluster on spotify audio features) and playlists can be automatically generated with recommended music for your next recommended workout.
 
 Create a developer account here: https://developer.spotify.com/dashboard/

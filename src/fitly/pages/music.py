@@ -13,6 +13,7 @@ from ..utils import config
 from sklearn.preprocessing import MinMaxScaler
 import operator
 import re
+from ..utils import spotify_credentials_supplied
 
 transition = int(config.get('dashboard', 'transition'))
 default_icon_color = 'rgb(220, 220, 220)'
@@ -25,74 +26,77 @@ grey = 'rgb(50,50,50)'
 
 
 def get_layout(**kwargs):
-    sports = app.session.query(stravaSummary.type).distinct().all()
-    app.session.remove()
-    sport_options = [{'label': 'All Sports', 'value': 'all'}]
-    sport_options.extend([{'label': re.sub(r"(\w)([A-Z])", r"\1 \2", x[0]), 'value': x[0]} for x in sorted(sports)])
+    if not spotify_credentials_supplied:
+        return html.H1('Spotify not connected', className='text-center')
+    else:
+        # Get sports that have music listened during the last PoP Ytd
+        sports = [x for x in get_played_tracks(pop_time_period='ytd')['workout_type'].unique() if x != '']
+        sport_options = [{'label': 'All Sports', 'value': 'all'}]
+        sport_options.extend([{'label': re.sub(r"(\w)([A-Z])", r"\1 \2", x), 'value': x} for x in sorted(sports)])
 
-    return html.Div([
-        html.Div(children=[
-            html.Div(id='music-filter-shelf', className='row align-items-center text-center mt-2 mb-2',
-                     children=[
-                         html.Div(className='col-lg-4', children=[
-                             dcc.Dropdown(
-                                 id='music-time-selector',
-                                 options=[
-                                     {'label': 'All History', 'value': 'all'},
-                                     {'label': 'Year to Date', 'value': 'ytd'},
-                                     {'label': 'Last 90 days', 'value': 'l90d'},
-                                     {'label': 'Last 6 weeks', 'value': 'l6w'},
-                                     {'label': 'Last 30 days', 'value': 'l30d'}],
-                                 value='l90d',
-                                 multi=False
-                             ),
-                         ]),
-                         html.Div(className='col-lg-4', children=[
-                             dcc.Dropdown(
-                                 id='music-intensity-selector',
-                                 placeholder="Workout Intensity",
-                                 options=[
-                                     {'label': 'All Intensities', 'value': 'all'},
-                                     {'label': 'High Intensity', 'value': 'high'},
-                                     {'label': 'Mod Intensity', 'value': 'mod'},
-                                     {'label': 'Low Intensity', 'value': 'low'},
-                                     {'label': 'Rest Day', 'value': 'rest'}],
-                                 value='all',
-                                 multi=False
-                             ),
-                         ]),
-                         html.Div(className='col-lg-4', children=[
-                             dcc.Dropdown(
-                                 id='music-sport-selector',
-                                 options=sport_options,
-                                 value='all',
-                                 multi=False
-                             ),
-                         ]),
-                     ])
-        ]),
+        return html.Div([
+            html.Div(children=[
+                html.Div(id='music-filter-shelf', className='row align-items-center text-center mt-2 mb-2',
+                         children=[
+                             html.Div(className='col-lg-4', children=[
+                                 dcc.Dropdown(
+                                     id='music-time-selector',
+                                     options=[
+                                         {'label': 'All History', 'value': 'all'},
+                                         {'label': 'Year to Date', 'value': 'ytd'},
+                                         {'label': 'Last 90 days', 'value': 'l90d'},
+                                         {'label': 'Last 6 weeks', 'value': 'l6w'},
+                                         {'label': 'Last 30 days', 'value': 'l30d'}],
+                                     value='l90d',
+                                     multi=False
+                                 ),
+                             ]),
+                             html.Div(className='col-lg-4', children=[
+                                 dcc.Dropdown(
+                                     id='music-intensity-selector',
+                                     placeholder="Workout Intensity",
+                                     options=[
+                                         {'label': 'All Intensities', 'value': 'all'},
+                                         {'label': 'High Intensity', 'value': 'high'},
+                                         {'label': 'Mod Intensity', 'value': 'mod'},
+                                         {'label': 'Low Intensity', 'value': 'low'},
+                                         {'label': 'Rest Day', 'value': 'rest'}],
+                                     value='all',
+                                     multi=False
+                                 ),
+                             ]),
+                             html.Div(className='col-lg-4', children=[
+                                 dcc.Dropdown(
+                                     id='music-sport-selector',
+                                     options=sport_options,
+                                     value='all',
+                                     multi=False
+                                 ),
+                             ]),
+                         ])
+            ]),
 
-        html.Div(className='row', children=[
-            html.Div(className='col-lg-6', children=[
-                dbc.Card(children=[
-                    dbc.CardHeader(html.H4('Music Profile', className='mb-0')),
-                    dbc.CardBody(
-                        style={'padding': '.5rem'},
-                        children=[
-                            dbc.Spinner(color='info', children=[
-                                dcc.Graph(
-                                    id='radar-chart',
-                                    config={'displayModeBar': False},
-                                    style={'height': '100%'},
-                                )
-                            ])
-                        ]
-                    )
+            html.Div(className='row', children=[
+                html.Div(className='col-lg-6', children=[
+                    dbc.Card(children=[
+                        dbc.CardHeader(html.H4('Music Profile', className='mb-0')),
+                        dbc.CardBody(
+                            style={'padding': '.5rem'},
+                            children=[
+                                dbc.Spinner(color='info', children=[
+                                    dcc.Graph(
+                                        id='radar-chart',
+                                        config={'displayModeBar': False},
+                                        style={'height': '100%'},
+                                    )
+                                ])
+                            ]
+                        )
+                    ])
+
                 ])
-
             ])
         ])
-    ])
 
 
 # TODO: Add graph for top artists/tracks
