@@ -85,6 +85,8 @@ Fitbod allows exporting your data via the mobile app (Log > Settings icon > Expo
 Export your fitbod file to a nextcloud location, and provide that nextcloud location in your config.ini for fit.ly to incorporate into the dashboards.
 
 ### Spotify
+The spotify connections is currently required to generate the music page.
+
 Fitly can keep a history of every song you listen to on spotify for > 30 seconds. Listening behavior can then be analyzed by activity type and intensity (i.e what music do you listen to during high intensity runs), clustered into music type (K-means cluster on spotify audio features) and playlists can be automatically generated with recommended music for your next recommended workout.
 
 Create a developer account here: https://developer.spotify.com/dashboard/
