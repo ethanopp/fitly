@@ -38,7 +38,7 @@ Edit the `config.ini.example` file on your local mount path with your settings (
 ### Strava
 Copy your client key and secret into your config.ini file.
 
-In your strava settings click "My Api Application" and set the autorization callback to **127.0.0.1:8050?strava**. All other fields you can update as you'd like.
+In your strava settings (https://www.strava.com/settings/api) set the autorization callback to **127.0.0.1:8050?strava**. All other fields you can update as you'd like.
 
 ## Optional data sources
 Some charts will not work unless these data sources are provided, or until new data sources are added that can pull similar data
