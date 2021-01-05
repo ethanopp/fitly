@@ -108,13 +108,13 @@ def save_spotify_play_history():
                     "played_at": pd.to_datetime(played_at),
                     "track_id": x["id"],
                     "track_name": x["name"],
-                    "track_url": x["external_urls"]["spotify"],
-                    "track_isrc": x["external_ids"]["isrc"],
-                    "track_popularity": x["popularity"],
                     "explicit": x["explicit"],
-                    "artist_id": x["artists"][0]["id"],
-                    "artist_name": x["artists"][0]["name"],
-                    "artist_url": x["artists"][0]["external_urls"]["spotify"],
+                    "artist_id": ', '.join([y["id"] for y in x["artists"]]),
+                    "artist_name": ', '.join([y["name"] for y in x["artists"]]),
+                    # URLs do not need to be stored, can be generated with
+                    # # https://open.spotify.com/track/<track_id>
+                    # https://open.spotify.com/artist/<artist_id>
+                    # https://open.spotify.com/album/<album_id>
                     "album_id": x["album"]["id"],
                     "album_name": x["album"]["name"]
                 })

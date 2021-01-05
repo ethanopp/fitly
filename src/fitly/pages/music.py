@@ -1,5 +1,6 @@
 import pandas as pd
 import dash
+import dash_table
 from dash.dependencies import Input, Output, State
 import dash_bootstrap_components as dbc
 import dash_core_components as dcc
@@ -14,6 +15,9 @@ from sklearn.preprocessing import MinMaxScaler
 import operator
 import re
 from ..utils import spotify_credentials_supplied
+import os
+import pytz
+from tzlocal import get_localzone
 
 transition = int(config.get('dashboard', 'transition'))
 default_icon_color = 'rgb(220, 220, 220)'
@@ -73,10 +77,10 @@ def get_layout(**kwargs):
                                      multi=False
                                  ),
                              ]),
-                         ])
+                         ]),
             ]),
 
-            html.Div(className='row', children=[
+            html.Div(className='row mb-2', children=[
                 html.Div(className='col-lg-6', children=[
                     dbc.Card(children=[
                         dbc.CardHeader(html.H4('Music Profile', className='mb-0')),
@@ -94,7 +98,65 @@ def get_layout(**kwargs):
                         )
                     ])
 
+                ]),
+                html.Div(className='col-lg-6', children=[
+                    html.H1('Placeholder')
                 ])
+            ]),
+            html.Div(className='row', children=[
+                html.Div(className='col-lg-8', children=[
+                    dbc.Card([
+                        dbc.CardBody([
+                            html.Div(className='col-lg-12', style={'overflow': 'hidden'},
+                                     children=dash_table.DataTable(
+                                         id='play-history-table',
+                                         columns=[
+                                             {'name': 'Played', 'id': 'played_at'},
+                                             {'name': 'Track Name', 'id': 'track_name'},
+                                             {'name': 'Artist Name', 'id': 'artist_name'},
+                                             {'name': 'Album Name', 'id': 'album_name'},
+                                         ],
+                                         style_as_list_view=True,
+                                         fixed_rows={'headers': True, 'data': 0},
+                                         style_table={'height': '100%'},
+                                         style_header={'backgroundColor': 'rgba(0,0,0,0)',
+                                                       'borderBottom': '1px solid rgb(220, 220, 220)',
+                                                       'borderTop': '0px',
+                                                       # 'textAlign': 'left',
+                                                       'fontWeight': 'bold',
+                                                       'fontFamily': '"Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif',
+                                                       # 'fontSize': '1.2rem'
+                                                       },
+                                         style_cell={
+                                             'backgroundColor': 'rgba(0,0,0,0)',
+                                             'color': 'rgb(220, 220, 220)',
+                                             'borderBottom': '1px solid rgb(73, 73, 73)',
+                                             'textAlign': 'center',
+                                             # 'whiteSpace': 'no-wrap',
+                                             # 'overflow': 'hidden',
+                                             'textOverflow': 'ellipsis',
+                                             'maxWidth': 175,
+                                             'minWidth': 50,
+                                             # 'padding': '0px',
+                                             'fontFamily': '"Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif',
+                                             # 'fontSize': '1.2rem'
+                                         },
+                                         style_cell_conditional=[
+                                             {
+                                                 'if': {'column_id': 'activity_id'},
+                                                 'display': 'none'
+                                             }
+                                         ],
+                                         filter_action="native",
+                                         page_action="none",
+                                         # page_current=0,
+                                         # page_size=10,
+                                     )
+
+                                     ),
+                        ]), ]),
+                ]),
+
             ])
         ])
 
@@ -196,3 +258,26 @@ def update_radar_chart(*args):
 
     figure = get_radar_chart(workout_intensity=workout_intensity, sport=sport, pop_time_period=pop_time_period)
     return figure
+
+
+@app.callback(
+    Output('play-history-table', 'data'),
+    [Input('music-intensity-selector', 'value'),
+     Input('music-time-selector', 'value'),
+     Input('music-sport-selector', 'value')],
+    [State('music-intensity-selector', 'value'),
+     State('music-time-selector', 'value'),
+     State('music-sport-selector', 'value'),
+     ]
+)
+def populate_history_table(*args):
+    ctx = dash.callback_context
+    tracks_df = get_played_tracks(workout_intensity=ctx.states['music-intensity-selector.value'],
+                                  sport=ctx.states['music-sport-selector.value'],
+                                  pop_time_period=ctx.states['music-time-selector.value'])
+
+    tracks_df['played_at'] = tracks_df.index.tz_localize('UTC').tz_convert(get_localzone()).strftime(
+        '%Y-%m-%d %I:%M %p')
+
+    return tracks_df[['played_at', 'track_name', 'artist_name', 'album_name']].sort_index(ascending=False).to_dict(
+        'records')

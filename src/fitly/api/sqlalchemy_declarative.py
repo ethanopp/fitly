@@ -447,13 +447,9 @@ class spotifyPlayHistory(Base):
     played_at = Column('played_at', DateTime(), index=True, primary_key=True)
     track_id = Column('track_id', String(255))
     track_name = Column('track_name', String(255))
-    track_url = Column('track_url', String(255))
-    track_isrc = Column('track_isrc', String(255))
-    track_popularity = Column('track_popularity', Integer())
     explicit = Column('explicit', Boolean())
     artist_id = Column('artist_id', String(255))
     artist_name = Column('artist_name', String(255))
-    artist_url = Column('artist_url', String(255))
     album_id = Column('album_id', String(255))
     album_name = Column('album_name', String(255))
     analysis_url = Column('analysis_url', String(255))
@@ -470,7 +466,6 @@ class spotifyPlayHistory(Base):
     tempo = Column('tempo', Float())
     time_signature = Column('time_signature', Integer())
     valence = Column('valence', Float())
-    track_href = Column('track_href', String(255))
 
 
 class apiTokens(Base):
