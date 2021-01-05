@@ -194,7 +194,7 @@ def get_played_tracks(workout_intensity='all', sport='all', pop_time_period='all
     if workout_intensity != 'all':
         df = df[df['workout_intensity'] == workout_intensity]
     if sport != 'all':
-        df = df[df['workout_type'] == sport.title()]
+        df = df[df['workout_type'] == sport]
 
     df.drop(columns=['start_date_utc', 'end_date_utc'], inplace=True)
 

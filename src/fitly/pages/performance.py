@@ -740,8 +740,8 @@ def z_recommendation_chart(hrv_z_score, hr_z_score, hrv7, hr7):
                                            y=[hr_z_score],
                                            # text=df['movement_tooltip'],
                                            hoverinfo='none',
-                                           # marker={
-                                           #     'color': [orange_faded, white, light_blue, teal]},
+                                           marker={
+                                               'color': [white]},
                                            # orientation='h',
                                        ),
                                    ],

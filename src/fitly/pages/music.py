@@ -29,10 +29,10 @@ def get_layout(**kwargs):
     if not spotify_credentials_supplied:
         return html.H1('Spotify not connected', className='text-center')
     else:
-        sports = app.session.query(stravaSummary.type).distinct().all()
-        app.session.remove()
+        # Get sports that have music listened during the last PoP Ytd
+        sports = [x for x in get_played_tracks(pop_time_period='ytd')['workout_type'].unique() if x != '']
         sport_options = [{'label': 'All Sports', 'value': 'all'}]
-        sport_options.extend([{'label': re.sub(r"(\w)([A-Z])", r"\1 \2", x[0]), 'value': x[0]} for x in sorted(sports)])
+        sport_options.extend([{'label': re.sub(r"(\w)([A-Z])", r"\1 \2", x), 'value': x} for x in sorted(sports)])
 
         return html.Div([
             html.Div(children=[
@@ -65,7 +65,6 @@ def get_layout(**kwargs):
                                      multi=False
                                  ),
                              ]),
-                             # TODO: Only show workout types where there is music history available
                              html.Div(className='col-lg-4', children=[
                                  dcc.Dropdown(
                                      id='music-sport-selector',
