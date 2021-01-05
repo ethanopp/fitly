@@ -125,7 +125,7 @@ def save_spotify_play_history():
         track_table = pd.merge(track_info_df, track_features, how='left', left_on='track_id', right_on='id').set_index(
             'played_at')
         track_table.drop_duplicates(inplace=True)
-        track_table = track_table.drop(columns=['id', 'type', 'uri'])
+        track_table = track_table.drop(columns=['id', 'type', 'uri', 'track_href'])
 
         # Filter to only new records and insert into DB
         latest = app.session.query(func.max(spotifyPlayHistory.played_at)).first()[0]
