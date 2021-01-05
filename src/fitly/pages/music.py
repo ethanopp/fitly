@@ -56,11 +56,11 @@ def get_layout(**kwargs):
                                      id='music-intensity-selector',
                                      placeholder="Workout Intensity",
                                      options=[
-                                         {'label': 'All Intensities', 'value': 'all'},
-                                         {'label': 'High Intensity', 'value': 'high'},
-                                         {'label': 'Mod Intensity', 'value': 'mod'},
-                                         {'label': 'Low Intensity', 'value': 'low'},
-                                         {'label': 'Rest Day', 'value': 'rest'}],
+                                         {'label': 'All Listening', 'value': 'all'},
+                                         {'label': 'High Intensity Workout', 'value': 'high'},
+                                         {'label': 'Mod Intensity Workout', 'value': 'mod'},
+                                         {'label': 'Low Intensity Workout', 'value': 'low'},
+                                         {'label': 'Regular Listening Day', 'value': 'rest'}],
                                      value='all',
                                      multi=False
                                  ),
