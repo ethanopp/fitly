@@ -118,7 +118,10 @@ def get_radar_chart(workout_intensity, sport, pop_time_period):
             go.Scatterpolar(
                 r=df_tracks_prev.mean() * 100,
                 theta=[x.title() for x in df_tracks_prev.columns],
-                text='r',
+                text=['{}: <b>{:.2f}%'.format(y, x) for x, y in
+                      zip(df_tracks_prev.mean() * 100, [x.title() for x in df_tracks_prev.columns])],
+
+                hoverinfo='text',
                 fill='toself',
                 name='Prev. ' + pop_time_period.upper(),
                 line=dict(color=white),
@@ -133,12 +136,14 @@ def get_radar_chart(workout_intensity, sport, pop_time_period):
             go.Scatterpolar(
                 r=df_tracks_cur.mean() * 100,
                 theta=[x.title() for x in df_tracks_cur.columns],
-                text='r',
+                text=['{}: <b>{:.2f}%'.format(y, x) for x, y in
+                      zip(df_tracks_cur.mean() * 100, [x.title() for x in df_tracks_cur.columns])],
+                hoverinfo='text',
                 fill='toself',
                 name='All Time' if pop_time_period == 'all' else pop_time_period.upper().replace('L', 'Last '),
                 # color=teal,
                 line=dict(color=teal),
-                fillcolor='rgba(100, 217, 236,.6)'
+                fillcolor='rgba(100, 217, 236,.6)',
             )
         )
     figure = {
