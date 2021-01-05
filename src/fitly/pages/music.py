@@ -60,7 +60,7 @@ def get_layout(**kwargs):
                                          {'label': 'High Intensity Workout', 'value': 'high'},
                                          {'label': 'Mod Intensity Workout', 'value': 'mod'},
                                          {'label': 'Low Intensity Workout', 'value': 'low'},
-                                         {'label': 'Regular Listening Day', 'value': 'rest'}],
+                                         {'label': 'Regular Listening', 'value': 'rest'}],
                                      value='all',
                                      multi=False
                                  ),
