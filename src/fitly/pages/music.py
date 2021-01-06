@@ -61,10 +61,12 @@ def get_layout(**kwargs):
                                      placeholder="Workout Intensity",
                                      options=[
                                          {'label': 'All Listening', 'value': 'all'},
+                                         {'label': 'Non-Workout Listening', 'value': 'rest'},
+                                         {'label': 'All Workout Listening', 'value': 'workout'},
                                          {'label': 'High Intensity Workout', 'value': 'high'},
                                          {'label': 'Mod Intensity Workout', 'value': 'mod'},
-                                         {'label': 'Low Intensity Workout', 'value': 'low'},
-                                         {'label': 'Regular Listening', 'value': 'rest'}],
+                                         {'label': 'Low Intensity Workout', 'value': 'low'}],
+
                                      value='all',
                                      multi=False
                                  ),

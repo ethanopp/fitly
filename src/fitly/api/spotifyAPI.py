@@ -190,9 +190,12 @@ def get_played_tracks(workout_intensity='all', sport='all', pop_time_period='all
     df = df[[c for c in df.columns if '_y' not in c]]
     df.columns = [c.replace('_x', '') for c in df.columns]
     df = df.rename(columns={'type': 'workout_type', 'name': 'workout_name'})
-    # If workout intensity passed, filter on it (pass 'all' to get only tacks played during workout)
-    if workout_intensity != 'all':
+    # Filter on workout intensity/rest day
+    if workout_intensity == 'workout':
+        df = df[df['workout_intensity'] != 'rest']
+    elif workout_intensity != 'all':
         df = df[df['workout_intensity'] == workout_intensity]
+    # Filter on workout type
     if sport != 'all':
         df = df[df['workout_type'] == sport]
 
