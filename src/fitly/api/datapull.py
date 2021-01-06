@@ -31,19 +31,7 @@ def refresh_database(refresh_method='system', truncate=False, truncateDate=None)
             # If athlete settings are defined
             if athlete_info.name and athlete_info.birthday and athlete_info.sex and athlete_info.weight_lbs and athlete_info.resting_hr and athlete_info.run_ftp and athlete_info.ride_ftp:
                 # Insert record into table for 'processing'
-
-                run_time = datetime.utcnow()
-                record = dbRefreshStatus(timestamp_utc=run_time, truncate=truncate, refresh_method='processing')
-                # Insert and commit
-                try:
-                    app.session.add(record)
-                    app.session.commit()
-                    app.server.logger.debug('Inserting processing records into db_refresh...')
-                except BaseException as e:
-                    app.session.rollback()
-                    app.server.logger.error('Failed to insert processing record into db_refresh :', str(e))
-
-                app.session.remove()
+                db_process_flag(flag=True)
 
                 # If either truncate parameter is passed
                 if truncate or truncateDate:
@@ -240,11 +228,7 @@ def refresh_database(refresh_method='system', truncate=False, truncateDate=None)
                 app.server.logger.info('Please define all athlete settings prior to refreshing data')
         except:
             # Just in case the job fails, remove any processing records that may have been added to audit log as to not lock the next job
-
-            app.session.query(dbRefreshStatus).filter(dbRefreshStatus.refresh_method == 'processing').delete()
-            app.session.commit()
-
-            app.session.remove()
+            db_process_flag(flag=False)
     else:
         if refresh_method == 'manual':
             app.server.logger.info('Database is already running a refresh job')

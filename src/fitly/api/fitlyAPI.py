@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 import numpy as np
 from ..api.sqlalchemy_declarative import ouraSleepSummary, ouraReadinessSummary, withings, athlete, stravaSummary, \
-    strydSummary, fitbod, workoutStepLog
+    strydSummary, fitbod, workoutStepLog, dbRefreshStatus
 from sqlalchemy import func, cast, Date
 from sweat.io.models.dataframes import WorkoutDataFrame, Athlete
 from sweat.pdm import critical_power
@@ -22,6 +22,26 @@ from ..pages.performance import get_hrv_df
 
 types = ['time', 'latlng', 'distance', 'altitude', 'velocity_smooth', 'heartrate', 'cadence', 'watts', 'temp',
          'moving', 'grade_smooth']
+
+
+def db_process_flag(flag):
+    if flag:
+        run_time = datetime.utcnow()
+        record = dbRefreshStatus(timestamp_utc=run_time, refresh_method='processing')
+        # Insert and commit
+        try:
+            app.session.add(record)
+            app.session.commit()
+            app.server.logger.debug('Inserting processing records into db_refresh...')
+        except BaseException as e:
+            app.session.rollback()
+            app.server.logger.error('Failed to insert processing record into db_refresh :', str(e))
+
+    else:
+        app.session.query(dbRefreshStatus).filter(dbRefreshStatus.refresh_method == 'processing').delete()
+        app.session.commit()
+
+    app.session.remove()
 
 
 def calctime(time_sec, startdate):
@@ -702,6 +722,8 @@ def training_workflow(min_non_warmup_workout_time, metric='hrv_baseline', athlet
 
     # https://www.alancouzens.com/blog/Training_prescription_guided_by_HRV_in_cycling.pdf
 
+    db_process_flag(flag=True)
+
     # Check if entire table is empty, if so the earliest hrv plan can start is after 30 days of hrv readings
     # If using readiness score, just use first score available
     db_test = pd.read_sql(
@@ -918,4 +940,5 @@ def training_workflow(min_non_warmup_workout_time, metric='hrv_baseline', athlet
             if peloton_credentials_supplied:
                 set_peloton_workout_recommendations()
 
+    db_process_flag(flag=False)
     app.session.remove()
