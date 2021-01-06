@@ -229,10 +229,10 @@ def generate_recommendation_playlists(workout_intensity='all', sport='all', norm
     # Query tracks to use as seeds for generating recommendations
     df = get_played_tracks(workout_intensity=workout_intensity, sport=sport, pop_time_period=time_period).reset_index()
     df = df[df['Period'] == 'Current']
-    if len(df) > 0:
+    if len(df) >= num_clusters:
 
         _audiofeat_df = df[
-            ['track_id', 'track_popularity', 'time_signature', 'duration_ms', 'acousticness', 'danceability',
+            ['track_id', 'time_signature', 'duration_ms', 'acousticness', 'danceability',
              'energy', 'instrumentalness', 'key', 'liveness', 'loudness', 'mode', 'speechiness',
              'tempo', 'valence']]
 
@@ -279,4 +279,4 @@ def generate_recommendation_playlists(workout_intensity='all', sport='all', norm
 
     else:
         app.server.logger.debug(
-            f'No tracks found for "{workout_intensity}" intensity and "{sport}" workouts. Skipping playlist generation')
+            f'Not enough tracks found for "{workout_intensity}" intensity and "{sport}" workouts to generate playlist recommendations. Skipping playlist generation.')
