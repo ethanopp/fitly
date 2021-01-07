@@ -701,53 +701,53 @@ def z_recommendation(hrv_z_score, hr_z_score):
         return 'High'
 
 
-def z_recommendation_chart(hrv_z_score, hr_z_score, hrv7, hr7):
+def z_recommendation_chart(hrv_z_score, hr_z_score, hrv, hr):
     shapes = [
         ## Rest ##
         dict(type='rect', xref='x',
              yref='y', x0=-3, x1=-1, y0=1.75, y1=3,
-             fillcolor='rgba(217,100,43,.75)', layer='below',
+             fillcolor=orange_faded, layer='below',
              line=dict(width=0), ),
         dict(type='rect', xref='x',
              yref='y', x0=-3, x1=-1, y0=-3, y1=-2,
-             fillcolor='rgba(217,100,43,.75)', layer='below',
+             fillcolor=orange_faded, layer='below',
              line=dict(width=0),
              ),
         ## Low ##
         dict(type='rect', xref='x',
              yref='y', x0=-3, x1=-1, y0=-2, y1=1.75,
-             fillcolor='rgba(220,220,220,.75)', layer='below',
+             fillcolor=white, layer='below',
              line=dict(width=0), ),
         dict(type='rect', xref='x',
              yref='y', x0=-1, x1=3, y0=1.75, y1=3,
-             fillcolor='rgba(220,220,220,.75)', layer='below',
+             fillcolor=white, layer='below',
              line=dict(width=0), ),
         dict(type='rect', xref='x',
              yref='y', x0=-1, x1=3, y0=-2, y1=-3,
-             fillcolor='rgba(220,220,220,.75)', layer='below',
+             fillcolor=white, layer='below',
              line=dict(width=0), ),
         ## Mod ##
         dict(type='rect', xref='x',
              yref='y', x0=-1, x1=1, y0=-2, y1=1.75,
-             fillcolor='rgba(56, 128, 139,.75)', layer='below',
+             fillcolor=light_blue, layer='below',
              line=dict(width=0), ),
         dict(type='rect', xref='x',
              yref='y', x0=1, x1=3, y0=-2, y1=-1,
-             fillcolor='rgba(56, 128, 139,.75)', layer='below',
+             fillcolor=light_blue, layer='below',
              line=dict(width=0), ),
         dict(type='rect', xref='x',
              yref='y', x0=1, x1=3, y0=1, y1=1.75,
-             fillcolor='rgba(56, 128, 139,.75)', layer='below',
+             fillcolor=light_blue, layer='below',
              line=dict(width=0), ),
         ## High ##
         dict(type='rect', xref='x',
              yref='y', x0=1, x1=3, y0=-1, y1=1,
-             fillcolor='rgba(100, 217, 236, .75)', layer='below',
+             fillcolor=teal, layer='below',
              line=dict(width=0), ),
 
     ]
 
-    return html.Div([html.H6(['HRV: {:.2f} | HR: {:.2f}'.format(hrv7, hr7)], ),
+    return html.Div([html.H6(['HRV: {:.0f} | HR: {:.0f}'.format(hrv, hr)], ),
                      dcc.Graph(id='z-score-treemap', className='col-lg-12 mb-2',
                                config={'displayModeBar': False},
                                figure={
@@ -758,7 +758,7 @@ def z_recommendation_chart(hrv_z_score, hr_z_score, hrv7, hr7):
                                            # text=df['movement_tooltip'],
                                            hoverinfo='none',
                                            marker={
-                                               'color': [white]},
+                                               'color': ['rgb(66,66,66)']},
                                            # orientation='h',
                                        ),
                                    ],
@@ -855,9 +855,10 @@ def get_hrv_df():
     # Z Score Method
 
     # TODO: Update these z scores so be normalized by CV
-    # ithlete uses daily hr and hrv normalized by CV, we are using 7 day averages over 30 days instead
     hrv_df['hrv_z_score'] = zscore(x=hrv_df['ln_rmssd'], y=hrv_df['ln_rmssd'], window=30)
     hrv_df['hr_z_score'] = zscore(x=hrv_df['hr_average'], y=hrv_df['hr_average'], window=30)
+
+    # ithlete uses daily hr and hrv normalized by CV, use 7 day averages over 30 days instead?
     # hrv_df['hrv_z_score'] = zscore(x=hrv_df['ln_rmssd_7'], y=hrv_df['ln_rmssd'], window=30)
     # hrv_df['hr_z_score'] = zscore(x=hrv_df['hr_average_7'], y=hrv_df['hr_average'], window=30)
 
@@ -1185,7 +1186,7 @@ def create_daily_recommendations(hrv, hrv_change, hrv7, hrv7_change, plan_rec):
         swc_daily_upper = float(data[9])
         hrv_z_score = float(data[10])
         hr_z_score = float(data[11])
-        hr7 = float(data[12])
+        hr = float(data[12])
         swc = (swc_daily_upper - swc_daily_lower) / 2  # 1.5 stdev
         gauge_spacing = (swc * 4) / 5  # stdev (-3 to 3) over 5 gauge icons
 
@@ -1375,12 +1376,12 @@ def create_daily_recommendations(hrv, hrv_change, hrv7, hrv7_change, plan_rec):
     elif recovery_metric == 'readiness':
         recommendation_context = html.Div([
             oura_gauge,
-            # z_recommendation_chart(hrv_z_score, hr_z_score, hrv7, hr7),
+            z_recommendation_chart(hrv_z_score, hr_z_score, hrv, hr),
             todays_hrv,
         ])
     elif recovery_metric == 'zscore':
         recommendation_context = html.Div([
-            z_recommendation_chart(hrv_z_score, hr_z_score, hrv7, hr7),
+            z_recommendation_chart(hrv_z_score, hr_z_score, hrv, hr),
             oura_gauge
         ])
 
@@ -2018,7 +2019,7 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
                                  actual['swc_daily_upper'].astype('str') + '|' + \
                                  actual['hrv_z_score'].astype('str') + '|' + \
                                  actual['hr_z_score'].astype('str') + '|' + \
-                                 actual['hr_average_7'].astype('str')
+                                 actual['hr_average'].astype('str')
         hover_rec = actual['workout_plan'].tail(1).values[0]
 
     stress_bar_colors = []
