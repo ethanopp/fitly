@@ -666,8 +666,25 @@ def detect_z_trend(hrv_z_score, hr_z_score):
         return 'Coping Well'
     elif -2.25 < x < -1 and 0 < y < 1.75:
         return 'Not Coping Well'
+    elif x < -1 and y > 1.75:
+        return 'Stress / Illness'
+    elif x > 0 and y < -2:
+        return 'Low Energy / Activation'
     else:
         return 'No Trend Detected'
+
+
+def z_trend_color(z_trend):
+    if z_trend == 'Coping Well':
+        return light_blue
+    elif z_trend == 'Competition Ready':
+        return teal
+    elif z_trend in ['Not Coping Well', 'Low Energy / Activation']:
+        return orange
+    elif z_trend == 'Stress / Illness':
+        return 'red'
+    else:
+        return white
 
 
 def z_recommendation(hrv_z_score, hr_z_score):
@@ -746,7 +763,7 @@ def z_recommendation_chart(hrv_z_score, hr_z_score, hrv7, hr7):
                                        ),
                                    ],
                                    'layout': go.Layout(
-                                       height=80,
+                                       height=150,
                                        # width=100,
                                        shapes=shapes,
                                        # transition=dict(duration=transition),
@@ -755,19 +772,19 @@ def z_recommendation_chart(hrv_z_score, hr_z_score, hrv7, hr7):
                                            color=white
                                        ),
                                        xaxis=dict(
-                                           # title='Recovery (HRV-7)',
+                                           title='Recovery',
                                            range=[-3, 3],
                                            showticklabels=False,
                                            showgrid=False,
                                        ),
                                        yaxis=dict(
-                                           # title='Activation (HR-7)',
+                                           title='Activation',
                                            range=[-3, 3],
                                            showticklabels=False,
                                            showgrid=False,
                                        ),
                                        showlegend=False,
-                                       margin={'l': 55, 'b': 0, 't': 0, 'r': 55},
+                                       margin={'l': 30, 'b': 20, 't': 0, 'r': 30},
                                        hovermode='x'
                                    )
                                }
@@ -837,16 +854,19 @@ def get_hrv_df():
 
     # Z Score Method
 
-    # ithlete uses rolling 28 day of actual score, we are using 7 day averages over 30 days instead
-    # hrv_df['hrv_z_score'] = zscore(x=hrv_df['ln_rmssd'], y=hrv_df['ln_rmssd'], window=28)
-    # hrv_df['hr_z_score'] = zscore(x=hrv_df['hr_average'], y=hrv_df['hr_average'], window=28)
-    hrv_df['hrv_z_score'] = zscore(x=hrv_df['ln_rmssd_7'], y=hrv_df['ln_rmssd'], window=30)
-    hrv_df['hr_z_score'] = zscore(x=hrv_df['hr_average_7'], y=hrv_df['hr_average'], window=30)
-    # get recommendation to determine workflow step
+    # TODO: Update these z scores so be normalized by CV
+    # ithlete uses daily hr and hrv normalized by CV, we are using 7 day averages over 30 days instead
+    hrv_df['hrv_z_score'] = zscore(x=hrv_df['ln_rmssd'], y=hrv_df['ln_rmssd'], window=30)
+    hrv_df['hr_z_score'] = zscore(x=hrv_df['hr_average'], y=hrv_df['hr_average'], window=30)
+    # hrv_df['hrv_z_score'] = zscore(x=hrv_df['ln_rmssd_7'], y=hrv_df['ln_rmssd'], window=30)
+    # hrv_df['hr_z_score'] = zscore(x=hrv_df['hr_average_7'], y=hrv_df['hr_average'], window=30)
+
     hrv_df["z_recommendation"] = hrv_df[["hrv_z_score", "hr_z_score"]].apply(lambda x: z_recommendation(*x), axis=1)
-    hrv_df['within_zscore_swc'] = True
-    hrv_df.loc[
-        (hrv_df["z_recommendation"] == 'Rest') | (hrv_df["z_recommendation"] == 'Low'), 'within_zscore_swc'] = False
+
+    # get z score swc's to determine workflow step # Depricated - zscore recommendation can be used directly and we do not need it to guide workflow
+    # hrv_df['within_zscore_swc'] = True
+    # hrv_df.loc[
+    #     (hrv_df["z_recommendation"] == 'Rest') | (hrv_df["z_recommendation"] == 'Low'), 'within_zscore_swc'] = False
 
     # Detect trend for KPI
     hrv_df["detected_trend"] = hrv_df[["hrv_z_score", "hr_z_score"]].apply(lambda x: detect_z_trend(*x), axis=1)
@@ -1355,6 +1375,7 @@ def create_daily_recommendations(hrv, hrv_change, hrv7, hrv7_change, plan_rec):
     elif recovery_metric == 'readiness':
         recommendation_context = html.Div([
             oura_gauge,
+            # z_recommendation_chart(hrv_z_score, hr_z_score, hrv7, hr7),
             todays_hrv,
         ])
     elif recovery_metric == 'zscore':
@@ -1422,14 +1443,7 @@ def create_fitness_kpis(date, ctl, ramp, rr_min_threshold, rr_max_threshold, atl
 
     hrv7 = round(hrv7, 1) if hrv7 else 'N/A'
 
-    if trend == 'Coping Well':
-        detected_trend_color = light_blue
-    elif trend == 'Competition Ready':
-        detected_trend_color = teal
-    elif trend == 'Not Coping Well':
-        detected_trend_color = orange
-    else:
-        detected_trend_color = white
+    detected_trend_color = z_trend_color(trend)
 
     return [html.Div(className='row', children=[
 
@@ -2543,55 +2557,53 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
         #
 
         # Plot the trend on the hrv 7 day average line
-        for trend in ['Competition Ready', 'Coping Well', 'Not Coping Well']:
-            actual.loc[actual['detected_trend'] == trend, trend] = actual['ln_rmssd_7']
+        for trend in actual['detected_trend'].unique():
+            if trend not in ['No Trend Detected']:
+                # actual.loc[actual['detected_trend'] == trend, trend] = actual['ln_rmssd_7']
+                actual.loc[actual['detected_trend'] == trend, trend] = actual['ln_rmssd']
 
-            if trend == 'Coping Well':
-                color = light_blue
-            elif trend == 'Competition Ready':
-                color = teal
-            elif trend == 'Not Coping Well':
-                color = orange
-            # elif trend == 'No Trend Detected':
-            #     color='white'
-            # if trend == 'Coping well':
-            #     color = 'green'
-            # if trend == 'Risk of accumulated fatigue':
-            #     color = 'yellow'
-            # elif trend == 'Maladaptation':
-            #     color = 'orange'
-            # elif trend == 'Accumulated fatigue':
-            #     color = 'red'
+                color = z_trend_color(trend)
 
-            ### Detected Trends ###
-            figure['data'].append(
-                go.Scatter(
-                    name=trend,
-                    x=actual.index,
-                    y=actual[trend],
-                    text=[f'Detected Trend: <b>{trend}' for x in actual['detected_trend']],
-                    yaxis='y3',
-                    mode='markers',
-                    hoverinfo='none',
-                    marker=dict(
-                        color=color,
-                        line=dict(
-                            color='rgba(66,66,66,.75)',
-                            width=1
-                        )
-                    ),
+                # elif trend == 'No Trend Detected':
+                #     color='white'
+                # if trend == 'Coping well':
+                #     color = 'green'
+                # if trend == 'Risk of accumulated fatigue':
+                #     color = 'yellow'
+                # elif trend == 'Maladaptation':
+                #     color = 'orange'
+                # elif trend == 'Accumulated fatigue':
+                #     color = 'red'
+
+                ### Detected Trends ###
+                figure['data'].append(
+                    go.Scatter(
+                        name=trend,
+                        x=actual.index,
+                        y=actual[trend],
+                        text=[f'Detected Trend: <b>{trend}' for x in actual['detected_trend']],
+                        yaxis='y3',
+                        mode='markers',
+                        hoverinfo='none',
+                        marker=dict(
+                            color=color,
+                            line=dict(
+                                color='rgba(66,66,66,.75)',
+                                width=1
+                            )
+                        ),
+                    )
                 )
-            )
 
-        figure['layout']['yaxis3'] = dict(
-            # domain=[.85, 1],
-            range=[actual['ln_rmssd_7'].min() * .3, actual['ln_rmssd_7'].max() * 1.05],
-            showgrid=False,
-            showticklabels=False,
-            anchor='x',
-            side='right',
-            overlaying='y',
-        )
+            figure['layout']['yaxis3'] = dict(
+                # domain=[.85, 1],
+                range=[actual['ln_rmssd_7'].min() * .3, actual['ln_rmssd_7'].max() * 1.05],
+                showgrid=False,
+                showticklabels=False,
+                anchor='x',
+                side='right',
+                overlaying='y',
+            )
 
     return figure, hoverData
 
