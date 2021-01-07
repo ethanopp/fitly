@@ -776,8 +776,8 @@ def training_workflow(min_non_warmup_workout_time, metric='hrv_baseline', athlet
             metric_df['within_swc'] = metric_df['within_daily_swc']
         elif metric == 'hrv_baseline':
             metric_df['within_swc'] = metric_df['within_flowchart_swc']
-        elif metric == 'zscore':
-            metric_df['within_swc'] = metric_df['within_zscore_swc']
+        # elif metric == 'zscore':
+        #     metric_df['within_swc'] = metric_df['within_zscore_swc']
 
         # Wait for today's hrv to be loaded into cloud
         if metric_df.index.max() == datetime.today().date():  # or (datetime.now() - timedelta(hours=12)) > pd.to_datetime(datetime.today().date()):
@@ -839,6 +839,14 @@ def training_workflow(min_non_warmup_workout_time, metric='hrv_baseline', athlet
                 df['rationale'] = 'Oura Readiness Score'
                 #TODO: Update every 3rd 'Mod' to HIIT
 
+            # If using ithlete zscore we don't use workflow
+            elif metric == 'zscore':
+                df['workout_step'] = 99 # dummy value
+                df['workout_step_desc'] = df['z_recommendation']
+                df['rationale'] = 'Z Score Matrix'
+                #TODO: Update every 3rd 'Mod' to HIIT
+
+            # If using hrv or hrv baseline, use workflow
             else:
                 last_step = last_db_step
                 for i in df.index:
