@@ -657,37 +657,7 @@ def zscore(x, y, window):
     return z
 
 
-def detect_z_trend(hrv_z_score, hr_z_score):
-    # https://www.myithlete.com/how-to-use-the-ithlete-pro-training-guide/
-    x, y = hrv_z_score, hr_z_score
-    if -1 < x < 0 and 0 < y < 1.75:
-        return 'Competition Ready'
-    elif 0 < x < 1.5 and -2 < y < 0:
-        return 'Coping Well'
-    elif -2.25 < x < -1 and 0 < y < 1.75:
-        return 'Not Coping Well'
-    elif x < -1 and y > 1.75:
-        return 'Stress / Illness'
-    elif x > 0 and y < -2:
-        return 'Low Energy / Activation'
-    else:
-        return 'No Trend Detected'
-
-
-def z_trend_color(z_trend):
-    if z_trend == 'Coping Well':
-        return light_blue
-    elif z_trend == 'Competition Ready':
-        return teal
-    elif z_trend in ['Not Coping Well', 'Low Energy / Activation']:
-        return orange
-    elif z_trend == 'Stress / Illness':
-        return 'red'
-    else:
-        return white
-
-
-def z_recommendation(hrv_z_score, hr_z_score):
+def daily_z_recommendation(hrv_z_score, hr_z_score):
     # https://www.myithlete.com/how-to-use-the-ithlete-pro-training-guide/
     x, y = hrv_z_score, hr_z_score
 
@@ -701,7 +671,50 @@ def z_recommendation(hrv_z_score, hr_z_score):
         return 'High'
 
 
-def z_recommendation_chart(hrv_z_score, hr_z_score, hrv, hr):
+def daily_z_desc(hrv_z_score, hr_z_score):
+    # https://www.myithlete.com/how-to-use-the-ithlete-pro-training-guide/
+    x, y = hrv_z_score, hr_z_score
+
+    if x < -1 and y > 1.75:
+        return 'Stress / Illness'
+    elif x < -1 and -2 < y < 1.75:
+        return 'Impaired Recovery'
+    elif -1 < x < 1 and -2 < y < 1.75:
+        return 'Normal Training'
+    elif x > 1 and -1 < y < 1:
+        return 'Intensive Training'
+    elif x > 0 and y < -2:
+        return 'Low Energy / Activation'
+    else:
+        return 'No Trend Detected'
+
+
+def z_adaptation(hrv7_z_score, hr7_z_score):
+    x, y = hrv7_z_score, hr7_z_score
+    if -1 < x < 0 and 0 < y < 1.75:
+        return 'Competition Ready'
+    elif 0 < x < 1.5 and -2 < y < 0:
+        return 'Coping Well'
+    elif -2.25 < x < -1 and 0 < y < 1.75:
+        return 'Not Coping Well'
+    else:
+        return 'No Trend Detected'
+
+
+def z_color(z_trend):
+    if z_trend in ['Competition Ready', 'Intensive Training']:
+        return teal
+    elif z_trend in ['Coping Well', 'Normal Training']:
+        return light_blue
+    elif z_trend in ['Not Coping Well', 'Low Energy / Activation', 'Impaired Recovery']:
+        return orange
+    elif z_trend == 'Stress / Illness':
+        return 'red'
+    else:
+        return white
+
+
+def z_recommendation_chart(hrv_z_score, hr_z_score, hrv, hr, z_desc):
     shapes = [
         ## Rest ##
         dict(type='rect', xref='x',
@@ -747,49 +760,67 @@ def z_recommendation_chart(hrv_z_score, hr_z_score, hrv, hr):
 
     ]
 
-    return html.Div([html.H6(['HRV: {:.0f} | HR: {:.0f}'.format(hrv, hr)], ),
-                     dcc.Graph(id='z-score-treemap', className='col-lg-12 mb-2',
-                               config={'displayModeBar': False},
-                               figure={
-                                   'data': [
-                                       go.Scatter(
-                                           x=[hrv_z_score],
-                                           y=[hr_z_score],
-                                           # text=df['movement_tooltip'],
-                                           hoverinfo='none',
-                                           marker={
-                                               'color': ['rgb(66,66,66)']},
-                                           # orientation='h',
-                                       ),
-                                   ],
-                                   'layout': go.Layout(
-                                       height=150,
-                                       # width=100,
-                                       shapes=shapes,
-                                       # transition=dict(duration=transition),
-                                       font=dict(
-                                           size=8,
-                                           color=white
-                                       ),
-                                       xaxis=dict(
-                                           title='Recovery',
-                                           range=[-3, 3],
-                                           showticklabels=False,
-                                           showgrid=False,
-                                       ),
-                                       yaxis=dict(
-                                           title='Activation',
-                                           range=[-3, 3],
-                                           showticklabels=False,
-                                           showgrid=False,
-                                       ),
-                                       showlegend=False,
-                                       margin={'l': 30, 'b': 20, 't': 0, 'r': 30},
-                                       hovermode='x'
-                                   )
-                               }
-                               )
-                     ])
+    return html.Div([
+        html.H6(className='mb-0', children=[z_desc]),
+        dcc.Graph(id='z-score-treemap', className='col-lg-12 mb-2',
+                  config={'displayModeBar': False},
+                  figure={
+                      'data': [
+                          go.Scatter(
+                              x=[hrv_z_score],
+                              y=[hr_z_score],
+                              # text=df['movement_tooltip'],
+                              hoverinfo='none',
+                              marker={
+                                  'color': ['rgb(66,66,66)']},
+                              # orientation='h',
+                          ),
+                      ],
+                      'layout': go.Layout(
+                          height=150,
+                          # width=100,
+                          shapes=shapes,
+                          annotations=[go.layout.Annotation(
+                              x=hrv_z_score,
+                              y=hr_z_score,
+                              xref="x",
+                              yref="y",
+                              text='HRV: {:.0f} | HR: {:.0f}'.format(hrv, hr),
+                              bgcolor='rgba(66,66,66,.75)',
+                              font=dict(
+                                  size=10,
+                                  color=white
+                              ),
+                              arrowcolor='black',
+                              showarrow=True,
+                              arrowhead=0,
+                              ax=5,
+                              ay=-20
+                          )],
+                          # transition=dict(duration=transition),
+                          font=dict(
+                              size=8,
+                              color=white
+                          ),
+                          xaxis=dict(
+                              title='Recovery',
+                              range=[-3, 3],
+                              showticklabels=False,
+                              showgrid=False,
+                          ),
+                          yaxis=dict(
+                              title='Activation',
+                              range=[-3, 3],
+                              showticklabels=False,
+                              showgrid=False,
+                          ),
+                          showlegend=False,
+                          margin={'l': 40, 'b': 15, 't': 15, 'r': 40},
+                          hovermode='x'
+                      )
+                  }
+                  )
+    ])
 
 
 def get_hrv_df():
@@ -857,20 +888,15 @@ def get_hrv_df():
     # TODO: Update these z scores so be normalized by CV
     hrv_df['hrv_z_score'] = zscore(x=hrv_df['ln_rmssd'], y=hrv_df['ln_rmssd'], window=30)
     hrv_df['hr_z_score'] = zscore(x=hrv_df['hr_average'], y=hrv_df['hr_average'], window=30)
+    hrv_df["z_recommendation"] = hrv_df[["hrv_z_score", "hr_z_score"]].apply(lambda x: daily_z_recommendation(*x),
+                                                                             axis=1)
+    hrv_df["z_desc"] = hrv_df[["hrv_z_score", "hr_z_score"]].apply(lambda x: daily_z_desc(*x), axis=1)
 
     # ithlete uses daily hr and hrv normalized by CV, use 7 day averages over 30 days instead?
-    # hrv_df['hrv_z_score'] = zscore(x=hrv_df['ln_rmssd_7'], y=hrv_df['ln_rmssd'], window=30)
-    # hrv_df['hr_z_score'] = zscore(x=hrv_df['hr_average_7'], y=hrv_df['hr_average'], window=30)
-
-    hrv_df["z_recommendation"] = hrv_df[["hrv_z_score", "hr_z_score"]].apply(lambda x: z_recommendation(*x), axis=1)
-
-    # get z score swc's to determine workflow step # Depricated - zscore recommendation can be used directly and we do not need it to guide workflow
-    # hrv_df['within_zscore_swc'] = True
-    # hrv_df.loc[
-    #     (hrv_df["z_recommendation"] == 'Rest') | (hrv_df["z_recommendation"] == 'Low'), 'within_zscore_swc'] = False
-
-    # Detect trend for KPI
-    hrv_df["detected_trend"] = hrv_df[["hrv_z_score", "hr_z_score"]].apply(lambda x: detect_z_trend(*x), axis=1)
+    hrv_df['hrv7_z_score'] = zscore(x=hrv_df['ln_rmssd_7'], y=hrv_df['ln_rmssd'], window=60)
+    hrv_df['hr7_z_score'] = zscore(x=hrv_df['hr_average_7'], y=hrv_df['hr_average'], window=60)
+    # Detect training adaptations based on 7day z scores
+    hrv_df["detected_trend"] = hrv_df[["hrv7_z_score", "hr7_z_score"]].apply(lambda x: z_adaptation(*x), axis=1)
 
     # Threshold Flags
     # hrv_df['under_low_threshold'] = hrv_df['ln_rmssd_7'] < hrv_df['swc_baseline_lower']
@@ -1186,7 +1212,8 @@ def create_daily_recommendations(hrv, hrv_change, hrv7, hrv7_change, plan_rec):
         swc_daily_upper = float(data[9])
         hrv_z_score = float(data[10])
         hr_z_score = float(data[11])
-        hr = float(data[12])
+        z_desc = data[12]
+        hr = float(data[13])
         swc = (swc_daily_upper - swc_daily_lower) / 2  # 1.5 stdev
         gauge_spacing = (swc * 4) / 5  # stdev (-3 to 3) over 5 gauge icons
 
@@ -1376,12 +1403,12 @@ def create_daily_recommendations(hrv, hrv_change, hrv7, hrv7_change, plan_rec):
     elif recovery_metric == 'readiness':
         recommendation_context = html.Div([
             oura_gauge,
-            z_recommendation_chart(hrv_z_score, hr_z_score, hrv, hr),
+            z_recommendation_chart(hrv_z_score, hr_z_score, hrv, hr, z_desc),
             todays_hrv,
         ])
     elif recovery_metric == 'zscore':
         recommendation_context = html.Div([
-            z_recommendation_chart(hrv_z_score, hr_z_score, hrv, hr),
+            z_recommendation_chart(hrv_z_score, hr_z_score, hrv, hr, z_desc),
             oura_gauge
         ])
 
@@ -1426,25 +1453,31 @@ def create_fitness_kpis(date, ctl, ramp, rr_min_threshold, rr_max_threshold, atl
         tsb = round(tsb, 1)
 
         if ctl == 0 or ctl == 'N/A':
-            hrv4training_injury_risk = 'No Fitness'
+            atl_ctl_ratio_injury_risk = 'No Fitness'
             atl_ctl_ratio = 'N/A'
+            atl_ctl_ratio_injury_risk_color = white
         else:
             atl_ctl_ratio = atl / ctl
             if atl_ctl_ratio > 1.75:
-                hrv4training_injury_risk = 'High Injury Risk'
+                atl_ctl_ratio_injury_risk = 'High Injury Risk'
+                atl_ctl_ratio_injury_risk_color = orange
             elif 1.3 < atl_ctl_ratio <= 1.75:
-                hrv4training_injury_risk = 'Increased Injury Risk'
+                atl_ctl_ratio_injury_risk = 'Increased Injury Risk'
+                atl_ctl_ratio_injury_risk_color = light_blue
             elif 0.8 < atl_ctl_ratio <= 1.3:
-                hrv4training_injury_risk = 'Optimal Load'
+                atl_ctl_ratio_injury_risk = 'Optimal Load'
+                atl_ctl_ratio_injury_risk_color = teal
             elif 0.8 >= atl_ctl_ratio:
-                hrv4training_injury_risk = 'Loss of Fitness'
+                atl_ctl_ratio_injury_risk = 'Loss of Fitness'
+                atl_ctl_ratio_injury_risk_color = orange
+
     else:
-        hrv4training_injury_risk, ctl, atl, atl_ctl_ratio = 'N/A', 'N/A', 'N/A', 'N/A'
+        atl_ctl_ratio_injury_risk, ctl, atl, atl_ctl_ratio, atl_ctl_ratio_injury_risk_color = 'N/A', 'N/A', 'N/A', 'N/A', white
     # injury_risk = 'High' if ramp >= rr_max_threshold else 'Medium' if ramp >= rr_min_threshold else 'Low'
 
     hrv7 = round(hrv7, 1) if hrv7 else 'N/A'
 
-    detected_trend_color = z_trend_color(trend)
+    detected_trend_color = z_color(trend)
 
     return [html.Div(className='row', children=[
 
@@ -1497,9 +1530,9 @@ def create_fitness_kpis(date, ctl, ramp, rr_min_threshold, rr_max_threshold, atl
         html.Div(id='injury-risk', className='col-lg-2', children=[
             html.Div(children=[
                 # html.H6('Injury Risk: {}'.format(injury_risk),
-                html.H6('{}'.format(hrv4training_injury_risk),
+                html.H6('{}'.format(atl_ctl_ratio_injury_risk),
                         className='d-inline-block',
-                        style={'color': white, 'marginTop': '0', 'marginBottom': '0'})
+                        style={'color': atl_ctl_ratio_injury_risk_color, 'marginTop': '0', 'marginBottom': '0'})
             ]),
         ]),
         # dbc.Tooltip('7 day CTL △ = {:.1f}'.format(ramp), target='injury-risk'),
@@ -2019,6 +2052,7 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
                                  actual['swc_daily_upper'].astype('str') + '|' + \
                                  actual['hrv_z_score'].astype('str') + '|' + \
                                  actual['hr_z_score'].astype('str') + '|' + \
+                                 actual['z_desc'].astype('str') + '|' + \
                                  actual['hr_average'].astype('str')
         hover_rec = actual['workout_plan'].tail(1).values[0]
 
@@ -2557,24 +2591,12 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
         # #      "ln_rmssd_normalized_7_slope_trivial"]].to_csv('actual.csv', sep=',')
         #
 
-        # Plot the trend on the hrv 7 day average line
+        # Plot training adaptation on the hrv 7 day average line
         for trend in actual['detected_trend'].unique():
             if trend not in ['No Trend Detected']:
-                # actual.loc[actual['detected_trend'] == trend, trend] = actual['ln_rmssd_7']
-                actual.loc[actual['detected_trend'] == trend, trend] = actual['ln_rmssd']
+                actual.loc[actual['detected_trend'] == trend, trend] = actual['ln_rmssd_7']
 
-                color = z_trend_color(trend)
-
-                # elif trend == 'No Trend Detected':
-                #     color='white'
-                # if trend == 'Coping well':
-                #     color = 'green'
-                # if trend == 'Risk of accumulated fatigue':
-                #     color = 'yellow'
-                # elif trend == 'Maladaptation':
-                #     color = 'orange'
-                # elif trend == 'Accumulated fatigue':
-                #     color = 'red'
+                color = z_color(trend)
 
                 ### Detected Trends ###
                 figure['data'].append(
@@ -3072,7 +3094,7 @@ def update_fitness_kpis(hoverData):
                         hrv7_change = float(re.findall(r'\((.*?)\)', point['text'].replace('+', ''))[0])
                     if 'rec_' in point['text']:
                         plan_rec = point['text']
-                    if 'Trend' in point['text']:
+                    if 'Trend:' in point['text']:
                         trend = point['text'].replace("Detected Trend: <b>", '')
                 except:
                     continue
