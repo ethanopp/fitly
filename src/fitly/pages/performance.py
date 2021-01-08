@@ -1273,23 +1273,57 @@ def create_daily_recommendations(hrv, hrv_change, hrv7, hrv7_change, plan_rec):
                                          figure={
                                              'data': [
                                                  go.Bar(
-                                                     # TODO: Update with z scores?
-                                                     x=[(swc_daily_lower - swc) + gauge_spacing,
-                                                        gauge_spacing * .2,
-                                                        gauge_spacing * .8,
-                                                        gauge_spacing,
-                                                        gauge_spacing * .8,
-                                                        gauge_spacing * .2,
-                                                        gauge_spacing],
-                                                     y=['test', 'test', 'test', 'test', 'test', 'test', 'test'],
+                                                     x=[-1.5],
+                                                     y=['test'],
                                                      hoverinfo='none',
                                                      marker={
-                                                         'color': [orange_faded, orange_faded, white, teal,
-                                                                   light_blue, orange_faded, orange_faded]},
+                                                         'color': [teal]},
+                                                     orientation='h',
+                                                 ),
+                                                 go.Bar(
+                                                     x=[-.75],
+                                                     y=['test'],
+                                                     hoverinfo='none',
+                                                     marker={
+                                                         'color': [white]},
+                                                     orientation='h',
+                                                 ),
+                                                 go.Bar(
+                                                     x=[-.75],
+                                                     y=['test'],
+                                                     hoverinfo='none',
+                                                     marker={
+                                                         'color': [orange]},
+                                                     orientation='h',
+                                                 ),
+
+                                                 go.Bar(
+                                                     x=[1.5],
+                                                     y=['test'],
+                                                     hoverinfo='none',
+                                                     marker={
+                                                         'color': [teal]},
+                                                     orientation='h',
+                                                 ),
+                                                 go.Bar(
+                                                     x=[.75],
+                                                     y=['test'],
+                                                     hoverinfo='none',
+                                                     marker={
+                                                         'color': [light_blue]},
+                                                     orientation='h',
+                                                 ),
+                                                 go.Bar(
+                                                     x=[.75],
+                                                     y=['test'],
+                                                     hoverinfo='none',
+                                                     marker={
+                                                         'color': [orange]},
                                                      orientation='h',
                                                  ),
                                              ],
                                              'layout': go.Layout(
+                                                 barmode='relative',
                                                  height=45,
                                                  # transition=dict(duration=transition),
                                                  font=dict(
@@ -1298,9 +1332,8 @@ def create_daily_recommendations(hrv, hrv_change, hrv7, hrv7_change, plan_rec):
                                                  ),
                                                  xaxis=dict(
                                                      showticklabels=True,
-                                                     range=[swc_daily_lower - swc,
-                                                            swc_daily_upper + swc],
-                                                     tickvals=[np.log(hrv)],
+                                                     range=[-3, 3],
+                                                     tickvals=[hrv_z_score],
                                                      ticktext=[hrv],
                                                  ),
                                                  yaxis=dict(
