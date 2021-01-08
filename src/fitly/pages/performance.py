@@ -809,7 +809,7 @@ def z_recommendation_chart(hrv_z_score, hr_z_score, hrv, hr, z_desc):
                               showgrid=False,
                           ),
                           yaxis=dict(
-                              title='Activation',
+                              title='<br>Activation',
                               range=[-3, 3],
                               showticklabels=False,
                               showgrid=False,
@@ -852,12 +852,14 @@ def get_hrv_df():
 
     # HRV baseline
     hrv_df['rmssd_7'] = hrv_df['rmssd'].rolling(7).mean()
+    # Daily HRV change for KPI
+    hrv_df['rmssd_yesterday'] = hrv_df['rmssd'].shift(1)
     # HR baseline
+    hrv_df['hr_average_yesterday'] = hrv_df['hr_average'].shift(1)
     hrv_df['hr_average_7'] = hrv_df['hr_average'].rolling(7).mean()
 
     # Natural Log calculations
     hrv_df['ln_rmssd_7'] = hrv_df['ln_rmssd'].rolling(7).mean()
-    hrv_df['ln_rmssd_7_yesterday'] = hrv_df['ln_rmssd_7'].shift(1)
 
     # 30/60 day Stdev and means
     hrv_df['ln_rmssd_30'] = hrv_df['ln_rmssd'].rolling(30).mean()
@@ -1183,7 +1185,7 @@ def recommendation_color(recommendaion_desc):
         return 'rgba(220,220,220,.25)'
 
 
-def create_daily_recommendations(hrv, hrv_change, hrv7, hrv7_change, plan_rec):
+def create_daily_recommendations(plan_rec):
     if plan_rec:
         recovery_metric = app.session.query(athlete).filter(athlete.athlete_id == 1).first().recovery_metric
         if recovery_metric == 'hrv':
@@ -1206,24 +1208,22 @@ def create_daily_recommendations(hrv, hrv_change, hrv7, hrv7_change, plan_rec):
         oura_recommendation = data[3]
         readiness_score = int(data[4])
         sleep_score = int(data[5])
-        swc_baseline_lower = float(data[6])
-        swc_baseline_upper = float(data[7])
-        swc_daily_lower = float(data[8])
-        swc_daily_upper = float(data[9])
-        hrv_z_score = float(data[10])
-        hr_z_score = float(data[11])
-        z_desc = data[12]
-        hr = float(data[13])
-        swc = (swc_daily_upper - swc_daily_lower) / 2  # 1.5 stdev
-        gauge_spacing = (swc * 4) / 5  # stdev (-3 to 3) over 5 gauge icons
+        hrv_z_score = float(data[6])
+        hr_z_score = float(data[7])
+        z_desc = data[8]
+        hrv = data[9]
+        hrv_yesterday = data[10]
+        hrv7 = data[11]
+        hr = data[12]
+        hr_yesterday = data[13]
+        hr7 = data[14]
 
-        hrv = hrv if hrv is not None else 'N/A'
-        hrv_change = hrv_change if hrv_change is not None else 'N/A'
-        hrv_yesterday = hrv - hrv_change if hrv != 'N/A' and hrv_change != 'N/A' else 'N/A'
-
-        hrv7 = round(hrv7, 2) if hrv7 is not None else 'N/A'
-        hrv7_change = round(hrv7_change, 2) if hrv7_change is not None else 'N/A'
-        hrv7_yesterday = hrv7 - hrv7_change if hrv7 != 'N/A' and hrv7_change != 'N/A' else 'N/A'
+        hrv = float(hrv) if hrv is not None else 'N/A'
+        hrv_yesterday = float(hrv_yesterday) if hrv_yesterday is not None else 'N/A'
+        hrv7 = float(hrv7) if hrv7 is not None else 'N/A'
+        hr = float(hr) if hr is not None else 'N/A'
+        hr_yesterday = float(hr_yesterday) if hr_yesterday is not None else 'N/A'
+        hr7 = float(hr7) if hr7 is not None else 'N/A'
 
         if oura_recommendation == 'Rest':
             oura_rationale = f'Readiness score is < {oura_low_threshold}'
@@ -1237,15 +1237,16 @@ def create_daily_recommendations(hrv, hrv_change, hrv7, hrv7_change, plan_rec):
             oura_recommendation, oura_rationale = 'N/A', 'N/A'
 
     else:
-        hrv, hrv_change, hrv_yesterday, hrv7, hrv7_change, hrv7_yesterday, plan_rationale, plan_recommendation, oura_recommendation, recovery_metric, recovery_metric_label, sleep_score, readiness_score, oura_rationale, swc_baseline_lower, swc_baseline_upper, spacing, plan_step = \
-            'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', None, None, None, None, None, None, None
+        hrv, hrv_yesterday, hrv7, hrv7_change, hr, hr_yesterday, hr7, plan_rationale, plan_recommendation, oura_recommendation, recovery_metric, recovery_metric_label = \
+            'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A'
+        sleep_score, readiness_score, oura_rationale, plan_step, hrv_z_score, hr_z_score = None, None, None, None, None, None
 
     readiness_score = round(readiness_score) if readiness_score else 'N/A'
     sleep_score = round(sleep_score) if sleep_score else 'N/A'
 
-    if hrv_change != 'N/A':
-        hrv_yesterday_arrow = 'fa fa-angle-up' if hrv_change > 0 else 'fa fa-angle-down'
-        hrv_yesterday_color = teal if hrv_change > 0 else orange
+    if hrv_yesterday != 'N/A':
+        hrv_yesterday_arrow = 'fa fa-angle-up' if hrv > hrv_yesterday else 'fa fa-angle-down'
+        hrv_yesterday_color = teal if hrv > hrv_yesterday else orange
     else:
         hrv_yesterday_arrow = ''
         hrv_yesterday_color = ''
@@ -1257,125 +1258,178 @@ def create_daily_recommendations(hrv, hrv_change, hrv7, hrv7_change, plan_rec):
     else:
         hrv_vs_baseline_arrow, hrv_vs_baseline_color = '', ''
 
+    if hr_yesterday != 'N/A':
+        hr_yesterday_arrow = 'fa fa-angle-up' if hr > hr_yesterday else 'fa fa-angle-down'
+        hr_yesterday_color = teal if hr < hr_yesterday else orange
+    else:
+        hr_yesterday_arrow = ''
+        hr_yesterday_color = ''
+
+    if hr != 'N/A' and hr7 != 'N/A':
+        change = hr - hr7
+        hr_vs_baseline_arrow = 'fa fa-angle-up' if change > 0 else 'fa fa-angle-down'
+        hr_vs_baseline_color = teal if change < 0 else orange
+    else:
+        hr_vs_baseline_arrow, hr_vs_baseline_color = '', ''
+
     workflow_img = html.Div(className='col-lg-12', children=[
         html.Img(src=f'../assets/images/hrv{plan_step}.png', height=200,
                  width=150) if plan_step is not None else html.Div(),
     ])
 
-    todays_hrv = html.Div([html.Div(className='row text-center align-items-center', children=[
-        html.H6("Today's HRV", className='col-lg-12'),
+    hrv_gauge = html.Div(className='col-lg-12', children=[
+        dcc.Graph(id='hrv-gauge', className='col-lg-12',
+                  config={'displayModeBar': False},
+                  figure={
+                      'data': [
+                          go.Bar(
+                              x=[-1.5],
+                              y=['test'],
+                              hoverinfo='none',
+                              marker={
+                                  'color': [teal]},
+                              orientation='h',
+                          ),
+                          go.Bar(
+                              x=[-.75],
+                              y=['test'],
+                              hoverinfo='none',
+                              marker={
+                                  'color': [white]},
+                              orientation='h',
+                          ),
+                          go.Bar(
+                              x=[-.75],
+                              y=['test'],
+                              hoverinfo='none',
+                              marker={
+                                  'color': [orange]},
+                              orientation='h',
+                          ),
+
+                          go.Bar(
+                              x=[1.5],
+                              y=['test'],
+                              hoverinfo='none',
+                              marker={
+                                  'color': [teal]},
+                              orientation='h',
+                          ),
+                          go.Bar(
+                              x=[.75],
+                              y=['test'],
+                              hoverinfo='none',
+                              marker={
+                                  'color': [light_blue]},
+                              orientation='h',
+                          ),
+                          go.Bar(
+                              x=[.75],
+                              y=['test'],
+                              hoverinfo='none',
+                              marker={
+                                  'color': [orange]},
+                              orientation='h',
+                          ),
+                      ],
+                      'layout': go.Layout(
+                          barmode='relative',
+                          height=45,
+                          # transition=dict(duration=transition),
+                          font=dict(
+                              size=10,
+                              color=white
+                          ),
+                          xaxis=dict(
+                              showticklabels=True,
+                              range=[-3, 3],
+                              tickvals=[hrv_z_score],
+                              ticktext=[hrv],
+                          ),
+                          yaxis=dict(
+                              showticklabels=False,
+                              # range=[0, df['met_1min'].max() if df['met_1min'].max() > 7 else 8],
+                              # tickvals=[1, 3, 7],
+                              # ticktext=['Low ', 'Med ', 'High '],
+                              showgrid=False,
+
+                          ),
+                          showlegend=False,
+                          margin={'l': 0, 'b': 15, 't': 0, 'r': 0},
+                          hovermode='x'
+                      )
+                  }
+                  ) if hrv_z_score and hr_z_score else None
+    ])
+
+    daily_hrv_kpis = html.Div([html.Div(className='row text-center align-items-center', children=[
+
         #     html.Div(className='col-lg-12 text-center align-items-center mb-2', children=[
         #         html.H5(hrv, style={'display': 'inline'}),
     ]),
-                           html.Div(className='col-lg-12', children=[
-                               dcc.Graph(id='hrv-gauge', className='col-lg-12',
-                                         config={'displayModeBar': False},
-                                         figure={
-                                             'data': [
-                                                 go.Bar(
-                                                     x=[-1.5],
-                                                     y=['test'],
-                                                     hoverinfo='none',
-                                                     marker={
-                                                         'color': [teal]},
-                                                     orientation='h',
-                                                 ),
-                                                 go.Bar(
-                                                     x=[-.75],
-                                                     y=['test'],
-                                                     hoverinfo='none',
-                                                     marker={
-                                                         'color': [white]},
-                                                     orientation='h',
-                                                 ),
-                                                 go.Bar(
-                                                     x=[-.75],
-                                                     y=['test'],
-                                                     hoverinfo='none',
-                                                     marker={
-                                                         'color': [orange]},
-                                                     orientation='h',
-                                                 ),
 
-                                                 go.Bar(
-                                                     x=[1.5],
-                                                     y=['test'],
-                                                     hoverinfo='none',
-                                                     marker={
-                                                         'color': [teal]},
-                                                     orientation='h',
-                                                 ),
-                                                 go.Bar(
-                                                     x=[.75],
-                                                     y=['test'],
-                                                     hoverinfo='none',
-                                                     marker={
-                                                         'color': [light_blue]},
-                                                     orientation='h',
-                                                 ),
-                                                 go.Bar(
-                                                     x=[.75],
-                                                     y=['test'],
-                                                     hoverinfo='none',
-                                                     marker={
-                                                         'color': [orange]},
-                                                     orientation='h',
-                                                 ),
-                                             ],
-                                             'layout': go.Layout(
-                                                 barmode='relative',
-                                                 height=45,
-                                                 # transition=dict(duration=transition),
-                                                 font=dict(
-                                                     size=10,
-                                                     color=white
-                                                 ),
-                                                 xaxis=dict(
-                                                     showticklabels=True,
-                                                     range=[-3, 3],
-                                                     tickvals=[hrv_z_score],
-                                                     ticktext=[hrv],
-                                                 ),
-                                                 yaxis=dict(
-                                                     showticklabels=False,
-                                                     # range=[0, df['met_1min'].max() if df['met_1min'].max() > 7 else 8],
-                                                     # tickvals=[1, 3, 7],
-                                                     # ticktext=['Low ', 'Med ', 'High '],
-                                                     showgrid=False,
+                               html.Div(className='row', children=[
+                                   html.Div(className='col-lg-6', children=[
+                                       html.H6('Yesterday', className='col-lg-12 mb-0'),
+                                       html.Div(className='col-lg-12 text-center align-items-center mb-0', children=[
+                                           html.H5('{:.0f}'.format(
+                                               hrv_yesterday) if hrv_yesterday != 'N/A' else hrv_yesterday,
+                                                   style={'display': 'inline'}),
+                                           html.I(className=f'{hrv_yesterday_arrow} text-center align-items-center',
+                                                  style={'fontSize': '1rem',
+                                                         'display': 'inline',
+                                                         'paddingLeft': '.25vw',
+                                                         'color': hrv_yesterday_color}),
+                                       ]),
+                                   ]),
+                                   html.Div(className='col-lg-6', children=[
+                                       html.H6('Baseline', className='col-lg-12 mb-0'),
+                                       html.Div(className='col-lg-12 text-center align-items-center mb-0', children=[
+                                           html.H5('{:.0f}'.format(hrv7) if hrv7 != 'N/A' else hrv7,
+                                                   style={'display': 'inline'}),
+                                           html.I(className=f'{hrv_vs_baseline_arrow} text-center align-items-center',
+                                                  style={'fontSize': '1rem',
+                                                         'display': 'inline',
+                                                         'paddingLeft': '.25vw',
+                                                         'color': hrv_vs_baseline_color}),
+                                       ]),
+                                   ]),
+                               ])
+                               ])
 
-                                                 ),
-                                                 showlegend=False,
-                                                 margin={'l': 0, 'b': 15, 't': 0, 'r': 0},
-                                                 hovermode='x'
-                                             )
-                                         }
-                                         ) if swc_baseline_lower and swc_baseline_upper else None
-                           ]),
-                           html.Div(className='row', children=[
-                               html.Div(className='col-lg-6', children=[
-                                   html.H6('Yesterday', className='col-lg-12 mb-0'),
-                                   html.Div(className='col-lg-12 text-center align-items-center mb-0', children=[
-                                       html.H5(hrv_yesterday, style={'display': 'inline'}),
-                                       html.I(className=f'{hrv_yesterday_arrow} text-center align-items-center',
-                                              style={'fontSize': '1rem',
-                                                     'display': 'inline',
-                                                     'paddingLeft': '.25vw',
-                                                     'color': hrv_yesterday_color}),
-                                   ]),
-                               ]),
-                               html.Div(className='col-lg-6', children=[
-                                   html.H6('Baseline', className='col-lg-12 mb-0'),
-                                   html.Div(className='col-lg-12 text-center align-items-center mb-0', children=[
-                                       html.H5(hrv7, style={'display': 'inline'}),
-                                       html.I(className=f'{hrv_vs_baseline_arrow} text-center align-items-center',
-                                              style={'fontSize': '1rem',
-                                                     'display': 'inline',
-                                                     'paddingLeft': '.25vw',
-                                                     'color': hrv_vs_baseline_color}),
-                                   ]),
-                               ]),
-                           ])
-                           ])
+    daily_hr_kpis = html.Div([html.Div(className='row text-center align-items-center', children=[
+        #     html.Div(className='col-lg-12 text-center align-items-center mb-2', children=[
+        #         html.H5(hrv, style={'display': 'inline'}),
+    ]),
+
+                              html.Div(className='row', children=[
+                                  html.Div(className='col-lg-6', children=[
+                                      html.H6('Yesterday', className='col-lg-12 mb-0'),
+                                      html.Div(className='col-lg-12 text-center align-items-center mb-0', children=[
+                                          html.H5(
+                                              '{:.0f}'.format(hr_yesterday) if hr_yesterday != 'N/A' else hr_yesterday,
+                                              style={'display': 'inline'}),
+                                          html.I(className=f'{hr_yesterday_arrow} text-center align-items-center',
+                                                 style={'fontSize': '1rem',
+                                                        'display': 'inline',
+                                                        'paddingLeft': '.25vw',
+                                                        'color': hr_yesterday_color}),
+                                      ]),
+                                  ]),
+                                  html.Div(className='col-lg-6', children=[
+                                      html.H6('Baseline', className='col-lg-12 mb-0'),
+                                      html.Div(className='col-lg-12 text-center align-items-center mb-0', children=[
+                                          html.H5('{:.0f}'.format(hr7) if hr7 != 'N/A' else hr7,
+                                                  style={'display': 'inline'}),
+                                          html.I(className=f'{hr_vs_baseline_arrow} text-center align-items-center',
+                                                 style={'fontSize': '1rem',
+                                                        'display': 'inline',
+                                                        'paddingLeft': '.25vw',
+                                                        'color': hr_vs_baseline_color}),
+                                      ]),
+                                  ]),
+                              ])
+                              ])
 
     oura_gauge = html.Div(children=[
         html.H6(f'Oura Ready: {readiness_score} | Sleep: {sleep_score}', className='col-lg-12'),
@@ -1431,18 +1485,27 @@ def create_daily_recommendations(hrv, hrv_change, hrv7, hrv7_change, plan_rec):
         recommendation_context = html.Div([
             workflow_img,
             oura_gauge,
-            todays_hrv,
+            html.H6("Heart Rate Variability", className='col-lg-12'),
+            hrv_gauge,
+            daily_hrv_kpis,
         ])
     elif recovery_metric == 'readiness':
         recommendation_context = html.Div([
             oura_gauge,
             z_recommendation_chart(hrv_z_score, hr_z_score, hrv, hr, z_desc),
-            todays_hrv,
+            html.H6("Heart Rate Variability", className='col-lg-12'),
+            daily_hrv_kpis,
+            html.H6("Heart Rate", className='col-lg-12'),
+            daily_hr_kpis
         ])
     elif recovery_metric == 'zscore':
         recommendation_context = html.Div([
             z_recommendation_chart(hrv_z_score, hr_z_score, hrv, hr, z_desc),
-            oura_gauge
+            oura_gauge,
+            html.H6("Heart Rate Variability", className='col-lg-12'),
+            daily_hrv_kpis,
+            html.H6("Heart Rate", className='col-lg-12'),
+            daily_hr_kpis
         ])
 
     return html.Div(id='recommendation', style={'display': 'flex', 'flexDirection': 'column',
@@ -1507,8 +1570,6 @@ def create_fitness_kpis(date, ctl, ramp, rr_min_threshold, rr_max_threshold, atl
     else:
         atl_ctl_ratio_injury_risk, ctl, atl, atl_ctl_ratio, atl_ctl_ratio_injury_risk_color = 'N/A', 'N/A', 'N/A', 'N/A', white
     # injury_risk = 'High' if ramp >= rr_max_threshold else 'Medium' if ramp >= rr_min_threshold else 'Low'
-
-    hrv7 = round(hrv7, 1) if hrv7 else 'N/A'
 
     detected_trend_color = z_color(trend)
 
@@ -2079,14 +2140,15 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
                                  actual['score'].fillna(0).apply(readiness_score_recommendation) + '|' + \
                                  actual['score'].fillna(0).astype('int').astype('str') + '|' + \
                                  actual['sleep_score'].fillna(0).astype('int').astype('str') + '|' + \
-                                 actual['swc_baseline_lower'].astype('str') + '|' + \
-                                 actual['swc_baseline_upper'].astype('str') + '|' + \
-                                 actual['swc_daily_lower'].astype('str') + '|' + \
-                                 actual['swc_daily_upper'].astype('str') + '|' + \
                                  actual['hrv_z_score'].astype('str') + '|' + \
                                  actual['hr_z_score'].astype('str') + '|' + \
                                  actual['z_desc'].astype('str') + '|' + \
-                                 actual['hr_average'].astype('str')
+                                 actual['rmssd'].astype('str') + '|' + \
+                                 actual['rmssd_yesterday'].astype('str') + '|' + \
+                                 actual['rmssd_7'].astype('str') + '|' + \
+                                 actual['hr_average'].astype('str') + '|' + \
+                                 actual['hr_average_yesterday'].astype('str') + '|' + \
+                                 actual['hr_average_7'].astype('str') + '|'
         hover_rec = actual['workout_plan'].tail(1).values[0]
 
     stress_bar_colors = []
@@ -3119,12 +3181,8 @@ def update_fitness_kpis(hoverData):
                         fatigue = point['y']
                     if 'Form' in point['text']:
                         form = point['y']
-                    if 'HRV:' in point['text']:
-                        hrv = float(re.findall(r'(?<=\>)(.*?)(?=\s)', point['text'])[0])
-                        hrv_change = float(re.findall(r'\((.*?)\)', point['text'].replace('+', ''))[0])
                     if '7 Day' in point['text']:
                         hrv7 = float(re.findall(r'(?<=\>)(.*?)(?=\s)', point['text'])[0])
-                        hrv7_change = float(re.findall(r'\((.*?)\)', point['text'].replace('+', ''))[0])
                     if 'rec_' in point['text']:
                         plan_rec = point['text']
                     if 'Trend:' in point['text']:
@@ -3132,8 +3190,7 @@ def update_fitness_kpis(hoverData):
                 except:
                     continue
 
-            return create_daily_recommendations(hrv, hrv_change, hrv7, hrv7_change,
-                                                plan_rec) if oura_credentials_supplied else [], \
+            return create_daily_recommendations(plan_rec) if oura_credentials_supplied else [], \
                    create_fitness_kpis(date, fitness, ramp, rr_max_threshold, rr_min_threshold, fatigue, form, hrv7,
                                        trend)
 
