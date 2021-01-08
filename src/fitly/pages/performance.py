@@ -785,17 +785,17 @@ def z_recommendation_chart(hrv_z_score, hr_z_score, hrv, hr, z_desc):
                               y=hr_z_score,
                               xref="x",
                               yref="y",
-                              text='HRV: {:.0f} | HR: {:.0f}'.format(hrv, hr),
+                              text='HRV: {:.0f}<br>HR: {:.0f}'.format(hrv, hr),
                               bgcolor='rgba(66,66,66,.75)',
                               font=dict(
                                   size=10,
                                   color=white
                               ),
-                              arrowcolor='black',
+                              arrowcolor='rgba(0,0,0,0)',
                               showarrow=True,
                               arrowhead=0,
-                              ax=5,
-                              ay=-20
+                              ax=30,
+                              ay=0
                           )],
                           # transition=dict(duration=transition),
                           font=dict(
@@ -815,7 +815,7 @@ def z_recommendation_chart(hrv_z_score, hr_z_score, hrv, hr, z_desc):
                               showgrid=False,
                           ),
                           showlegend=False,
-                          margin={'l': 40, 'b': 15, 't': 15, 'r': 40},
+                          margin={'l': 35, 'b': 15, 't': 20, 'r': 35},
                           hovermode='x'
                       )
                   }
