@@ -31,14 +31,15 @@ def db_process_flag(flag):
         try:
             app.session.add(record)
             app.session.commit()
-            app.server.logger.debug('Inserting processing records into db_refresh...')
+            app.server.logger.debug('Processing started...')
         except BaseException as e:
             app.session.rollback()
-            app.server.logger.error('Failed to insert processing record into db_refresh :', str(e))
+            app.server.logger.error('Failed to insert processing record into db_refresh: ', str(e))
 
     else:
         app.session.query(dbRefreshStatus).filter(dbRefreshStatus.refresh_method == 'processing').delete()
         app.session.commit()
+        app.server.logger.debug('Processing complete')
 
     app.session.remove()
 
