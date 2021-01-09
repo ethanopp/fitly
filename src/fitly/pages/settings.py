@@ -257,13 +257,7 @@ def athlete_card():
                               dcc.Dropdown(
                                   id='peloton-bookmark-effort-dropdown',
                                   placeholder="Effort",
-                                  options=[
-                                      {'label': 'Rest', 'value': 'Rest'},
-                                      {'label': 'Low', 'value': 'Low'},
-                                      {'label': 'Mod', 'value': 'Mod'},
-                                      {'label': 'HIIT', 'value': 'HIIT'},
-                                      {'label': 'High', 'value': 'High'}
-                                  ],
+                                  # options=[] # Populated by callback from recovery metric
                                   multi=False
                               )
                           ]),
@@ -1114,6 +1108,25 @@ def update_tokens(n_clicks, search):
             save_spotify_token(creds)
 
     return None
+
+
+# Update peloton effort options based on recovery metric
+
+@app.callback(
+    Output('peloton-bookmark-effort-dropdown', 'options'),
+    [Input('recovery-metric-dropdown-input', 'value')]
+)
+def update_peloton_effort_options(recovery_metric):
+    options = [
+        {'label': 'Rest', 'value': 'Rest'},
+        {'label': 'Low', 'value': 'Low'},
+        {'label': 'Mod', 'value': 'Mod'},
+        {'label': 'HIIT', 'value': 'HIIT'},
+        {'label': 'High', 'value': 'High'}
+    ]
+    if recovery_metric in ['readiness', 'zscore']:
+        del options[3]
+    return options
 
 
 # Peloton dropdown options
