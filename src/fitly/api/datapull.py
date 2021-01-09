@@ -31,7 +31,7 @@ def refresh_database(refresh_method='system', truncate=False, truncateDate=None)
             # If athlete settings are defined
             if athlete_info.name and athlete_info.birthday and athlete_info.sex and athlete_info.weight_lbs and athlete_info.resting_hr and athlete_info.run_ftp and athlete_info.ride_ftp:
                 # Insert record into table for 'processing'
-                db_process_flag(flag=True)
+                run_time = db_process_flag(flag=True)
 
                 # If either truncate parameter is passed
                 if truncate or truncateDate:
@@ -218,8 +218,8 @@ def refresh_database(refresh_method='system', truncate=False, truncateDate=None)
                 if peloton_credentials_supplied:
                     get_peloton_class_names()
 
+                db_process_flag(flag=False)
                 app.server.logger.info('Refresh Complete')
-
                 app.session.remove()
 
                 return run_time
