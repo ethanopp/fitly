@@ -25,9 +25,8 @@ types = ['time', 'latlng', 'distance', 'altitude', 'velocity_smooth', 'heartrate
 
 
 def db_process_flag(flag):
-    run_time = datetime.utcnow()
     if flag:
-        record = dbRefreshStatus(timestamp_utc=run_time, refresh_method='processing')
+        record = dbRefreshStatus(timestamp_utc=datetime.utcnow(), refresh_method='processing')
         # Insert and commit
         try:
             app.session.add(record)
@@ -42,7 +41,6 @@ def db_process_flag(flag):
         app.session.commit()
 
     app.session.remove()
-    return run_time
 
 
 def calctime(time_sec, startdate):

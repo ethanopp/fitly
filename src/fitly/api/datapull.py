@@ -21,17 +21,21 @@ def latest_refresh():
 
 
 def refresh_database(refresh_method='system', truncate=False, truncateDate=None):
+    run_time = datetime.utcnow()
     athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1).first()
     processing = app.session.query(dbRefreshStatus).filter(dbRefreshStatus.refresh_method == 'processing').first()
-
-    app.session.remove()
+    # Add record for refresh audit trail
+    refresh_record = dbRefreshStatus(timestamp_utc=run_time, refresh_method=refresh_method,
+                                     truncate=True if truncate or truncateDate else False)
+    app.session.add(refresh_record)
+    app.session.commit()
 
     if not processing:
         try:
             # If athlete settings are defined
             if athlete_info.name and athlete_info.birthday and athlete_info.sex and athlete_info.weight_lbs and athlete_info.resting_hr and athlete_info.run_ftp and athlete_info.ride_ftp:
                 # Insert record into table for 'processing'
-                run_time = db_process_flag(flag=True)
+                db_process_flag(flag=True)
 
                 # If either truncate parameter is passed
                 if truncate or truncateDate:
@@ -209,10 +213,15 @@ def refresh_database(refresh_method='system', truncate=False, truncateDate=None)
                     app.server.logger.info('Oura cloud not yet updated. Waiting to pull Strava data')
                     strava_status = 'Awaiting oura cloud update'
 
-                app.session.query(dbRefreshStatus).filter(dbRefreshStatus.timestamp_utc == run_time).first().update([
-                    {dbRefreshStatus.oura_status: oura_status}, {dbRefreshStatus.fitbod_status: fitbod_status},
-                    {dbRefreshStatus.strava_status: strava_status}, {dbRefreshStatus.withings_status: withings_status},
-                    {dbRefreshStatus.refresh_method: refresh_method}])
+                app.server.logger.debug('Updating db refresh record with status...')
+                refresh_record = app.session.query(dbRefreshStatus).filter(
+                    dbRefreshStatus.timestamp_utc == run_time).first()
+                refresh_record.oura_status = oura_status
+                refresh_record.fitbod_status = fitbod_status
+                refresh_record.strava_status = strava_status
+                refresh_record.withings_status = withings_status
+                refresh_record.refresh_method = refresh_method
+                app.session.commit()
 
                 # Refresh peloton class types local json file
                 if peloton_credentials_supplied:
@@ -222,8 +231,6 @@ def refresh_database(refresh_method='system', truncate=False, truncateDate=None)
                 app.server.logger.info('Refresh Complete')
                 app.session.remove()
 
-                return run_time
-
             else:
                 app.server.logger.info('Please define all athlete settings prior to refreshing data')
         except:
@@ -232,3 +239,5 @@ def refresh_database(refresh_method='system', truncate=False, truncateDate=None)
     else:
         if refresh_method == 'manual':
             app.server.logger.info('Database is already running a refresh job')
+
+    app.session.remove()
