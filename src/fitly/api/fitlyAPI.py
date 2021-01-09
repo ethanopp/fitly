@@ -732,221 +732,232 @@ def training_workflow(min_non_warmup_workout_time, metric='hrv_baseline', athlet
             con=engine, index_col='date')
 
         if len(db_test) == 0:
-            if metric == 'hrv':
-                min_oura_date = pd.to_datetime(
-                    app.session.query(func.min(ouraSleepSummary.report_date))[0][0] + timedelta(59)).date()
-            if metric in ['hrv_baseline', 'zscore']:
-                min_oura_date = pd.to_datetime(
-                    app.session.query(func.min(ouraSleepSummary.report_date))[0][0] + timedelta(29)).date()
-            elif metric == 'readiness':
-                min_oura_date = pd.to_datetime(
-                    app.session.query(func.min(ouraReadinessSummary.report_date))[0][0]).date()
+            oura_data_exists = True
+            try:
+                if metric == 'hrv':
+                    min_oura_date = pd.to_datetime(
+                        app.session.query(func.min(ouraSleepSummary.report_date))[0][0] + timedelta(59)).date()
+                if metric in ['hrv_baseline', 'zscore']:
+                    min_oura_date = pd.to_datetime(
+                        app.session.query(func.min(ouraSleepSummary.report_date))[0][0] + timedelta(29)).date()
+                elif metric == 'readiness':
+                    min_oura_date = pd.to_datetime(
+                        app.session.query(func.min(ouraReadinessSummary.report_date))[0][0]).date()
 
-            db_test.at[min_oura_date, 'athlete_id'] = athlete_id
-            db_test.at[min_oura_date, 'workout_step'] = 0
-            db_test.at[min_oura_date, 'workout_step_desc'] = 'Low'
-            db_test.at[min_oura_date, 'completed'] = 0
-            db_test.at[min_oura_date, 'rationale'] = 'This is the first date hrv thresholds could be calculated'
-            db_test.to_sql('workout_step_log', engine, if_exists='append', index=True)
+                db_test.at[min_oura_date, 'athlete_id'] = athlete_id
+                db_test.at[min_oura_date, 'workout_step'] = 0
+                db_test.at[min_oura_date, 'workout_step_desc'] = 'Low'
+                db_test.at[min_oura_date, 'completed'] = 0
+                db_test.at[min_oura_date, 'rationale'] = 'This is the first date hrv thresholds could be calculated'
+                db_test.to_sql('workout_step_log', engine, if_exists='append', index=True)
+            except BaseException as e:
+                app.server.logger.error(f'Check enough oura data exists to generate workout recommendation: {e}')
+                oura_data_exists = False
+                db_process_flag(flag=False)
 
-        # Check if a step has already been inserted for today and if so check if workout has been completed yet
-        todays_plan = app.session.query(workoutStepLog).filter(workoutStepLog.athlete_id == athlete_id,
-                                                               workoutStepLog.date == datetime.today().date()).first()
+        if oura_data_exists:
+            # Check if a step has already been inserted for today and if so check if workout has been completed yet
+            todays_plan = app.session.query(workoutStepLog).filter(workoutStepLog.athlete_id == athlete_id,
+                                                                   workoutStepLog.date == datetime.today().date()).first()
 
-        if todays_plan:
-            # If not yet "completed" keep checking throughout day
-            if todays_plan.completed == 0:
-                # If rest day, mark as completed
-                if todays_plan.workout_step == 4 or todays_plan.workout_step == 5:
-                    todays_plan.completed = 1
-                    app.session.commit()
-                else:
-                    workout = app.session.query(stravaSummary).filter(
-                        stravaSummary.start_day_local == datetime.today().date(),
-                        stravaSummary.elapsed_time > min_non_warmup_workout_time,
-                        # Only include workouts with a workout type specified when checking if workout has been completed for hrv workflow (i.e. ignore 'Other' workouts uploaded from apple watch)
-                        stravaSummary.type != 'Workout').first()
-                    if workout:
+            if todays_plan:
+                # If not yet "completed" keep checking throughout day
+                if todays_plan.completed == 0:
+                    # If rest day, mark as completed
+                    if todays_plan.workout_step == 4 or todays_plan.workout_step == 5:
                         todays_plan.completed = 1
                         app.session.commit()
+                    else:
+                        workout = app.session.query(stravaSummary).filter(
+                            stravaSummary.start_day_local == datetime.today().date(),
+                            stravaSummary.elapsed_time > min_non_warmup_workout_time,
+                            # Only include workouts with a workout type specified when checking if workout has been completed for hrv workflow (i.e. ignore 'Other' workouts uploaded from apple watch)
+                            stravaSummary.type != 'Workout').first()
+                        if workout:
+                            todays_plan.completed = 1
+                            app.session.commit()
 
-        # If plan not yet created for today, create it
-        else:
-            metric_df = get_hrv_df()
-            if metric == 'hrv':
-                metric_df['within_swc'] = metric_df['within_daily_swc']
-            elif metric == 'hrv_baseline':
-                metric_df['within_swc'] = metric_df['within_flowchart_swc']
-            # elif metric == 'zscore':
-            #     metric_df['within_swc'] = metric_df['within_zscore_swc']
+            # If plan not yet created for today, create it
+            else:
+                metric_df = get_hrv_df()
+                if metric == 'hrv':
+                    metric_df['within_swc'] = metric_df['within_daily_swc']
+                elif metric == 'hrv_baseline':
+                    metric_df['within_swc'] = metric_df['within_flowchart_swc']
+                # elif metric == 'zscore':
+                #     metric_df['within_swc'] = metric_df['within_zscore_swc']
 
-            # Wait for today's hrv to be loaded into cloud
-            if metric_df.index.max() == datetime.today().date():  # or (datetime.now() - timedelta(hours=12)) > pd.to_datetime(datetime.today().date()):
-                step_log_df = pd.read_sql(
-                    sql=app.session.query(workoutStepLog.date, workoutStepLog.workout_step,
-                                          workoutStepLog.completed).filter(workoutStepLog.athlete_id == 1).statement,
-                    con=engine, index_col='date').sort_index(ascending=False)
+                # Wait for today's hrv to be loaded into cloud
+                if metric_df.index.max() == datetime.today().date():  # or (datetime.now() - timedelta(hours=12)) > pd.to_datetime(datetime.today().date()):
+                    step_log_df = pd.read_sql(
+                        sql=app.session.query(workoutStepLog.date, workoutStepLog.workout_step,
+                                              workoutStepLog.completed).filter(
+                            workoutStepLog.athlete_id == 1).statement,
+                        con=engine, index_col='date').sort_index(ascending=False)
 
-                ### Modified version of flow chart to allow for additional MOD day in step 2 ###
-                # Store the last value of step 2 to cycle between MOD->MOD->HIIT every 3rd time
-                try:
-                    last_hiit_mod = \
-                        step_log_df[(step_log_df['workout_step'].isin([21, 22, 23])) & (step_log_df['completed'] == 1)][
-                            'workout_step'].head(1).values[0]
-                except:
-                    last_hiit_mod = 20
+                    ### Modified version of flow chart to allow for additional MOD day in step 2 ###
+                    # Store the last value of step 2 to cycle between MOD->MOD->HIIT every 3rd time
+                    try:
+                        last_hiit_mod = \
+                            step_log_df[
+                                (step_log_df['workout_step'].isin([21, 22, 23])) & (step_log_df['completed'] == 1)][
+                                'workout_step'].head(1).values[0]
+                    except:
+                        last_hiit_mod = 20
 
-                next_hiit_mod = last_hiit_mod + 1 if last_hiit_mod != 23 else 21
+                    next_hiit_mod = last_hiit_mod + 1 if last_hiit_mod != 23 else 21
 
-                step_log_df = step_log_df[step_log_df.index == step_log_df.index.max()]
-                # Store last step in variable for starting point in loop
-                last_db_step = step_log_df['workout_step'].iloc[0]
-                # Resample to today
-                step_log_df.at[pd.to_datetime(datetime.today().date()), 'workout_step'] = None
-                step_log_df.set_index(pd.to_datetime(step_log_df.index), inplace=True)
-                step_log_df = step_log_df.resample('D').mean()
-                # Remove first row from df so it does not get re inserted into db
-                step_log_df = step_log_df.iloc[1:]
-                # We already know there is no step for today from "current_step" parameter, so manually add today's date
-                step_log_df.at[pd.to_datetime(datetime.today().date()), 'completed'] = 0
+                    step_log_df = step_log_df[step_log_df.index == step_log_df.index.max()]
+                    # Store last step in variable for starting point in loop
+                    last_db_step = step_log_df['workout_step'].iloc[0]
+                    # Resample to today
+                    step_log_df.at[pd.to_datetime(datetime.today().date()), 'workout_step'] = None
+                    step_log_df.set_index(pd.to_datetime(step_log_df.index), inplace=True)
+                    step_log_df = step_log_df.resample('D').mean()
+                    # Remove first row from df so it does not get re inserted into db
+                    step_log_df = step_log_df.iloc[1:]
+                    # We already know there is no step for today from "current_step" parameter, so manually add today's date
+                    step_log_df.at[pd.to_datetime(datetime.today().date()), 'completed'] = 0
 
-                # Check if gap between today and max date in step log, if so merge in all workouts for 'completed' flag
-                if step_log_df['completed'].isnull().values.any():
-                    workouts = pd.read_sql(
-                        sql=app.session.query(stravaSummary.start_day_local, stravaSummary.activity_id).filter(
-                            stravaSummary.elapsed_time > min_non_warmup_workout_time).statement, con=engine,
-                        index_col='start_day_local')
-                    # Resample workouts to the per day level - just take max activity_id in case they were more than 1 workout for that day to avoid duplication of hrv data
-                    workouts.set_index(pd.to_datetime(workouts.index), inplace=True)
-                    workouts = workouts.resample('D').max()
-                    step_log_df = step_log_df.merge(workouts, how='left', left_index=True, right_index=True)
-                    # Completed = True if a workout (not just warmup) was done on that day or was a rest day
-                    for x in step_log_df.index:
-                        step_log_df.at[x, 'completed'] = 0 if np.isnan(step_log_df.at[x, 'activity_id']) else 1
+                    # Check if gap between today and max date in step log, if so merge in all workouts for 'completed' flag
+                    if step_log_df['completed'].isnull().values.any():
+                        workouts = pd.read_sql(
+                            sql=app.session.query(stravaSummary.start_day_local, stravaSummary.activity_id).filter(
+                                stravaSummary.elapsed_time > min_non_warmup_workout_time).statement, con=engine,
+                            index_col='start_day_local')
+                        # Resample workouts to the per day level - just take max activity_id in case they were more than 1 workout for that day to avoid duplication of hrv data
+                        workouts.set_index(pd.to_datetime(workouts.index), inplace=True)
+                        workouts = workouts.resample('D').max()
+                        step_log_df = step_log_df.merge(workouts, how='left', left_index=True, right_index=True)
+                        # Completed = True if a workout (not just warmup) was done on that day or was a rest day
+                        for x in step_log_df.index:
+                            step_log_df.at[x, 'completed'] = 0 if np.isnan(step_log_df.at[x, 'activity_id']) else 1
 
-                # Generate row with yesterdays plan completions status for looping below through workout cycle logic
-                step_log_df['completed_yesterday'] = step_log_df['completed'].shift(1)
+                    # Generate row with yesterdays plan completions status for looping below through workout cycle logic
+                    step_log_df['completed_yesterday'] = step_log_df['completed'].shift(1)
 
-                # Drop historical rows that were used for 'yesterday calcs' so we are only working with todays data
-                # step_log_df = step_log_df.iloc[1:]
+                    # Drop historical rows that were used for 'yesterday calcs' so we are only working with todays data
+                    # step_log_df = step_log_df.iloc[1:]
 
-                # Merge dfs
-                df = pd.merge(step_log_df, metric_df, how='left', right_index=True, left_index=True)
+                    # Merge dfs
+                    df = pd.merge(step_log_df, metric_df, how='left', right_index=True, left_index=True)
 
-                # If using oura readiness score we don't use workflow, just recommend intensity based on score
-                if metric == 'readiness':
-                    df['workout_step'] = 99  # dummy value
-                    df['workout_step_desc'] = df['score'].apply(readiness_score_recommendation)
-                    df['rationale'] = 'Oura Readiness Score'
-                    # TODO: Update every 3rd 'Mod' to HIIT
+                    # If using oura readiness score we don't use workflow, just recommend intensity based on score
+                    if metric == 'readiness':
+                        df['workout_step'] = 99  # dummy value
+                        df['workout_step_desc'] = df['score'].apply(readiness_score_recommendation)
+                        df['rationale'] = 'Oura Readiness Score'
+                        # TODO: Update every 3rd 'Mod' to HIIT
 
-                # If using ithlete zscore we don't use workflow
-                elif metric == 'zscore':
-                    df['workout_step'] = 99  # dummy value
-                    df['workout_step_desc'] = df['z_recommendation']
-                    df['rationale'] = 'Z Score Matrix'
-                    # TODO: Update every 3rd 'Mod' to HIIT
+                    # If using ithlete zscore we don't use workflow
+                    elif metric == 'zscore':
+                        df['workout_step'] = 99  # dummy value
+                        df['workout_step_desc'] = df['z_recommendation']
+                        df['rationale'] = 'Z Score Matrix'
+                        # TODO: Update every 3rd 'Mod' to HIIT
 
-                # If using hrv or hrv baseline, use workflow
-                else:
-                    last_step = last_db_step
-                    for i in df.index:
-                        # Completed / Completed_yesterday could show erroneous data for rest days, as the 0 is brought in based off if a workout is found in strava summary
-                        df.at[i, 'completed_yesterday'] = 1 if last_step == 4 or last_step == 5 else df.at[
-                            i, 'completed_yesterday']
+                    # If using hrv or hrv baseline, use workflow
+                    else:
+                        last_step = last_db_step
+                        for i in df.index:
+                            # Completed / Completed_yesterday could show erroneous data for rest days, as the 0 is brought in based off if a workout is found in strava summary
+                            df.at[i, 'completed_yesterday'] = 1 if last_step == 4 or last_step == 5 else df.at[
+                                i, 'completed_yesterday']
 
-                        # hrv_increase = df.at[i, 'rmssd_7'] >= df.at[i, 'rmssd_7_yesterday']
-                        within_swc = df.at[i, 'within_swc']
+                            # hrv_increase = df.at[i, 'rmssd_7'] >= df.at[i, 'rmssd_7_yesterday']
+                            within_swc = df.at[i, 'within_swc']
 
-                        # ### Low Threshold Exceptions ###
-                        # # If lower threshold is crossed, switch to low intensity track
-                        # if df.at[i, 'lower_threshold_crossed'] == True:
-                        #     current_step = 4
-                        #     rationale = '7 day HRV average crossed the lower threshold.'
-                        #     app.server.logger.debug('Lower threshold crossed. Setting current step = 4')
-                        # # If we are below lower threshold, rest until back over threshold
-                        # elif df.at[i, 'under_low_threshold'] == True:
-                        #     current_step = 5
-                        #     rationale = '7 day HRV average is under the lower threshold.'
-                        #     app.server.logger.debug('HRV is under threshold. Setting current step = 5')
+                            # ### Low Threshold Exceptions ###
+                            # # If lower threshold is crossed, switch to low intensity track
+                            # if df.at[i, 'lower_threshold_crossed'] == True:
+                            #     current_step = 4
+                            #     rationale = '7 day HRV average crossed the lower threshold.'
+                            #     app.server.logger.debug('Lower threshold crossed. Setting current step = 4')
+                            # # If we are below lower threshold, rest until back over threshold
+                            # elif df.at[i, 'under_low_threshold'] == True:
+                            #     current_step = 5
+                            #     rationale = '7 day HRV average is under the lower threshold.'
+                            #     app.server.logger.debug('HRV is under threshold. Setting current step = 5')
 
-                        # ### Upper Threshold Exceptions ###
-                        # # If upper threshold is crossed, switch to high  intensity
-                        # elif df.at[i, 'upper_threshold_crossed'] == True:
-                        #     current_step = 1
-                        #     rationale = '7 day HRV average crossed the upper threshold.'
-                        #     app.server.logger.debug('Upper threshold crossed. Setting current step = 1')
-                        # # If we are above upper threshold, load high intensity until back under threshold
-                        # elif df.at[i, 'over_upper_threshold'] == True:
-                        #     if hrv_increase:
-                        #         current_step = 1
-                        #         rationale = '7 day HRV average increased and is still over the upper threshold.'
-                        #     else:
-                        #         current_step = 2
-                        #         rationale = "7 day HRV average decreased but is still over the upper threshold."
-                        #     app.server.logger.debug(
-                        #         'HRV is above threshold. Setting current step = {}.'.format(current_step))
+                            # ### Upper Threshold Exceptions ###
+                            # # If upper threshold is crossed, switch to high  intensity
+                            # elif df.at[i, 'upper_threshold_crossed'] == True:
+                            #     current_step = 1
+                            #     rationale = '7 day HRV average crossed the upper threshold.'
+                            #     app.server.logger.debug('Upper threshold crossed. Setting current step = 1')
+                            # # If we are above upper threshold, load high intensity until back under threshold
+                            # elif df.at[i, 'over_upper_threshold'] == True:
+                            #     if hrv_increase:
+                            #         current_step = 1
+                            #         rationale = '7 day HRV average increased and is still over the upper threshold.'
+                            #     else:
+                            #         current_step = 2
+                            #         rationale = "7 day HRV average decreased but is still over the upper threshold."
+                            #     app.server.logger.debug(
+                            #         'HRV is above threshold. Setting current step = {}.'.format(current_step))
 
-                        ### Missed Workout Exceptions ###
-                        # If workout was not completed yesterday but we are still within thresholds maintain current step
-                        if df.at[i, 'completed_yesterday'] == 0 and within_swc and last_step in [1, 21, 22, 23]:
-                            current_step = last_step
-                            rationale = "Yesterday's workout was not completed and we are still within SWC."
-                            app.server.logger.debug(
-                                'No workout detected for previous day however still within thresholds. Maintaining last step = {}'.format(
-                                    current_step))
-                        else:
-                            app.server.logger.debug(
-                                'No exceptions detected. Following the normal workout plan workflow.')
-                            rationale = 'Normal workout plan workflow.'
-                            # Workout workflow logic when no exceptions
-                            if last_step == 0:
-                                current_step = 1
-                            elif last_step == 1:
-                                current_step = next_hiit_mod if within_swc else 6
-                            elif last_step in [21, 22, 23]:
-                                current_step = 3
-                            elif last_step == 3:
-                                current_step = 1 if within_swc else 4
-                            elif last_step == 4:
-                                current_step = 6 if within_swc else 5
-                            elif last_step == 5:
-                                current_step = 6
-                            elif last_step == 6:
-                                current_step = 1 if within_swc else 4
+                            ### Missed Workout Exceptions ###
+                            # If workout was not completed yesterday but we are still within thresholds maintain current step
+                            if df.at[i, 'completed_yesterday'] == 0 and within_swc and last_step in [1, 21, 22, 23]:
+                                current_step = last_step
+                                rationale = "Yesterday's workout was not completed and we are still within SWC."
+                                app.server.logger.debug(
+                                    'No workout detected for previous day however still within thresholds. Maintaining last step = {}'.format(
+                                        current_step))
+                            else:
+                                app.server.logger.debug(
+                                    'No exceptions detected. Following the normal workout plan workflow.')
+                                rationale = 'Normal workout plan workflow.'
+                                # Workout workflow logic when no exceptions
+                                if last_step == 0:
+                                    current_step = 1
+                                elif last_step == 1:
+                                    current_step = next_hiit_mod if within_swc else 6
+                                elif last_step in [21, 22, 23]:
+                                    current_step = 3
+                                elif last_step == 3:
+                                    current_step = 1 if within_swc else 4
+                                elif last_step == 4:
+                                    current_step = 6 if within_swc else 5
+                                elif last_step == 5:
+                                    current_step = 6
+                                elif last_step == 6:
+                                    current_step = 1 if within_swc else 4
 
-                        df.at[i, 'completed'] = 1 if current_step == 4 or current_step == 5 else df.at[i, 'completed']
-                        df.at[i, 'workout_step'] = current_step
-                        last_step = current_step
+                            df.at[i, 'completed'] = 1 if current_step == 4 or current_step == 5 else df.at[
+                                i, 'completed']
+                            df.at[i, 'workout_step'] = current_step
+                            last_step = current_step
 
-                        # Map descriptions and alternate every HIIT and Mod
-                        df.at[i, 'workout_step_desc'] = \
-                            {0: 'Low', 1: 'High', 21: 'Mod', 22: 'Mod', 23: 'HIIT', 3: 'Low', 4: 'Rest', 5: 'Rest',
-                             6: 'Low'}[
-                                df.at[i, 'workout_step']]
+                            # Map descriptions and alternate every HIIT and Mod
+                            df.at[i, 'workout_step_desc'] = \
+                                {0: 'Low', 1: 'High', 21: 'Mod', 22: 'Mod', 23: 'HIIT', 3: 'Low', 4: 'Rest', 5: 'Rest',
+                                 6: 'Low'}[
+                                    df.at[i, 'workout_step']]
 
-                        if df.at[i, 'workout_step'] in [21, 22, 23] and df.at[i, 'completed'] == 1:
-                            next_hiit_mod = next_hiit_mod + 1 if next_hiit_mod != 23 else 21
+                            if df.at[i, 'workout_step'] in [21, 22, 23] and df.at[i, 'completed'] == 1:
+                                next_hiit_mod = next_hiit_mod + 1 if next_hiit_mod != 23 else 21
 
-                        df.at[i, 'rationale'] = rationale
+                            df.at[i, 'rationale'] = rationale
 
-                df['athlete_id'] = athlete_id
+                    df['athlete_id'] = athlete_id
 
-                df.reset_index(inplace=True)
-                # Insert into db
-                df = df[['athlete_id', 'date', 'workout_step', 'workout_step_desc', 'completed', 'rationale']]
-                df['date'] = df['date'].dt.date
-                df.to_sql('workout_step_log', engine, if_exists='append', index=False)
+                    df.reset_index(inplace=True)
+                    # Insert into db
+                    df = df[['athlete_id', 'date', 'workout_step', 'workout_step_desc', 'completed', 'rationale']]
+                    df['date'] = df['date'].dt.date
+                    df.to_sql('workout_step_log', engine, if_exists='append', index=False)
 
-                # Create spotify playlist based on workout intensity recommendation
-                if config.get('spotify', 'daily_playlist_recommendations').lower() == 'true':
-                    generate_recommendation_playlists(
-                        workout_intensity=df['workout_step_desc'].tail(1).values[0].lower().replace('hiit', 'mod'),
-                        normalize=True, num_playlists=3)
-                # Bookmark peloton classes
-                if peloton_credentials_supplied:
-                    set_peloton_workout_recommendations()
-    except:  # If workflow fails be sure to turn off processing flag
+                    # Create spotify playlist based on workout intensity recommendation
+                    if config.get('spotify', 'daily_playlist_recommendations').lower() == 'true':
+                        generate_recommendation_playlists(
+                            workout_intensity=df['workout_step_desc'].tail(1).values[0].lower().replace('hiit', 'mod'),
+                            normalize=True, num_playlists=3)
+                    # Bookmark peloton classes
+                    if peloton_credentials_supplied:
+                        set_peloton_workout_recommendations()
+    except BaseException as e:  # If workflow fails be sure to turn off processing flag
+        app.server.logger.error(e)
         db_process_flag(flag=False)
 
     app.session.remove()
