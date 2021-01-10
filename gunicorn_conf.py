@@ -32,7 +32,7 @@ errorlog = "-"
 # Preload the app so scheduler does not duplicate
 preload_app = True
 # Set timeout for callbacks
-timeout = os.getenv("TIMEOUT", 30)
+timeout = os.getenv("TIMEOUT", 1200)
 
 # For debugging and testing
 log_data = {
