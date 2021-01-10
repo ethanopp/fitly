@@ -83,7 +83,8 @@ def db_startup(app):
             hr_zone_threshold_2=.7,
             hr_zone_threshold_3=.8,
             hr_zone_threshold_4=.9,
-            recovery_metric='hrv_baseline'
+            recovery_metric='readiness',
+            pmc_switch_settings='{"ride_status": true, "run_status": true, "all_status": true, "power_status": true, "hr_status": true, "atl_status": false}'
         )
         app.session.add(dummy_athlete)
         app.session.commit()
