@@ -730,7 +730,7 @@ def training_workflow(min_non_warmup_workout_time, metric='hrv_baseline', athlet
         db_test = pd.read_sql(
             sql=app.session.query(workoutStepLog).filter(workoutStepLog.athlete_id == athlete_id).statement,
             con=engine, index_col='date')
-
+        oura_data_exists = False
         if len(db_test) == 0:
             oura_data_exists = True
             try:
