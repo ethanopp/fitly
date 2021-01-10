@@ -721,7 +721,6 @@ def training_workflow(min_non_warmup_workout_time, metric='hrv_baseline', athlet
     '''
 
     # https://www.alancouzens.com/blog/Training_prescription_guided_by_HRV_in_cycling.pdf
-
     try:
         db_process_flag(flag=True)
 
@@ -730,9 +729,8 @@ def training_workflow(min_non_warmup_workout_time, metric='hrv_baseline', athlet
         db_test = pd.read_sql(
             sql=app.session.query(workoutStepLog).filter(workoutStepLog.athlete_id == athlete_id).statement,
             con=engine, index_col='date')
-        oura_data_exists = False
+        oura_data_exists = True
         if len(db_test) == 0:
-            oura_data_exists = True
             try:
                 if metric == 'hrv':
                     min_oura_date = pd.to_datetime(
@@ -743,7 +741,6 @@ def training_workflow(min_non_warmup_workout_time, metric='hrv_baseline', athlet
                 elif metric == 'readiness':
                     min_oura_date = pd.to_datetime(
                         app.session.query(func.min(ouraReadinessSummary.report_date))[0][0]).date()
-
                 db_test.at[min_oura_date, 'athlete_id'] = athlete_id
                 db_test.at[min_oura_date, 'workout_step'] = 0
                 db_test.at[min_oura_date, 'workout_step_desc'] = 'Low'
