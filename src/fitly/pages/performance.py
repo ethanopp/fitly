@@ -714,7 +714,7 @@ def z_color(z_trend):
         return white
 
 
-def z_recommendation_chart(hrv_z_score, hr_z_score, hrv, hr, z_desc):
+def z_recommendation_chart(hrv_z_score, hr_z_score, hrv7_z_score, hr7_z_score, hrv, hr, z_desc):
     shapes = [
         ## Rest ##
         dict(type='rect', xref='x',
@@ -766,15 +766,33 @@ def z_recommendation_chart(hrv_z_score, hr_z_score, hrv, hr, z_desc):
                   config={'displayModeBar': False},
                   figure={
                       'data': [
+                          # 7 day baselines
+                          go.Scatter(
+                              x=[hrv7_z_score],
+                              y=[hr7_z_score],
+                              # text=df['movement_tooltip'],
+                              hoverinfo='none',
+                              marker={
+                                  'color': [dark_blue],
+                                  'symbol': 'diamond',
+                                  'line_color': white,
+                                  'line_width': .5},
+
+                              # orientation='h',
+                          ),
+                          # Daily values
                           go.Scatter(
                               x=[hrv_z_score],
                               y=[hr_z_score],
                               # text=df['movement_tooltip'],
                               hoverinfo='none',
                               marker={
-                                  'color': ['rgb(66,66,66)']},
+                                  'color': ['rgb(66,66,66)'],
+                                  'line_color': white,
+                                  'line_width': .5},
                               # orientation='h',
-                          ),
+                          )
+
                       ],
                       'layout': go.Layout(
                           height=150,
@@ -786,7 +804,7 @@ def z_recommendation_chart(hrv_z_score, hr_z_score, hrv, hr, z_desc):
                               xref="x",
                               yref="y",
                               text='HRV: {:.0f}<br>HR: {:.0f}'.format(hrv, hr),
-                              bgcolor='rgba(66,66,66,.75)',
+                              bgcolor='rgba(66,66,66,.5)',
                               font=dict(
                                   size=10,
                                   color=white
@@ -1210,13 +1228,15 @@ def create_daily_recommendations(plan_rec):
         sleep_score = int(data[5])
         hrv_z_score = float(data[6])
         hr_z_score = float(data[7])
-        z_desc = data[8]
-        hrv = data[9]
-        hrv_yesterday = data[10]
-        hrv7 = data[11]
-        hr = data[12]
-        hr_yesterday = data[13]
-        hr7 = data[14]
+        hrv7_z_score = float(data[8])
+        hr7_z_score = float(data[9])
+        z_desc = data[10]
+        hrv = data[11]
+        hrv_yesterday = data[12]
+        hrv7 = data[13]
+        hr = data[14]
+        hr_yesterday = data[15]
+        hr7 = data[16]
 
         hrv = float(hrv) if hrv is not None else 'N/A'
         hrv_yesterday = float(hrv_yesterday) if hrv_yesterday is not None else 'N/A'
@@ -1492,7 +1512,7 @@ def create_daily_recommendations(plan_rec):
     elif recovery_metric == 'readiness':
         recommendation_context = html.Div([
             oura_gauge,
-            z_recommendation_chart(hrv_z_score, hr_z_score, hrv, hr, z_desc),
+            z_recommendation_chart(hrv_z_score, hr_z_score, hrv7_z_score, hr7_z_score, hrv, hr, z_desc),
             html.H6("Heart Rate Variability", className='col-lg-12'),
             daily_hrv_kpis,
             html.H6("Heart Rate", className='col-lg-12'),
@@ -1500,7 +1520,7 @@ def create_daily_recommendations(plan_rec):
         ])
     elif recovery_metric == 'zscore':
         recommendation_context = html.Div([
-            z_recommendation_chart(hrv_z_score, hr_z_score, hrv, hr, z_desc),
+            z_recommendation_chart(hrv_z_score, hr_z_score, hrv7_z_score, hr7_z_score, hrv, hr, z_desc),
             oura_gauge,
             html.H6("Heart Rate Variability", className='col-lg-12'),
             daily_hrv_kpis,
@@ -2142,6 +2162,8 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
                                  actual['sleep_score'].fillna(0).astype('int').astype('str') + '|' + \
                                  actual['hrv_z_score'].astype('str') + '|' + \
                                  actual['hr_z_score'].astype('str') + '|' + \
+                                 actual['hrv7_z_score'].astype('str') + '|' + \
+                                 actual['hr7_z_score'].astype('str') + '|' + \
                                  actual['z_desc'].astype('str') + '|' + \
                                  actual['rmssd'].astype('str') + '|' + \
                                  actual['rmssd_yesterday'].astype('str') + '|' + \
