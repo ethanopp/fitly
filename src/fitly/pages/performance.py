@@ -1844,11 +1844,12 @@ def create_yoy_chart(metric, sport='all'):
     df[df.columns[-1]] = np.where(df.index.dayofyear > datetime.now().timetuple().tm_yday, np.nan, df[df.columns[-1]])
 
     data = []
-    colors = [teal, white, light_blue, dark_blue]
+    colors = [teal, white, light_blue, dark_blue, ctl_color, atl_color, tsb_color, orange_faded, 'rgba(250, 47, 76,.7)',
+              orange]
 
-    # Plot latest line first
+    # Plot latest line first for most recent 10 years
     index, current_date, cy_metric, ly_metric, target = 0, None, None, None, None
-    for year in list(df.columns)[::-1]:
+    for year in list(df.columns)[9:-12:-1]:
         if metric in ['elapsed_time', 'high_intensity_seconds', 'low_intensity_seconds', 'mod_intensity_seconds']:
             text = ['{}: <b>{}'.format(str(year), timedelta(seconds=x)) for x in df[year].cumsum().fillna(0)]
         elif metric == 'distance':
