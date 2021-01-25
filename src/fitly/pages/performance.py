@@ -14,7 +14,8 @@ from ..app import app
 from ..api.sqlalchemy_declarative import athlete, stravaSummary, stravaSamples, workoutStepLog, ouraSleepSummary, \
     strydSummary, ouraReadinessSummary, annotations
 from ..api.database import engine
-from ..utils import utc_to_local, config, oura_credentials_supplied, stryd_credentials_supplied
+from ..utils import utc_to_local, config, oura_credentials_supplied, stryd_credentials_supplied, \
+    peloton_credentials_supplied
 from ..pages.power import power_curve, zone_chart
 import re
 import json
@@ -402,69 +403,76 @@ def get_layout(**kwargs):
                                                  ]),
 
                                              # sport_filter_icons(id='zones'),
-                                             html.Div(className='col-lg-6 col-12 mt-2', children=[
-                                                 dbc.Spinner(color='info', children=[
-                                                     html.Div(id='performance-trend-zones'),
+                                             html.Div(
+                                                 className='col-lg-6 col-12 mt-2' if peloton_credentials_supplied else 'col-12 mt-2',
+                                                 children=[
+                                                     dbc.Spinner(color='info', children=[
+                                                         html.Div(id='performance-trend-zones'),
+                                                     ]),
                                                  ]),
-                                             ]),
                                              # populated by callback
-                                             html.Div(className='col-lg-6 col-12 mt-2', children=[
-                                                 dbc.Spinner(color='info', children=[
-                                                     html.Div(className='col-lg-12',
-                                                              children=[
-                                                                  html.P(['Training Distribution'], style={
-                                                                      'height': '20px',
-                                                                      'font-family': '"Open Sans", verdana, arial, sans-serif',
-                                                                      'font-size': '14px',
-                                                                      'color': white,
-                                                                      'fill': 'rgb(220, 220, 220)',
-                                                                      'line-height': '10px',
-                                                                      'opacity': 1,
-                                                                      'font-weight': 'normal',
-                                                                      'white-space': 'pre',
-                                                                      'marginBottom': 0})
-                                                              ]),
+                                             html.Div(className='col-lg-6 col-12 mt-2', style={
+                                                 'display': 'none'} if not peloton_credentials_supplied else {},
+                                                      children=[
+                                                          dbc.Spinner(color='info', children=[
+                                                              html.Div(className='col-lg-12',
+                                                                       children=[
+                                                                           html.P(['Training Distribution'], style={
+                                                                               'height': '20px',
+                                                                               'font-family': '"Open Sans", verdana, arial, sans-serif',
+                                                                               'font-size': '14px',
+                                                                               'color': white,
+                                                                               'fill': 'rgb(220, 220, 220)',
+                                                                               'line-height': '10px',
+                                                                               'opacity': 1,
+                                                                               'font-weight': 'normal',
+                                                                               'white-space': 'pre',
+                                                                               'marginBottom': 0})
+                                                                       ]),
+                                                              html.Div(id='workout-distribution-table',
+                                                                       children=[
+                                                                           dash_table.DataTable(
+                                                                               id='workout-type-distributions',
+                                                                               columns=[{'name': 'Activity',
+                                                                                         'id': 'workout'},
+                                                                                        {'name': '%',
+                                                                                         'id': 'Percent of Total'}],
+                                                                               style_as_list_view=True,
+                                                                               fixed_rows={'headers': True, 'data': 0},
+                                                                               style_table={'height': '180px',
+                                                                                            'overflowY': 'auto'},
+                                                                               style_header={
+                                                                                   'backgroundColor': 'rgba(0,0,0,0)',
+                                                                                   'borderBottom': '1px solid rgb(220, 220, 220)',
+                                                                                   'borderTop': '0px',
+                                                                                   # 'textAlign': 'center',
+                                                                                   'fontSize': 12,
+                                                                                   'fontWeight': 'bold',
+                                                                                   'fontFamily': '"Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif',
+                                                                               },
+                                                                               style_cell={
+                                                                                   'backgroundColor': 'rgba(0,0,0,0)',
+                                                                                   'color': 'rgb(220, 220, 220)',
+                                                                                   'borderBottom': '1px solid rgb(73, 73, 73)',
+                                                                                   'textOverflow': 'ellipsis',
+                                                                                   'maxWidth': 25,
+                                                                                   'fontSize': 12,
+                                                                                   'fontFamily': '"Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif',
+                                                                               },
+                                                                               style_cell_conditional=[
+                                                                                   {
+                                                                                       'if': {'column_id': c},
+                                                                                       'textAlign': 'center'
+                                                                                   } for c in
+                                                                                   ['workout', 'Percent of Total']
+                                                                               ],
 
-                                                     html.Div(id='workout-distribution-table',
-                                                              children=[
-                                                                  dash_table.DataTable(
-                                                                      id='workout-type-distributions',
-                                                                      columns=[{'name': 'Activity', 'id': 'workout'},
-                                                                               {'name': '%', 'id': 'Percent of Total'}],
-                                                                      style_as_list_view=True,
-                                                                      fixed_rows={'headers': True, 'data': 0},
-                                                                      style_table={'height': '180px',
-                                                                                   'overflowY': 'auto'},
-                                                                      style_header={'backgroundColor': 'rgba(0,0,0,0)',
-                                                                                    'borderBottom': '1px solid rgb(220, 220, 220)',
-                                                                                    'borderTop': '0px',
-                                                                                    # 'textAlign': 'center',
-                                                                                    'fontSize': 12,
-                                                                                    'fontWeight': 'bold',
-                                                                                    'fontFamily': '"Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif',
-                                                                                    },
-                                                                      style_cell={
-                                                                          'backgroundColor': 'rgba(0,0,0,0)',
-                                                                          'color': 'rgb(220, 220, 220)',
-                                                                          'borderBottom': '1px solid rgb(73, 73, 73)',
-                                                                          'textOverflow': 'ellipsis',
-                                                                          'maxWidth': 25,
-                                                                          'fontSize': 12,
-                                                                          'fontFamily': '"Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif',
-                                                                      },
-                                                                      style_cell_conditional=[
-                                                                          {
-                                                                              'if': {'column_id': c},
-                                                                              'textAlign': 'center'
-                                                                          } for c in ['workout', 'Percent of Total']
-                                                                      ],
+                                                                               page_action="none",
+                                                                           )
 
-                                                                      page_action="none",
-                                                                  )
-
-                                                              ]),
-                                                 ]),
-                                             ]),
+                                                                       ]),
+                                                          ]),
+                                                      ]),
                                          ]),
                                 html.Div(className='row', style={'paddingTop': '.75rem'}, children=[
 
@@ -2778,8 +2786,11 @@ def workout_distribution(sport='Run', days=90, intensity='all'):
     for x in athlete_bookmarks.keys():
         for y in athlete_bookmarks[x].keys():
             for class_type in json.loads(athlete_bookmarks[x][y]):
-                new_class = re.findall(r'min\s(.*)\s', class_type)[0]
-                if new_class not in class_names:
+                try:
+                    new_class = re.findall(r'min\s(.*)\s', class_type)[0]
+                except:
+                    new_class = None
+                if new_class and new_class not in class_names:
                     class_names.append(new_class)
 
     # class_names = ['Power Zone Max', 'Power Zone Endurance', 'Power Zone', 'Endurance', 'Recovery', 'Speed',
