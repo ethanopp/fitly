@@ -502,6 +502,14 @@ class FitlyActivity(stravalib.model.Activity):
             self.df_samples = self.df_samples.interpolate(
                 limit_direction='both')  # TODO: Consider if interpolating of nans is skuing data too much
 
+            # Add Utc timestamp
+            self.df_samples.reset_index(inplace=True)
+            self.df_samples['start_date_utc'] = self.start_date.replace(tzinfo=None)
+            self.df_samples['timestamp_utc'] = pd.Series(
+                map(calctime, self.df_samples['time'], self.df_samples['start_date_utc']))
+            self.df_samples.drop(columns=['start_date_utc'], inplace=True)
+            self.df_samples.set_index('timestamp_local', inplace=True)
+
             try:  # Indoor activity samples wont have altitudes
                 self.df_samples['altitude'] = self.df_samples['altitude'] * 3.28084
             except KeyError:

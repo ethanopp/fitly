@@ -73,6 +73,7 @@ class annotations(Base):
 class stravaSamples(Base):
     __tablename__ = 'strava_samples'
     timestamp_local = Column('timestamp_local', DateTime(), index=True, primary_key=True)
+    timestamp_utc = Column('timestamp_utc', DateTime())
     time_interval = Column('time_interval', DateTime())
     activity_id = Column('activity_id', BigInteger())
     date = Column('date', Date())
@@ -105,6 +106,7 @@ class stravaBestSamples(Base):
     ftp = Column('ftp', Float())
     watts_per_kg = Column('watts_per_kg', Float())
     timestamp_local = Column('timestamp_local', DateTime())
+    timestamp_utc = Column('timestamp_utc', DateTime())
     time_interval = Column('time_interval', DateTime())
     type = Column('type', String(255))
     date = Column('date', Date())
