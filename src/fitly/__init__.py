@@ -58,34 +58,7 @@ def db_startup(app):
     athlete_exists = True if len(app.session.query(athlete).all()) > 0 else False
     # If no athlete created in db, create one
     if not athlete_exists:
-        dummy_athlete = athlete(
-            min_non_warmup_workout_time=900,
-            weekly_tss_goal=150,
-            rr_max_goal=8,
-            rr_min_goal=5,
-            weekly_workout_goal=3,
-            weekly_sleep_score_goal=3,
-            weekly_readiness_score_goal=3,
-            weekly_activity_score_goal=3,
-            daily_sleep_hr_target=8,
-            ftp_test_notification_week_threshold=6,
-            cycle_power_zone_threshold_1=.55,
-            cycle_power_zone_threshold_2=.75,
-            cycle_power_zone_threshold_3=.9,
-            cycle_power_zone_threshold_4=1.05,
-            cycle_power_zone_threshold_5=1.2,
-            cycle_power_zone_threshold_6=1.5,
-            run_power_zone_threshold_1=0.8,
-            run_power_zone_threshold_2=0.9,
-            run_power_zone_threshold_3=1,
-            run_power_zone_threshold_4=1.15,
-            hr_zone_threshold_1=.6,
-            hr_zone_threshold_2=.7,
-            hr_zone_threshold_3=.8,
-            hr_zone_threshold_4=.9,
-            recovery_metric='readiness',
-            pmc_switch_settings='{"ride_status": true, "run_status": true, "all_status": true, "power_status": true, "hr_status": true, "atl_status": false}'
-        )
+        dummy_athlete = athlete(name='New User')
         app.session.add(dummy_athlete)
         app.session.commit()
 
