@@ -188,7 +188,8 @@ def get_radar_chart(workout_intensity, sport, pop_time_period):
                 hoverinfo='text',
                 fill='toself',
                 name='Prev. ' + pop_time_period.upper(),
-                line=dict(color=white),
+                line=dict(color='rgba(0,0,0,0)'),
+                marker=dict(color='rgba(0,0,0,0)'),
                 fillcolor='rgba(220,220,220,.6)'
 
             )
@@ -206,7 +207,8 @@ def get_radar_chart(workout_intensity, sport, pop_time_period):
                 fill='toself',
                 name='All Time' if pop_time_period == 'all' else pop_time_period.upper().replace('L', 'Last '),
                 # color=teal,
-                line=dict(color=teal),
+                line=dict(color='rgba(0,0,0,0)'),
+                marker=dict(color='rgba(0,0,0,0)'),
                 fillcolor='rgba(100, 217, 236,.6)',
             )
         )
