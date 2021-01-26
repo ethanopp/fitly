@@ -206,7 +206,7 @@ def get_played_tracks(workout_intensity='all', sport='all', pop_time_period='all
     return df
 
 
-def generate_recommendation_playlists(workout_intensity='all', sport='all', normalize=True, num_clusters=30,
+def generate_recommendation_playlists(workout_intensity='all', sport='all', normalize=True, num_clusters=25,
                                       num_playlists=3, time_period='l90d'):
     '''
 
@@ -262,7 +262,7 @@ def generate_recommendation_playlists(workout_intensity='all', sport='all', norm
         for i in range(1, len(rand_clusters) + 1):
             # Grab playlist id if it already exists otherwise create the playlist
             sport = sport + ' ' if sport else ''
-            playlist_id = playlists.get(f'{sport}Fitly Playlist {i}')
+            playlist_id = playlists.get(f'Fitly Playlist {i}')
             if not playlist_id:
                 playlist_id = spotify.playlist_create(user_id=user_id, name=f'Fitly Playlist {i}', public=False).id
 
@@ -279,7 +279,8 @@ def generate_recommendation_playlists(workout_intensity='all', sport='all', norm
 
             # Add recommended tracks to the playlist
             spotify.playlist_add(playlist_id=playlist_id, uris=[x.uri for x in recommendations])
+            app.server.logger.debug(f'Fitly Playlist {i} refreshed')
 
     else:
         app.server.logger.debug(
-            f'Not enough tracks found for "{workout_intensity}" intensity and "{sport}" workouts to generate playlist recommendations. Skipping playlist generation.')
+            f'Not enough tracks found for "{workout_intensity}" intensity and "{sport}" workout types to generate playlist recommendations. Skipping playlist generation.')

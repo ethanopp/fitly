@@ -26,15 +26,18 @@ types = ['time', 'latlng', 'distance', 'altitude', 'velocity_smooth', 'heartrate
 
 def db_process_flag(flag):
     if flag:
-        record = dbRefreshStatus(timestamp_utc=datetime.utcnow(), refresh_method='processing')
-        # Insert and commit
-        try:
-            app.session.add(record)
-            app.session.commit()
-            app.server.logger.debug('Processing started...')
-        except BaseException as e:
-            app.session.rollback()
-            app.server.logger.error('Failed to insert processing record into db_refresh: ', str(e))
+        # Check if already processing, otherwise set flag
+        processing = app.session.query(dbRefreshStatus).filter(dbRefreshStatus.refresh_method == 'processing').first()
+        if not processing:
+            record = dbRefreshStatus(timestamp_utc=datetime.utcnow(), refresh_method='processing')
+            # Insert and commit
+            try:
+                app.session.add(record)
+                app.session.commit()
+                app.server.logger.debug('Processing started...')
+            except BaseException as e:
+                app.session.rollback()
+                app.server.logger.error('Failed to insert processing record into db_refresh: ', str(e))
 
     else:
         app.session.query(dbRefreshStatus).filter(dbRefreshStatus.refresh_method == 'processing').delete()
@@ -954,10 +957,15 @@ def training_workflow(min_non_warmup_workout_time, metric='hrv_baseline', athlet
                     df.to_sql('workout_step_log', engine, if_exists='append', index=False)
 
                     # Create spotify playlist based on workout intensity recommendation
-                    if config.get('spotify', 'daily_playlist_recommendations').lower() == 'true':
+                    athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1).first()
+                    app.session.remove()
+                    if athlete_info.spotify_playlists_switch == True:
                         generate_recommendation_playlists(
-                            workout_intensity=df['workout_step_desc'].tail(1).values[0].lower().replace('hiit', 'mod'),
-                            normalize=True, num_playlists=3)
+                            workout_intensity=df['workout_step_desc'].tail(1).values[0].lower().replace('hiit',
+                                                                                                        'mod') if athlete_info.spotify_use_rec_intensity else 'workout',
+                            normalize=True,
+                            time_period=athlete_info.spotify_time_period,
+                            num_playlists=athlete_info.spotify_num_playlists)
                     # Bookmark peloton classes
                     if peloton_credentials_supplied:
                         set_peloton_workout_recommendations()

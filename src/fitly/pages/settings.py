@@ -98,7 +98,7 @@ def check_spotify_connection():
                        size='sm')],
                       href=connect_spotify_link(spotify_auth_client))
     else:
-        return html.H4('Spotify Connected!', className='col-lg-12', )
+        return html.H4('Spotify Connected!', className='col-lg-12')
 
 
 def check_withings_connection():
@@ -448,6 +448,8 @@ def get_logs():
 
 
 def generate_settings_dashboard():
+    athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1).first()
+    app.session.remove()
     # Only display reset hrv plan button if there is hrv data (from oura)
     if oura_credentials_supplied:
         reset_hrv_plan_button = html.Div(className='col-12 mb-2', children=[
@@ -467,7 +469,83 @@ def generate_settings_dashboard():
                                   dbc.Card(className='mb-2', children=[
                                       dbc.CardHeader(html.H4(className='text-left mb-0', children='App Connections')),
                                       dbc.CardBody(
-                                          children=dbc.Spinner(color='info', children=[html.Div(id='api-connections')]))
+                                          children=dbc.Spinner(color='info', children=[
+                                              html.Div(id='api-connections'),  # Callback populates
+                                              html.Div(className='col-12', children=[
+                                                  html.Div(className='row mb-2 mt-2', children=[
+                                                      html.H6('Auto-generate workout playlists',
+                                                              className='col-9  mb-0',
+                                                              style={'display': 'inline-block'}),
+                                                      daq.BooleanSwitch(
+                                                          id='spotify-playlists-switch',
+                                                          on=athlete_info.spotify_playlists_switch,
+                                                          className='col-3'
+                                                      )
+                                                  ]),
+
+                                                  html.Div(id='playlist-settings', children=[
+
+                                                      html.Div(className='row mb-2 mt-2', children=[
+                                                          html.H6(id='spotify-use-rec-intensity-title',
+                                                                  children='Use Intensity Recommendation',
+                                                                  className='col-9  mb-0',
+                                                                  style={'display': 'inline-block'}),
+                                                          daq.BooleanSwitch(
+                                                              id='spotify-use-rec-intensity-switch',
+                                                              on=athlete_info.spotify_use_rec_intensity,
+                                                              className='col-3'
+                                                          )
+                                                      ]),
+                                                      html.Div(className='col-12', children=[
+                                                          html.Div(id='spotify-time-period',
+                                                                   className='row align-items-center mb-2 mt-2',
+                                                                   children=[
+                                                                       html.H6('Listening History',
+                                                                               id='spotify-time-period-label',
+                                                                               className='col-5 mb-0'),
+                                                                       html.Div(className='text-center col-5',
+                                                                                style={'paddingRight': 0,
+                                                                                       'paddingLeft': 0},
+                                                                                children=[
+                                                                                    dcc.Dropdown(
+                                                                                        id='spotify-time-period-dropdown-input',
+                                                                                        options=[
+                                                                                            {'label': 'All History',
+                                                                                             'value': 'all'},
+                                                                                            {'label': 'Year to Date',
+                                                                                             'value': 'ytd'},
+                                                                                            {'label': 'Last 90 days',
+                                                                                             'value': 'l90d'},
+                                                                                            {'label': 'Last 6 weeks',
+                                                                                             'value': 'l6w'},
+                                                                                            {'label': 'Last 30 days',
+                                                                                             'value': 'l30d'}],
+                                                                                        value=athlete_info.spotify_time_period,
+                                                                                        multi=False
+                                                                                    ),
+                                                                                ]),
+                                                                       html.Button(
+                                                                           id='spotify-time-period-dropdown-input-submit',
+                                                                           className='col-2 fa fa-upload',
+                                                                           style={'display': 'inline-block',
+                                                                                  'border': '0px'}),
+                                                                       html.I(
+                                                                           id='spotify-time-period-dropdown-input-status',
+                                                                           className='col-2 fa fa-check',
+                                                                           style={'display': 'none',
+                                                                                  'color': 'rgba(0,0,0,0)',
+                                                                                  'fontSize': '150%'})
+                                                                   ]),
+                                                      ]),
+                                                      html.Div(className='col-12', children=[
+                                                          generate_db_setting('spotify-num-playlists', '# Playlists',
+                                                                              athlete_info.spotify_num_playlists)
+
+                                                      ]),
+
+                                                  ])
+                                              ])
+                                          ]))
                                   ]),
                               ]),
                      html.Div(id='hr-zones', className='col-lg-3', children=generate_hr_zone_card()),
@@ -620,6 +698,10 @@ def update_athlete_db_value(value, value_name):
     Output('hr-zone4-input-status', 'style'),
     Output('recovery-metric-dropdown-input-submit', 'style'),
     Output('recovery-metric-dropdown-input-status', 'style'),
+    Output('spotify-time-period-dropdown-input-submit', 'style'),
+    Output('spotify-time-period-dropdown-input-status', 'style'),
+    Output('spotify-num-playlists-input-submit', 'style'),
+    Output('spotify-num-playlists-input-status', 'style'),
 ],
     [
         Input('name-input-submit', 'n_clicks'),
@@ -653,6 +735,8 @@ def update_athlete_db_value(value, value_name):
         Input('hr-zone3-input-submit', 'n_clicks'),
         Input('hr-zone4-input-submit', 'n_clicks'),
         Input('recovery-metric-dropdown-input-submit', 'n_clicks'),
+        Input('spotify-time-period-dropdown-input-submit', 'n_clicks'),
+        Input('spotify-num-playlists-input-submit', 'n_clicks'),
     ],
     [
         State('name-input', 'value'),
@@ -686,20 +770,24 @@ def update_athlete_db_value(value, value_name):
         State('hr-zone3-input', 'value'),
         State('hr-zone4-input', 'value'),
         State('recovery-metric-dropdown-input', 'value'),
+        State('spotify-time-period-dropdown-input', 'value'),
+        State('spotify-num-playlists-input', 'value'),
     ])
 def save_athlete_settings(
         name_click, birthday_click, sex_click, weight_click, rest_hr_click, ride_ftp_click, run_ftp_click, wk_act_click,
         slp_goal_click, tss_goal_click, rrmax_click, rrmin_click, min_workout_click, workout_click,
         slp_click, rd_click, cycle_zone1_click, cycle_zone2_click, cycle_zone3_click, cycle_zone4_click,
         cycle_zone5_click, cycle_zone6_click, run_zone1_click, run_zone2_click, run_zone3_click, run_zone4_click,
-        hr_zone1_click, hr_zone2_click, hr_zone3_click, hr_zone4_click, peloton_bookmark_metric_click, name_value,
-        birthday_value, sex_value, weight_value, rest_hr_value, ride_ftp_value, run_ftp_value, wk_act_value,
+        hr_zone1_click, hr_zone2_click, hr_zone3_click, hr_zone4_click, recovery_metric_click,
+        spotify_time_period_dropdown_click, spotify_num_playlists_click,
+        name_value, birthday_value, sex_value, weight_value, rest_hr_value, ride_ftp_value, run_ftp_value, wk_act_value,
         slp_goal_value, tss_goal_value, rrmax_value, rrmin_value, min_workout_value, workout_value, slp_value, rd_value,
         cycle_zone1_value, cycle_zone2_value, cycle_zone3_value, cycle_zone4_value, cycle_zone5_value,
         cycle_zone6_value, run_zone1_value, run_zone2_value, run_zone3_value, run_zone4_value, hr_zone1_value,
-        hr_zone2_value, hr_zone3_value, hr_zone4_value, peloton_bookmark_metric_value
+        hr_zone2_value, hr_zone3_value, hr_zone4_value, recovery_metric_value, spotify_time_period_dropdown_value,
+        spotify_num_playlists_value
 ):
-    num_metrics = 31
+    num_metrics = 33
     output_styles = []
     for _ in range(num_metrics):
         output_styles.extend([{'display': 'inline-block', 'border': '0px'}, {
@@ -739,6 +827,8 @@ def save_athlete_settings(
                        'hr-zone3-input-submit': 'hr_power_zone_threshold_3',
                        'hr-zone4-input-submit': 'hr_power_zone_threshold_4',
                        'recovery-metric-dropdown-input-submit': 'recovery_metric',
+                       'spotify-time-period-dropdown-input-submit': 'spotify_time_period',
+                       'spotify-num-playlists-input-submit': 'spotify_num_playlists'
                        }
 
         output_indexer = [
@@ -772,7 +862,9 @@ def save_athlete_settings(
             'hr_power_zone_threshold_2',
             'hr_power_zone_threshold_3',
             'hr_power_zone_threshold_4',
-            'recovery_metric'
+            'recovery_metric',
+            'spotify_time_period',
+            'spotify_num_playlists'
 
         ]
         values = {
@@ -806,7 +898,9 @@ def save_athlete_settings(
             'hr_power_zone_threshold_2': hr_zone2_value,
             'hr_power_zone_threshold_3': hr_zone3_value,
             'hr_power_zone_threshold_4': hr_zone4_value,
-            'recovery_metric': peloton_bookmark_metric_value
+            'recovery_metric': recovery_metric_value,
+            'spotify_time_period': spotify_time_period_dropdown_value,
+            'spotify_num_playlists': spotify_num_playlists_value,
         }
 
         index1 = output_indexer.index(latest_dict[latest]) * 2
@@ -822,6 +916,45 @@ def save_athlete_settings(
             output_styles[index2] = {'display': 'none'}
 
     return output_styles
+
+
+# Callback for toggling auto-generation of spotify playlists
+@app.callback(
+    Output('playlist-settings', 'style'),
+    [Input('spotify-playlists-switch', 'on')]
+)
+def set_playlist_settings(spotify_playlists_switch):
+    athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1).first()
+    if spotify_playlists_switch:
+        style = {}
+    else:
+        style = {'display': 'none'}
+    try:
+        app.server.logger.info('Updating auto-generate spotify playlists = {}'.format(spotify_playlists_switch))
+        athlete_info.spotify_playlists_switch = spotify_playlists_switch
+        app.session.commit()
+    except BaseException as e:
+        app.server.logger.error(e)
+    app.session.remove()
+    return style
+
+
+# Callback for toggling spotify playlist intensity recommendation preference
+@app.callback(
+    Output('spotify-use-rec-intensity-title', 'style'),
+    [Input('spotify-use-rec-intensity-switch', 'on')]
+)
+def set_playlist_intensity_settings(spotify_use_rec_intensity):
+    athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1).first()
+    try:
+        app.server.logger.info('Updating spotify_use_rec_intensity = {}'.format(spotify_use_rec_intensity))
+        athlete_info.spotify_use_rec_intensity = spotify_use_rec_intensity
+        app.session.commit()
+    except BaseException as e:
+        app.server.logger.error(e)
+    app.session.remove()
+
+    return {}
 
 
 # Callback to prevent both readiness/hrv goal settings to be enabled at the same time

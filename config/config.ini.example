@@ -11,7 +11,6 @@ password =
 client_id =
 client_secret =
 redirect_uri =
-daily_playlist_recommendations=True
 
 [peloton]
 username =

@@ -15,38 +15,47 @@ class athlete(Base):
     ride_ftp = Column('ride_ftp', Integer())
     sex = Column('sex', String(1))
     min_non_warmup_workout_time = Column('min_non_warmup_workout_time',
-                                         Integer())  # threshold in seconds for when we start counting workouts towards stress scores (don't want to include warm-ups)
-    weekly_tss_goal = Column('weekly_tss_goal', Integer())
-    rr_max_goal = Column('rr_max_goal', Integer())  # Max ramp rate threshold used for calculating injury risk
-    rr_min_goal = Column('rr_min_goal', Integer())  # Min ramp rate threshold used for calculating injury risk
-    weekly_workout_goal = Column('weekly_workout_goal', Integer())  # weekly workout minute goal
-    weekly_sleep_score_goal = Column('weekly_sleep_score_goal', Integer())  # Oura sleep scores >= 85 to achieve weekly
+                                         Integer(),
+                                         default=900)  # threshold in seconds for when we start counting workouts towards stress scores (don't want to include warm-ups)
+    weekly_tss_goal = Column('weekly_tss_goal', Integer(), default=150)
+    rr_max_goal = Column('rr_max_goal', Integer(),
+                         default=8)  # Max ramp rate threshold used for calculating injury risk
+    rr_min_goal = Column('rr_min_goal', Integer(),
+                         default=5)  # Min ramp rate threshold used for calculating injury risk
+    weekly_workout_goal = Column('weekly_workout_goal', Integer(), default=3)  # weekly workout minute goal
+    weekly_sleep_score_goal = Column('weekly_sleep_score_goal', Integer(),
+                                     default=3)  # Oura sleep scores >= 85 to achieve weekly
     weekly_readiness_score_goal = Column('weekly_readiness_score_goal',
-                                         Integer())  # Oura readiness scores >= 85 to achieve weekly
+                                         Integer(), default=3)  # Oura readiness scores >= 85 to achieve weekly
     weekly_activity_score_goal = Column('weekly_activity_score_goal',
-                                        Integer())  # Oura activity scores >= 85 to achieve weekly
-    daily_sleep_hr_target = Column('daily_sleep_hr_target', Integer())  # Daily sleep hour target
+                                        Integer(), default=3)  # Oura activity scores >= 85 to achieve weekly
+    daily_sleep_hr_target = Column('daily_sleep_hr_target', Integer(), default=8)  # Daily sleep hour target
     ftp_test_notification_week_threshold = Column('ftp_test_notification_week_threshold',
-                                                  Integer())  # Num weeks to retest ftp
-    cycle_power_zone_threshold_1 = Column('cycle_power_zone_threshold_1', Float())
-    cycle_power_zone_threshold_2 = Column('cycle_power_zone_threshold_2', Float())
-    cycle_power_zone_threshold_3 = Column('cycle_power_zone_threshold_3', Float())
-    cycle_power_zone_threshold_4 = Column('cycle_power_zone_threshold_4', Float())
-    cycle_power_zone_threshold_5 = Column('cycle_power_zone_threshold_5', Float())
-    cycle_power_zone_threshold_6 = Column('cycle_power_zone_threshold_6', Float())
-    run_power_zone_threshold_1 = Column('run_power_zone_threshold_1', Float())
-    run_power_zone_threshold_2 = Column('run_power_zone_threshold_2', Float())
-    run_power_zone_threshold_3 = Column('run_power_zone_threshold_3', Float())
-    run_power_zone_threshold_4 = Column('run_power_zone_threshold_4', Float())
-    hr_zone_threshold_1 = Column('hr_zone_threshold_1', Float())
-    hr_zone_threshold_2 = Column('hr_zone_threshold_2', Float())
-    hr_zone_threshold_3 = Column('hr_zone_threshold_3', Float())
-    hr_zone_threshold_4 = Column('hr_zone_threshold_4', Float())
-    pmc_switch_settings = Column('pmc_switch_settings', String(9999))
-    recovery_metric = Column('recovery_metric', String(10))
+                                                  Integer(), default=6)  # Num weeks to retest ftp
+    cycle_power_zone_threshold_1 = Column('cycle_power_zone_threshold_1', Float(), default=.55)
+    cycle_power_zone_threshold_2 = Column('cycle_power_zone_threshold_2', Float(), default=.75)
+    cycle_power_zone_threshold_3 = Column('cycle_power_zone_threshold_3', Float(), default=.9)
+    cycle_power_zone_threshold_4 = Column('cycle_power_zone_threshold_4', Float(), default=1.05)
+    cycle_power_zone_threshold_5 = Column('cycle_power_zone_threshold_5', Float(), default=1.2)
+    cycle_power_zone_threshold_6 = Column('cycle_power_zone_threshold_6', Float(), default=1.5)
+    run_power_zone_threshold_1 = Column('run_power_zone_threshold_1', Float(), default=.8)
+    run_power_zone_threshold_2 = Column('run_power_zone_threshold_2', Float(), default=.9)
+    run_power_zone_threshold_3 = Column('run_power_zone_threshold_3', Float(), default=1)
+    run_power_zone_threshold_4 = Column('run_power_zone_threshold_4', Float(), default=1.15)
+    hr_zone_threshold_1 = Column('hr_zone_threshold_1', Float(), default=.6)
+    hr_zone_threshold_2 = Column('hr_zone_threshold_2', Float(), default=.7)
+    hr_zone_threshold_3 = Column('hr_zone_threshold_3', Float(), default=.8)
+    hr_zone_threshold_4 = Column('hr_zone_threshold_4', Float(), default=.9)
+    pmc_switch_settings = Column('pmc_switch_settings', String(9999),
+                                 default='{"ride_status": true, "run_status": true, "all_status": true, "power_status": true, "hr_status": true, "atl_status": false}')
+    recovery_metric = Column('recovery_metric', String(10), default='readiness')
     peloton_auto_bookmark_ids = Column('peloton_auto_bookmark_ids', String(9999))
     use_run_power = Column('use_run_power', Boolean, default=True)
     use_cycle_power = Column('use_cycle_power', Boolean, default=True)
+    spotify_playlists_switch = Column('spotify_playlists_switch', Boolean, default=False)
+    spotify_use_rec_intensity = Column('spotify_use_rec_intensity', Boolean(), default=True)
+    spotify_time_period = Column('spotify_time_period', String(20), default='all')
+    spotify_num_playlists = Column('spotify_num_playlists', Integer(), default=3)
 
 
 class workoutStepLog(Base):
