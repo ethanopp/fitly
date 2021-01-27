@@ -67,7 +67,7 @@ def get_layout(**kwargs):
                                          {'label': 'Mod Intensity Workout', 'value': 'mod'},
                                          {'label': 'Low Intensity Workout', 'value': 'low'}],
 
-                                     value='all',
+                                     value='workout',
                                      multi=False
                                  ),
                              ]),
