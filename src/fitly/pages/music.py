@@ -170,8 +170,17 @@ def get_layout(**kwargs):
 def get_radar_chart(workout_intensity, sport, pop_time_period):
     df_tracks = get_played_tracks(workout_intensity=workout_intensity, sport=sport, pop_time_period=pop_time_period)
 
-    radar_features = ['acousticness', 'danceability', 'energy', 'instrumentalness', 'liveness', 'loudness',
-                      'speechiness', 'tempo', 'valence']
+    radar_features = ['danceability',  # Mood
+                      'energy',  # Mood
+                      'valence',  # Mood
+                      'tempo',  # Mood
+                      'loudness',  # Properties
+                      'speechiness',  # Properties
+                      'instrumentalness',  # Properties
+                      'acousticness',  # Context
+                      'liveness',  # Context
+                      ]
+
     df_tracks_cur = df_tracks[df_tracks['Period'] == 'Current'][radar_features]
     df_tracks_prev = df_tracks[df_tracks['Period'] == 'Previous'][radar_features]
     data = []

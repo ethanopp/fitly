@@ -218,6 +218,7 @@ def generate_recommendation_playlists(workout_intensity='all', sport='all', norm
     :param time_period: time period for querying seeds
     :return: None; generates spotify playlists
     '''
+    # Inspired by http://ben-tanen.com/notebooks/kmeans-music.html
 
     # Clear all Fitly playlists
     spotify = get_spotify_client()
