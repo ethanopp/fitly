@@ -8,7 +8,7 @@ import dash_html_components as html
 from ..app import app
 from ..api.spotifyAPI import get_played_tracks
 from ..api.database import engine
-from ..api.sqlalchemy_declarative import stravaSummary
+from ..api.sqlalchemy_declarative import stravaSummary, spotifyPlayHistory
 import plotly.graph_objs as go
 from ..utils import config
 from sklearn.preprocessing import MinMaxScaler
@@ -33,134 +33,139 @@ def get_layout(**kwargs):
     if not spotify_credentials_supplied:
         return html.H1('Spotify not connected', className='text-center')
     else:
-        # Get sports that have music listened during the last PoP Ytd
-        sports = [x for x in get_played_tracks(pop_time_period='ytd')['workout_type'].unique() if x != '']
-        sport_options = [{'label': 'All Sports', 'value': 'all'}]
-        sport_options.extend([{'label': re.sub(r"(\w)([A-Z])", r"\1 \2", x), 'value': x} for x in sorted(sports)])
+        music_data_exists = app.session.query(spotifyPlayHistory).first()
+        if not music_data_exists:
+            return html.H1('No music history found', className='text-center')
+        else:
+            # Get sports that have music listened during the last PoP Ytd
+            sports = [x for x in get_played_tracks(pop_time_period='ytd')['workout_type'].unique() if x != '']
+            sport_options = [{'label': 'All Sports', 'value': 'all'}]
+            sport_options.extend([{'label': re.sub(r"(\w)([A-Z])", r"\1 \2", x), 'value': x} for x in sorted(sports)])
 
-        return html.Div([
-            html.Div(children=[
-                html.Div(id='music-filter-shelf', className='row align-items-center text-center mt-2 mb-2',
-                         children=[
-                             html.Div(className='col-lg-4', children=[
-                                 dcc.Dropdown(
-                                     id='music-time-selector',
-                                     options=[
-                                         {'label': 'All History', 'value': 'all'},
-                                         {'label': 'Year to Date', 'value': 'ytd'},
-                                         {'label': 'Last 90 days', 'value': 'l90d'},
-                                         {'label': 'Last 6 weeks', 'value': 'l6w'},
-                                         {'label': 'Last 30 days', 'value': 'l30d'}],
-                                     value='l90d',
-                                     multi=False
-                                 ),
-                             ]),
-                             html.Div(className='col-lg-4', children=[
-                                 dcc.Dropdown(
-                                     id='music-intensity-selector',
-                                     placeholder="Workout Intensity",
-                                     options=[
-                                         {'label': 'All Listening', 'value': 'all'},
-                                         {'label': 'Non-Workout Listening', 'value': 'rest'},
-                                         {'label': 'All Workout Listening', 'value': 'workout'},
-                                         {'label': 'High Intensity Workout', 'value': 'high'},
-                                         {'label': 'Mod Intensity Workout', 'value': 'mod'},
-                                         {'label': 'Low Intensity Workout', 'value': 'low'}],
-
-                                     value='workout',
-                                     multi=False
-                                 ),
-                             ]),
-                             html.Div(className='col-lg-4', children=[
-                                 dcc.Dropdown(
-                                     id='music-sport-selector',
-                                     options=sport_options,
-                                     value='all',
-                                     multi=False
-                                 ),
-                             ]),
-                         ]),
-            ]),
-
-            html.Div(className='row mb-2', children=[
-                html.Div(className='col-lg-6', children=[
-                    dbc.Card(children=[
-                        dbc.CardHeader(html.H4('Music Profile', className='mb-0')),
-                        dbc.CardBody(
-                            style={'padding': '.5rem'},
-                            children=[
-                                dbc.Spinner(color='info', children=[
-                                    dcc.Graph(
-                                        id='radar-chart',
-                                        config={'displayModeBar': False},
-                                        style={'height': '100%'},
-                                    )
-                                ])
-                            ]
-                        )
-                    ])
-
-                ]),
-                html.Div(className='col-lg-6', children=[
-                    html.H1('Placeholder')
-                ])
-            ]),
-            html.Div(className='row', children=[
-                html.Div(className='col-lg-8', children=[
-                    dbc.Card([
-                        dbc.CardBody([
-                            html.Div(className='col-lg-12', style={'overflow': 'hidden'},
-                                     children=dash_table.DataTable(
-                                         id='play-history-table',
-                                         columns=[
-                                             {'name': 'Played', 'id': 'timestamp'},
-                                             {'name': 'Track Name', 'id': 'track_name'},
-                                             {'name': 'Artist Name', 'id': 'artist_name'},
-                                             {'name': 'Album Name', 'id': 'album_name'},
-                                         ],
-                                         style_as_list_view=True,
-                                         fixed_rows={'headers': True, 'data': 0},
-                                         style_table={'height': '100%'},
-                                         style_header={'backgroundColor': 'rgba(0,0,0,0)',
-                                                       'borderBottom': '1px solid rgb(220, 220, 220)',
-                                                       'borderTop': '0px',
-                                                       # 'textAlign': 'left',
-                                                       'fontWeight': 'bold',
-                                                       'fontFamily': '"Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif',
-                                                       # 'fontSize': '1.2rem'
-                                                       },
-                                         style_cell={
-                                             'backgroundColor': 'rgba(0,0,0,0)',
-                                             'color': 'rgb(220, 220, 220)',
-                                             'borderBottom': '1px solid rgb(73, 73, 73)',
-                                             'textAlign': 'center',
-                                             # 'whiteSpace': 'no-wrap',
-                                             # 'overflow': 'hidden',
-                                             'textOverflow': 'ellipsis',
-                                             'maxWidth': 175,
-                                             'minWidth': 50,
-                                             # 'padding': '0px',
-                                             'fontFamily': '"Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif',
-                                             # 'fontSize': '1.2rem'
-                                         },
-                                         style_cell_conditional=[
-                                             {
-                                                 'if': {'column_id': 'activity_id'},
-                                                 'display': 'none'
-                                             }
-                                         ],
-                                         filter_action="native",
-                                         page_action="none",
-                                         # page_current=0,
-                                         # page_size=10,
-                                     )
-
+            return html.Div([
+                html.Div(children=[
+                    html.Div(id='music-filter-shelf', className='row align-items-center text-center mt-2 mb-2',
+                             children=[
+                                 html.Div(className='col-lg-4', children=[
+                                     dcc.Dropdown(
+                                         id='music-time-selector',
+                                         options=[
+                                             {'label': 'All History', 'value': 'all'},
+                                             {'label': 'Year to Date', 'value': 'ytd'},
+                                             {'label': 'Last 90 days', 'value': 'l90d'},
+                                             {'label': 'Last 6 weeks', 'value': 'l6w'},
+                                             {'label': 'Last 30 days', 'value': 'l30d'}],
+                                         value='l90d',
+                                         multi=False
                                      ),
-                        ]), ]),
+                                 ]),
+                                 html.Div(className='col-lg-4', children=[
+                                     dcc.Dropdown(
+                                         id='music-intensity-selector',
+                                         placeholder="Workout Intensity",
+                                         options=[
+                                             {'label': 'All Listening', 'value': 'all'},
+                                             {'label': 'Non-Workout Listening', 'value': 'rest'},
+                                             {'label': 'All Workout Listening', 'value': 'workout'},
+                                             {'label': 'High Intensity Workout', 'value': 'high'},
+                                             {'label': 'Mod Intensity Workout', 'value': 'mod'},
+                                             {'label': 'Low Intensity Workout', 'value': 'low'}],
+
+                                         value='workout',
+                                         multi=False
+                                     ),
+                                 ]),
+                                 html.Div(className='col-lg-4', children=[
+                                     dcc.Dropdown(
+                                         id='music-sport-selector',
+                                         options=sport_options,
+                                         value='all',
+                                         multi=False
+                                     ),
+                                 ]),
+                             ]),
                 ]),
 
+                html.Div(className='row mb-2', children=[
+                    html.Div(className='col-lg-6', children=[
+                        dbc.Card(children=[
+                            dbc.CardHeader(html.H4('Music Profile', className='mb-0')),
+                            dbc.CardBody(
+                                style={'padding': '.5rem'},
+                                children=[
+                                    dbc.Spinner(color='info', children=[
+                                        dcc.Graph(
+                                            id='radar-chart',
+                                            config={'displayModeBar': False},
+                                            style={'height': '100%'},
+                                        )
+                                    ])
+                                ]
+                            )
+                        ])
+
+                    ]),
+                    html.Div(className='col-lg-6', children=[
+                        html.H1('Placeholder')
+                    ])
+                ]),
+                html.Div(className='row', children=[
+                    html.Div(className='col-lg-8', children=[
+                        dbc.Card([
+                            dbc.CardBody([
+                                html.Div(className='col-lg-12', style={'overflow': 'hidden'},
+                                         children=dash_table.DataTable(
+                                             id='play-history-table',
+                                             columns=[
+                                                 {'name': 'Played', 'id': 'timestamp'},
+                                                 {'name': 'Track Name', 'id': 'track_name'},
+                                                 {'name': 'Artist Name', 'id': 'artist_name'},
+                                                 {'name': 'Album Name', 'id': 'album_name'},
+                                                 {'name': '% Listened', 'id': 'percentage_listened'}
+                                             ],
+                                             style_as_list_view=True,
+                                             fixed_rows={'headers': True, 'data': 0},
+                                             style_table={'height': '100%'},
+                                             style_header={'backgroundColor': 'rgba(0,0,0,0)',
+                                                           'borderBottom': '1px solid rgb(220, 220, 220)',
+                                                           'borderTop': '0px',
+                                                           # 'textAlign': 'left',
+                                                           'fontWeight': 'bold',
+                                                           'fontFamily': '"Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif',
+                                                           # 'fontSize': '1.2rem'
+                                                           },
+                                             style_cell={
+                                                 'backgroundColor': 'rgba(0,0,0,0)',
+                                                 'color': 'rgb(220, 220, 220)',
+                                                 'borderBottom': '1px solid rgb(73, 73, 73)',
+                                                 'textAlign': 'center',
+                                                 # 'whiteSpace': 'no-wrap',
+                                                 # 'overflow': 'hidden',
+                                                 'textOverflow': 'ellipsis',
+                                                 'maxWidth': 175,
+                                                 'minWidth': 50,
+                                                 # 'padding': '0px',
+                                                 'fontFamily': '"Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif',
+                                                 # 'fontSize': '1.2rem'
+                                             },
+                                             style_cell_conditional=[
+                                                 {
+                                                     'if': {'column_id': 'activity_id'},
+                                                     'display': 'none'
+                                                 }
+                                             ],
+                                             filter_action="native",
+                                             page_action="none",
+                                             # page_current=0,
+                                             # page_size=10,
+                                         )
+
+                                         ),
+                            ]), ]),
+                    ]),
+
+                ])
             ])
-        ])
 
 
 # TODO: Add graph for top artists/tracks
@@ -169,6 +174,9 @@ def get_layout(**kwargs):
 
 def get_radar_chart(workout_intensity, sport, pop_time_period):
     df_tracks = get_played_tracks(workout_intensity=workout_intensity, sport=sport, pop_time_period=pop_time_period)
+
+    # Remove skipped tracks #TODO: Show 2 radars for liked v skipped?
+    # df_tracks = df_tracks[df_tracks['skipped'] == 0]
 
     radar_features = ['danceability',  # Mood
                       'energy',  # Mood
@@ -291,6 +299,8 @@ def populate_history_table(*args):
 
     tracks_df['timestamp'] = tracks_df.index.tz_localize('UTC').tz_convert(get_localzone()).strftime(
         '%Y-%m-%d %I:%M %p')
+    tracks_df['percentage_listened'] = tracks_df['percentage_listened'].apply(lambda x: '{:.0f}%'.format(x * 100))
 
-    return tracks_df[['timestamp', 'track_name', 'artist_name', 'album_name']].sort_index(ascending=False).to_dict(
+    return tracks_df[['timestamp', 'track_name', 'artist_name', 'album_name', 'percentage_listened']].sort_index(
+        ascending=False).to_dict(
         'records')
