@@ -334,6 +334,11 @@ def stream():
                 playback_feed = []
             elif current_state.item.type == 'track':
                 playback_feed.append(current_state)
+
+                # If the song has not been changed for longer than 5x the length of current song, listening
+                # session is probably over. Clear out current/last state
+                if len(playback_feed) > 5 * (float(current_state.item.duration_ms / 1000)):
+                    current_state, last_state = None, None
     except BaseException as e:
         app.server.logger.error(f'Error with spotify stream: {e}')
 
