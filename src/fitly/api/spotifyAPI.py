@@ -22,6 +22,7 @@ redirect_uri = config.get('spotify', 'redirect_uri')
 min_secs_listened = int(config.get('spotify', 'min_secs_listened'))
 skip_min_threshold = float(config.get('spotify', 'skip_min_threshold'))
 skip_max_threshold = float(config.get('spotify', 'skip_max_threshold'))
+poll_interval_seconds = int(config.get('spotify', 'poll_interval_seconds'))
 
 # Main queue that stream will add playback feeds to
 q = queue.Queue(maxsize=0)
@@ -373,6 +374,9 @@ def parse_stream(playback_feed):
         else:
             secs_paused += 1
 
+    secs_playing *= poll_interval_seconds
+    secs_paused *= poll_interval_seconds
+
     # Check if song was listened to for longer than config threshold
     if int(secs_playing) >= int(min_secs_listened):
         track_name = playback_feed[0].item.name
@@ -383,7 +387,10 @@ def parse_stream(playback_feed):
         track_last_state = playback_feed[-1]
         progress = float(track_last_state.progress_ms / 1000)
         duration_sec = float(track_last_state.item.duration_ms / 1000)
-        percentage_listened = round(progress / duration_sec, 2)
+
+        percentage_listened = secs_playing / duration_sec  # This uses true amount of time song was playing for
+        # percentage_listened = round(progress / duration_sec, 2) # this uses wheneve the song ended
+
         skipped = (skip_min_threshold <= percentage_listened <= skip_max_threshold)
 
         # Was song rewound?

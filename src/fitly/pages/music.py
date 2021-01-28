@@ -117,11 +117,12 @@ def get_layout(**kwargs):
                                          children=dash_table.DataTable(
                                              id='play-history-table',
                                              columns=[
-                                                 {'name': 'Played', 'id': 'timestamp'},
+                                                 # {'name': 'Played', 'id': 'timestamp'},
                                                  {'name': 'Track Name', 'id': 'track_name'},
                                                  {'name': 'Artist Name', 'id': 'artist_name'},
                                                  {'name': 'Album Name', 'id': 'album_name'},
-                                                 {'name': '% Listened', 'id': 'percentage_listened'}
+                                                 {'name': '% Listened', 'id': 'percentage_listened'},
+                                                 {'name': 'Skipped', 'id': 'skipped'}
                                              ],
                                              style_as_list_view=True,
                                              fixed_rows={'headers': True, 'data': 0},
@@ -176,7 +177,6 @@ def get_radar_chart(workout_intensity, sport, pop_time_period):
     df_tracks = get_played_tracks(workout_intensity=workout_intensity, sport=sport, pop_time_period=pop_time_period)
 
     # Remove skipped tracks #TODO: Show 2 radars for liked v skipped?
-    # df_tracks = df_tracks[df_tracks['skipped'] == 0]
 
     radar_features = ['danceability',  # Mood
                       'energy',  # Mood
@@ -189,12 +189,33 @@ def get_radar_chart(workout_intensity, sport, pop_time_period):
                       'liveness',  # Context
                       ]
 
-    df_tracks_cur = df_tracks[df_tracks['Period'] == 'Current'][radar_features]
-    df_tracks_prev = df_tracks[df_tracks['Period'] == 'Previous'][radar_features]
+    df_tracks_liked = df_tracks[df_tracks['skipped'] == 0]
+    df_tracks_disliked = df_tracks[df_tracks['skipped'] == 1]
+    df_tracks_cur = df_tracks_liked[df_tracks_liked['Period'] == 'Current'][radar_features]
+    df_tracks_prev = df_tracks_liked[df_tracks_liked['Period'] == 'Previous'][radar_features]
+    df_tracks_cur_disliked = df_tracks_disliked[df_tracks_disliked['Period'] == 'Current'][radar_features]
+    df_tracks_prev_disliked = df_tracks_disliked[df_tracks_disliked['Period'] == 'Previous'][radar_features]
     data = []
 
     if len(df_tracks_prev) > 0:
         df_tracks_prev.loc[:] = MinMaxScaler().fit_transform(df_tracks_prev.loc[:])
+        data.append(
+            go.Scatterpolar(
+                r=df_tracks_prev_disliked.mean() * 100,
+                theta=[x.title() for x in df_tracks_prev_disliked.columns],
+                text=['{}: <b>{:.2f}%'.format(y, x) for x, y in
+                      zip(df_tracks_prev_disliked.mean() * 100, [x.title() for x in df_tracks_prev_disliked.columns])],
+
+                hoverinfo='text',
+                fill='toself',
+                name='Skip All Time' if pop_time_period == 'all' else 'Skip Prev. YTD' if pop_time_period == 'ytd' else pop_time_period.upper().replace(
+                    'L', 'Skip Prev. '),
+                line=dict(color='rgba(0,0,0,0)'),
+                marker=dict(color='rgba(0,0,0,0)'),
+                fillcolor='rgba(217,100,43,.6)',
+                visible='legendonly'
+            )
+        )
         data.append(
             go.Scatterpolar(
                 r=df_tracks_prev.mean() * 100,
@@ -204,16 +225,33 @@ def get_radar_chart(workout_intensity, sport, pop_time_period):
 
                 hoverinfo='text',
                 fill='toself',
-                name='Prev. ' + pop_time_period.upper(),
+                name='All Time' if pop_time_period == 'all' else pop_time_period.upper().replace('L', 'Prev. '),
                 line=dict(color='rgba(0,0,0,0)'),
                 marker=dict(color='rgba(0,0,0,0)'),
                 fillcolor='rgba(220,220,220,.6)'
-
             )
         )
     if len(df_tracks_cur) > 0:
         # Scale all audio features from 0-1 so they can be compared on radar chart
         df_tracks_cur.loc[:] = MinMaxScaler().fit_transform(df_tracks_cur.loc[:])
+
+        data.append(
+            go.Scatterpolar(
+                r=df_tracks_cur_disliked.mean() * 100,
+                theta=[x.title() for x in df_tracks_cur_disliked.columns],
+                text=['{}: <b>{:.2f}%'.format(y, x) for x, y in
+                      zip(df_tracks_cur_disliked.mean() * 100, [x.title() for x in df_tracks_cur_disliked.columns])],
+                hoverinfo='text',
+                fill='toself',
+                name='Skip All Time' if pop_time_period == 'all' else 'Skip YTD' if pop_time_period == 'ytd' else pop_time_period.upper().replace(
+                    'L', 'Skip Last '),
+                # color=teal,
+                line=dict(color='rgba(0,0,0,0)'),
+                marker=dict(color='rgba(0,0,0,0)'),
+                fillcolor='rgba(217,100,43,.6)',
+                visible='legendonly'
+            )
+        )
         data.append(
             go.Scatterpolar(
                 r=df_tracks_cur.mean() * 100,
@@ -297,10 +335,20 @@ def populate_history_table(*args):
                                   sport=ctx.states['music-sport-selector.value'],
                                   pop_time_period=ctx.states['music-time-selector.value'])
 
-    tracks_df['timestamp'] = tracks_df.index.tz_localize('UTC').tz_convert(get_localzone()).strftime(
-        '%Y-%m-%d %I:%M %p')
+    # tracks_df['timestamp'] = tracks_df.index.tz_localize('UTC').tz_convert(get_localzone()).strftime(
+    #     '%Y-%m-%d %I:%M %p')
+    tracks_df['timestamp'] = tracks_df.index.strftime('%Y-%m-%d %I:%M %p')
+    tracks_df['skipped'] = tracks_df['skipped'].astype('str').apply(
+        lambda x: 'True' if x.lower() == 'true' else 'False')
     tracks_df['percentage_listened'] = tracks_df['percentage_listened'].apply(lambda x: '{:.0f}%'.format(x * 100))
 
-    return tracks_df[['timestamp', 'track_name', 'artist_name', 'album_name', 'percentage_listened']].sort_index(
+    return tracks_df[[
+        # 'timestamp',
+        'track_name',
+        'artist_name',
+        'album_name',
+        'percentage_listened',
+        'skipped'
+    ]].sort_index(
         ascending=False).to_dict(
         'records')
