@@ -455,9 +455,10 @@ class ouraSleepSamples(Base):
 
 class spotifyPlayHistory(Base):
     __tablename__ = 'spotify_play_history'
-    played_at = Column('played_at', DateTime(), index=True, primary_key=True)
+    timestamp = Column('timestamp', DateTime(), index=True, primary_key=True)
     track_id = Column('track_id', String(255))
     track_name = Column('track_name', String(255))
+    track_url = Column('track_url', String(255))
     explicit = Column('explicit', Boolean())
     artist_id = Column('artist_id', String(255))
     artist_name = Column('artist_name', String(255))
@@ -477,6 +478,12 @@ class spotifyPlayHistory(Base):
     tempo = Column('tempo', Float())
     time_signature = Column('time_signature', Integer())
     valence = Column('valence', Float())
+    percentage_listened = Column('percentage_listened', Float())
+    skipped = Column('skipped', Boolean())
+    rewound = Column('rewound', Boolean())
+    fast_forwarded = Column('fast_forwarded', Boolean())
+    secs_playing = Column('secs_playing', Integer())
+    secs_paused = Column('secs_paused', Integer())
 
 
 class apiTokens(Base):

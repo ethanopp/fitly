@@ -113,7 +113,7 @@ def get_layout(**kwargs):
                                      children=dash_table.DataTable(
                                          id='play-history-table',
                                          columns=[
-                                             {'name': 'Played', 'id': 'played_at'},
+                                             {'name': 'Played', 'id': 'timestamp'},
                                              {'name': 'Track Name', 'id': 'track_name'},
                                              {'name': 'Artist Name', 'id': 'artist_name'},
                                              {'name': 'Album Name', 'id': 'album_name'},
@@ -289,8 +289,8 @@ def populate_history_table(*args):
                                   sport=ctx.states['music-sport-selector.value'],
                                   pop_time_period=ctx.states['music-time-selector.value'])
 
-    tracks_df['played_at'] = tracks_df.index.tz_localize('UTC').tz_convert(get_localzone()).strftime(
+    tracks_df['timestamp'] = tracks_df.index.tz_localize('UTC').tz_convert(get_localzone()).strftime(
         '%Y-%m-%d %I:%M %p')
 
-    return tracks_df[['played_at', 'track_name', 'artist_name', 'album_name']].sort_index(ascending=False).to_dict(
+    return tracks_df[['timestamp', 'track_name', 'artist_name', 'album_name']].sort_index(ascending=False).to_dict(
         'records')

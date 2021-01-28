@@ -11,6 +11,11 @@ password =
 client_id =
 client_secret =
 redirect_uri =
+# Range of % complete song needs to be in when changed to be considered a 'Skip'
+skip_min_threshold = .05
+skip_max_threshold = .90
+# Min seconds song has to be on player for it to be inserted into db
+min_secs_listened = 30
 
 [peloton]
 username =
