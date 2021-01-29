@@ -18,9 +18,6 @@ from logging.handlers import RotatingFileHandler
 from .utils import config
 from .api.sqlalchemy_declarative import dbRefreshStatus
 
-# Spotify strean
-from .api.spotifyAPI import stream, get_spotify_client
-
 # Can also use %(pathname)s for full pathname for file instead of %(module)s
 handler = RotatingFileHandler('./config/log.log', maxBytes=10000000, backupCount=5)
 formatter = logging.Formatter("[%(asctime)s] %(levelname)s from %(module)s line %(lineno)d - %(message)s")
@@ -45,7 +42,7 @@ with server.app_context():
 
             # Add spotify job on 20 min schedule since API only allows grabbing the last 50 songs
             if spotify_credentials_supplied:
-                from .api.spotifyAPI import save_spotify_play_history
+                from .api.spotifyAPI import stream, get_spotify_client
 
                 app.server.logger.debug("Listening to Spotify stream...")
                 # Use this job to pull 'last 50' songs from spotify every 20 mins
