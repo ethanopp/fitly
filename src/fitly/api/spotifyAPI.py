@@ -235,7 +235,7 @@ def generate_recommendation_playlists(workout_intensity='all', sport='all', norm
                                       num_playlists=3, time_period='l90d'):
     '''
     KMeans to cluster types of music detected in history
-    Filter music in each cluster that was 'liked' (listeted for >= 50%)
+    Filter music in each cluster that was 'liked' (not skipped per thresholds in config.ini)
     Uses resulting tracks as seeds for spotifys recommend api
 
     :param workout_intensity: specify intensity for querying seeds
@@ -262,7 +262,7 @@ def generate_recommendation_playlists(workout_intensity='all', sport='all', norm
     df = get_played_tracks(workout_intensity=workout_intensity, sport=sport, pop_time_period=time_period).reset_index()
 
     # Filter on correct dates and only 'liked' songs
-    df = df[(df['Period'] == 'Current') & (df['percentage_listened'] >= .50)]
+    df = df[(df['Period'] == 'Current') & (df['skipped'] == 0)]
 
     if len(df) >= num_clusters:
 
@@ -451,17 +451,16 @@ def predict_songs(df_tracks, workout_intensity, sport, time_period):
                                  pop_time_period=time_period).reset_index()
     df_train = df_train[df_train['Period'] == 'Current']
 
-    # Preprocess data to get a "target" column. If song is more than 50% listened to, 'liked'
+    # Preprocess data to get a "target" column. If song is not skipped (within thresholds), 'liked'
     # df_train['explicit'] = df_train['explicit'].apply(lambda x: 1 if x == True else 0)
     df_train['target'] = 0
-    df_train.at[df_train['percentage_listened'] >= .50, 'target'] = 1
+    df_train.at[df_train['skipped'] == 0, 'target'] = 1
 
     # Seperate features into features and labels dataset
     X = df_train[['energy', 'liveness', 'tempo', 'speechiness', 'acousticness', 'instrumentalness', 'time_signature',
                   'danceability', 'key', 'duration_ms', 'loudness', 'valence', 'mode',
                   # 'explicit'
-                  ]
-    ]
+                  ]]
     y = df_train[['target']]
 
     # Split data into training and test dataset
