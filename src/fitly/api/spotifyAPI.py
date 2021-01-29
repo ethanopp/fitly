@@ -11,6 +11,18 @@ import ast
 import time
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
+from sklearn.linear_model import SGDClassifier
+from sklearn.model_selection import GridSearchCV
+from sklearn import metrics
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import (accuracy_score, precision_score, recall_score,
+                             f1_score, classification_report, confusion_matrix,
+                             roc_auc_score, roc_curve, matthews_corrcoef)
+from sklearn.utils import resample
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.neural_network import MLPClassifier
 import numpy as np
 import random
 import threading
@@ -98,55 +110,56 @@ def get_spotify_client():
     return client
 
 
-def save_spotify_play_history():
-    '''
-    Function that we be polled every refresh to populate spotify_play_history table
-    :return:
-    '''
-    if spotify_connected():
-        app.server.logger.info('Pulling spotify play history...')
-        spotify = get_spotify_client()
-        # Get latest tracks
-        tracks = spotify.playback_recently_played(limit=50).items
-        # Get features of all the tracks to join in with track information
-        track_features = pd.DataFrame(json.loads(spotify.tracks_audio_features([x.track.id for x in tracks]).json()))
-        # Get track information
-        track_information = []
-        for x in tracks:
-            x = json.loads(x.track.json())
-            if x['type'] == 'track':  # Only add tracks (no podcasts, etc.)
-                track_information.append({
-                    "timestamp": pd.to_datetime(x.timestamp),
-                    "track_id": x["id"],
-                    "track_name": x["name"],
-                    "explicit": x["explicit"],
-                    "artist_id": ', '.join([y["id"] for y in x["artists"]]),
-                    "artist_name": ', '.join([y["name"] for y in x["artists"]]),
-                    # URLs do not need to be stored, can be generated with
-                    # # https://open.spotify.com/track/<track_id>
-                    # https://open.spotify.com/artist/<artist_id>
-                    # https://open.spotify.com/album/<album_id>
-                    "album_id": x["album"]["id"],
-                    "album_name": x["album"]["name"]
-                })
-
-        # Convert trackinfo into df
-        track_info_df = pd.DataFrame(track_information)
-        # Merge trackinfo with track features
-        track_table = pd.merge(track_info_df, track_features, how='left', left_on='track_id', right_on='id').set_index(
-            'timestamp')
-        track_table.drop_duplicates(inplace=True)
-        track_table = track_table.drop(columns=['id', 'type', 'uri', 'track_href'])
-
-        # Filter to only new records and insert into DB
-        latest = app.session.query(func.max(spotifyPlayHistory.timestamp)).first()[0]
-        app.session.remove()
-        if latest:
-            track_table = track_table[track_table.index > latest]
-
-        if len(track_table) > 0:
-            app.server.logger.debug(f'{len(track_table)} new songs found!')
-            track_table.to_sql('spotify_play_history', engine, if_exists='append', index=True)
+# def save_spotify_play_history():
+### Replaced with live stream() function
+#     '''
+#     Function that we be polled every refresh to populate spotify_play_history table
+#     :return:
+#     '''
+#     if spotify_connected():
+#         app.server.logger.info('Pulling spotify play history...')
+#         spotify = get_spotify_client()
+#         # Get latest tracks
+#         tracks = spotify.playback_recently_played(limit=50).items
+#         # Get features of all the tracks to join in with track information
+#         track_features = pd.DataFrame(json.loads(spotify.tracks_audio_features([x.track.id for x in tracks]).json()))
+#         # Get track information
+#         track_information = []
+#         for x in tracks:
+#             x = json.loads(x.track.json())
+#             if x['type'] == 'track':  # Only add tracks (no podcasts, etc.)
+#                 track_information.append({
+#                     "timestamp": pd.to_datetime(x.timestamp),
+#                     "track_id": x["id"],
+#                     "track_name": x["name"],
+#                     "explicit": x["explicit"],
+#                     "artist_id": ', '.join([y["id"] for y in x["artists"]]),
+#                     "artist_name": ', '.join([y["name"] for y in x["artists"]]),
+#                     # URLs do not need to be stored, can be generated with
+#                     # # https://open.spotify.com/track/<track_id>
+#                     # https://open.spotify.com/artist/<artist_id>
+#                     # https://open.spotify.com/album/<album_id>
+#                     "album_id": x["album"]["id"],
+#                     "album_name": x["album"]["name"]
+#                 })
+#
+#         # Convert trackinfo into df
+#         track_info_df = pd.DataFrame(track_information)
+#         # Merge trackinfo with track features
+#         track_table = pd.merge(track_info_df, track_features, how='left', left_on='track_id', right_on='id').set_index(
+#             'timestamp')
+#         track_table.drop_duplicates(inplace=True)
+#         track_table = track_table.drop(columns=['id', 'type', 'uri', 'track_href'])
+#
+#         # Filter to only new records and insert into DB
+#         latest = app.session.query(func.max(spotifyPlayHistory.timestamp)).first()[0]
+#         app.session.remove()
+#         if latest:
+#             track_table = track_table[track_table.index > latest]
+#
+#         if len(track_table) > 0:
+#             app.server.logger.debug(f'{len(track_table)} new songs found!')
+#             track_table.to_sql('spotify_play_history', engine, if_exists='append', index=True)
 
 
 def get_played_tracks(workout_intensity='all', sport='all', pop_time_period='all'):
@@ -217,9 +230,13 @@ def get_played_tracks(workout_intensity='all', sport='all', pop_time_period='all
     return df
 
 
+### Predictive Modeling ###
 def generate_recommendation_playlists(workout_intensity='all', sport='all', normalize=True, num_clusters=25,
                                       num_playlists=3, time_period='l90d'):
     '''
+    KMeans to cluster types of music detected in history
+    Filter music in each cluster that was 'liked' (listeted for >= 50%)
+    Uses resulting tracks as seeds for spotifys recommend api
 
     :param workout_intensity: specify intensity for querying seeds
     :param sport: specify workout type for querying seeds
@@ -243,7 +260,10 @@ def generate_recommendation_playlists(workout_intensity='all', sport='all', norm
 
     # Query tracks to use as seeds for generating recommendations
     df = get_played_tracks(workout_intensity=workout_intensity, sport=sport, pop_time_period=time_period).reset_index()
-    df = df[df['Period'] == 'Current']
+
+    # Filter on correct dates and only 'liked' songs
+    df = df[(df['Period'] == 'Current') & (df['percentage_listened'] >= .50)]
+
     if len(df) >= num_clusters:
 
         _audiofeat_df = df[
@@ -273,24 +293,47 @@ def generate_recommendation_playlists(workout_intensity='all', sport='all', norm
         # Create the playlists!
         for i in range(1, len(rand_clusters) + 1):
             # Grab playlist id if it already exists otherwise create the playlist
-            sport = sport + ' ' if sport else ''
             playlist_id = playlists.get(f'Fitly Playlist {i}')
             if not playlist_id:
                 playlist_id = spotify.playlist_create(user_id=user_id, name=f'Fitly Playlist {i}', public=False).id
 
-            # Get 5 random tracks from the cluster to use as seeds for recommendation
+            # Keep looping through cluster passing different tracks into spotify recommendation api
+            # Once enough tracks recived from spotify pass our prediction model, move to next cluster
+            # We want at least 50 tracks in each playlist
+            # If we hit recommendation api 10 times and still don't have enough good results, move on as to not overload spotify api
+            attempts = 0
+            predict_df = pd.DataFrame()
             track_uris = df[df['cluster'] == i]['track_id'].unique().tolist()
             # artist_uris = df[df['cluster'] == i]['artist_id'].unique().tolist()
+            while len(predict_df) < 50 and attempts < 10:
+                # Get 5 random tracks from the cluster to use as seeds for recommendation (spotify api can only take up to 5 seeds)
 
-            seed_tracks = random.sample(track_uris, 5 if len(track_uris) > 5 else len(track_uris))
-            # seed_artists = random.sample(artist_uris, 5 if len(artist_uris) > 5 else len(artist_uris))
+                seed_tracks = random.sample(track_uris, 5 if len(track_uris) > 5 else len(track_uris))
+                # seed_artists = random.sample(artist_uris, 5 if len(artist_uris) > 5 else len(artist_uris))
 
-            # Get recommendations from spotify
-            recommendations = spotify.recommendations(track_ids=seed_tracks, limit=50).tracks
-            # recommendations = spotify.recommendations(artist_ids=artist_uris, limit=50).tracks
+                # Get recommendations from spotify
+                recommendations = spotify.recommendations(track_ids=seed_tracks, limit=50).tracks
+                # recommendations = spotify.recommendations(artist_ids=artist_uris, limit=50).tracks
 
+                # Predict if you will like the songs spotify recommends, and if true add them to playlist
+                try:
+                    rec_track_features = pd.DataFrame(
+                        json.loads(spotify.tracks_audio_features([x.id for x in recommendations]).json()))
+
+                    predicting_df = predict_songs(
+                        rec_track_features, workout_intensity=workout_intensity, sport=sport, time_period=time_period
+                    )
+                    predicting_df = predicting_df[predicting_df['predictions'] == 1]
+                    predict_df = pd.concat([predict_df, predicting_df]).drop_duplicates()
+                except:
+                    pass
+
+                time.sleep(1)  # Avoid spotify api limit
+                attempts += 1
+
+            predict_df['track_uri'] = 'spotify:track:' + predict_df['id']
             # Add recommended tracks to the playlist
-            spotify.playlist_add(playlist_id=playlist_id, uris=[x.uri for x in recommendations])
+            spotify.playlist_add(playlist_id=playlist_id, uris=predict_df['track_uri'].tolist())
             app.server.logger.debug(f'Fitly Playlist {i} refreshed')
 
     else:
@@ -298,6 +341,168 @@ def generate_recommendation_playlists(workout_intensity='all', sport='all', norm
             f'Not enough tracks found for "{workout_intensity}" intensity and "{sport}" workout types to generate playlist recommendations. Skipping playlist generation.')
 
 
+#### Models to predict if you will actually like the recommend songs ####
+
+class PModel(object):
+    def __init__(self, X_train, X_test, y_train, y_test):
+        self.X_train = X_train
+        self.X_test = X_test
+        self.y_train = y_train
+        self.y_test = y_test
+
+    def get_best_model(self):
+        # Run all models and return best
+        self.model_scores = {}
+        self.best_model = None
+        self.best_model_name = None
+        try:
+            self.knn()
+            self.model_scores['knn'] = self.knn_roc
+        except BaseException as e:
+            app.server.logger.error('Error running kNN model: {}'.format(e))
+        try:
+            self.logreg()
+            self.model_scores['logreg'] = self.logreg_roc
+        except BaseException as e:
+            app.server.logger.error('Error running logreg model: {}'.format(e))
+        try:
+            self.rf()
+            self.model_scores['rf'] = self.rf_roc
+        except BaseException as e:
+            app.server.logger.error('Error running rf model: {}'.format(e))
+        try:
+            self.mlp()
+            self.model_scores['mlp'] = self.mlp_roc
+        except BaseException as e:
+            app.server.logger.error('Error running mlp model: {}'.format(e))
+
+        if len(self.model_scores) > 0:
+            self.best_model_name = [k for k, v in self.model_scores.items() if v == max(self.model_scores.values())][0]
+
+            if self.best_model_name == 'kkn':
+                self.best_model = self.knn
+                self.best_model_score = self.knn_roc
+
+            elif self.best_model_name == 'logreg':
+                self.best_model = self.logreg
+                self.best_model_score = self.logreg_roc
+
+            elif self.best_model_name == 'rf':
+                self.best_model = self.rf
+                self.best_model_score = self.rf_roc
+
+            elif self.best_model_name == 'mlp':
+                self.best_model = self.mlp
+                self.best_model_score = self.mlp_roc
+
+    def knn(self):
+        self.knn = KNeighborsClassifier()
+        self.knn.fit(self.X_train, self.y_train)
+        y_pred_knn = self.knn.predict(self.X_test)
+        y_pred_prob_knn = self.knn.predict_proba(self.X_test)[:, 1]
+        self.knn_roc = roc_auc_score(self.y_test, y_pred_prob_knn)
+
+    def logreg(self):
+        """
+        Implements Logistic Regression algorithm
+        """
+        self.logreg = LogisticRegression()
+        self.logreg.fit(self.X_train, self.y_train)
+        y_pred_logreg = self.logreg.predict(self.X_test)
+        y_pred_prob_logreg = self.logreg.predict_proba(self.X_test)[:, 1]
+        self.logreg_roc = roc_auc_score(self.y_test, y_pred_prob_logreg)
+
+    def rf(self):
+        """
+        Implements Random Forest algorithm
+        """
+        self.rf = RandomForestClassifier()
+        self.rf.fit(self.X_train, self.y_train)
+        y_pred_rf = self.rf.predict(self.X_test)
+        y_pred_prob_rf = self.rf.predict_proba(self.X_test)[:, 1]
+        self.rf_roc = roc_auc_score(self.y_test, y_pred_prob_rf)
+
+    def mlp(self):
+        """
+        Implements Multilayer Perceptron (Neural Net) algorithm
+        """
+        self.mlp = MLPClassifier()
+        self.mlp.fit(self.X_train, self.y_train)
+        y_pred_mlp = self.mlp.predict(self.X_test)
+        y_pred_prob_mlp = self.mlp.predict_proba(self.X_test)[:, 1]
+        self.mlp_roc = roc_auc_score(self.y_test, y_pred_prob_mlp)
+
+
+def predict_songs(df_tracks, workout_intensity, sport, time_period):
+    '''
+    Queiries spotify_play_history to train models on what songs you 'like'
+    then predicts if user will like songs passed as an argument through 'df_tracks'
+
+    :param df: dataframe of tracks to do predictions on
+    :param workout_intensity: filter for 'train' dataset query
+    :param sport: filter for 'train' dataset query
+    :param time_period: filter for 'train' dataset query
+    :return: df_tracks with 'predictions'
+    '''
+    run_time = datetime.utcnow()
+
+    # Query 'train' dataset
+    df_train = get_played_tracks(workout_intensity=workout_intensity, sport=sport,
+                                 pop_time_period=time_period).reset_index()
+    df_train = df_train[df_train['Period'] == 'Current']
+
+    # Preprocess data to get a "target" column. If song is more than 50% listened to, 'liked'
+    # df_train['explicit'] = df_train['explicit'].apply(lambda x: 1 if x == True else 0)
+    df_train['target'] = 0
+    df_train.at[df_train['percentage_listened'] >= .50, 'target'] = 1
+
+    # Seperate features into features and labels dataset
+    X = df_train[['energy', 'liveness', 'tempo', 'speechiness', 'acousticness', 'instrumentalness', 'time_signature',
+                  'danceability', 'key', 'duration_ms', 'loudness', 'valence', 'mode',
+                  # 'explicit'
+                  ]
+    ]
+    y = df_train[['target']]
+
+    # Split data into training and test dataset
+    X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=42)
+
+    # Reshape dimensions of labels (y)
+    y_train = np.ravel(y_train)
+    y_test = np.ravel(y_test)
+
+    # print(len(like_final))
+    # print(len(dislike_final))
+    # print(X_train.shape)
+    # print(X_test.shape)
+
+    # Create a model object
+    model = PModel(X_train, X_test, y_train, y_test)
+    # Run all models and set best one
+    model.get_best_model()
+
+    if model.best_model is not None:
+        app.server.logger.info('Predicting songs with the {} model with {} accuracy'.format(model.best_model_name,
+                                                                                            model.best_model_score))
+        # Make predictions on df of songs
+        df_tracks['predictions'] = df_tracks[[
+            'energy', 'liveness', 'tempo', 'speechiness', 'acousticness', 'instrumentalness', 'time_signature',
+            'danceability', 'key', 'duration_ms', 'loudness', 'valence', 'mode',
+            # 'explicit'
+        ]].apply(
+            lambda x: model.best_model.predict([x])[0], axis=1)
+
+        df_tracks['model_name'] = model.best_model_name
+        df_tracks['model_score'] = model.best_model_score
+        df_tracks['mode_run_date'] = run_time
+
+        return df_tracks
+
+    else:
+        app.server.logger.info('Could not run prediction with any models')
+
+
+### Spotify Stream ###
 def stream():
     '''
     Captures live activity of spotify web player and adds list of states (playback feed) to queue after each song finishes
@@ -359,7 +564,7 @@ class Parser(threading.Thread):
             self.q.task_done()
 
 
-# Thread for parsing  into db while stream is running
+# Thread for parsing into db while stream is running
 parser = Parser(queue=q)
 parser.daemon = True
 parser.start()
