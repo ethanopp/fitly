@@ -231,7 +231,8 @@ def get_played_tracks(workout_intensity='all', sport='all', pop_time_period='all
 
 
 ### Predictive Modeling ###
-def generate_recommendation_playlists(workout_intensity='all', sport='all', normalize=True, num_clusters=25,
+def generate_recommendation_playlists(workout_intensity='all', sport='all', normalize=True,
+                                      num_clusters=8,  # TODO: Create dynamic approach to calculation best num_clusters
                                       num_playlists=3, time_period='l90d'):
     '''
     KMeans to cluster types of music detected in history
@@ -261,15 +262,14 @@ def generate_recommendation_playlists(workout_intensity='all', sport='all', norm
     # Query tracks to use as seeds for generating recommendations
     df = get_played_tracks(workout_intensity=workout_intensity, sport=sport, pop_time_period=time_period).reset_index()
 
-    # Filter on correct dates and only 'liked' songs
-    df = df[(df['Period'] == 'Current') & (df['skipped'] == 0)]
+    # Filter on correct dates
+    df = df[df['Period'] == 'Current']
 
     if len(df) >= num_clusters:
 
-        _audiofeat_df = df[
-            ['track_id', 'time_signature', 'duration_ms', 'acousticness', 'danceability',
-             'energy', 'instrumentalness', 'key', 'liveness', 'loudness', 'mode', 'speechiness',
-             'tempo', 'valence']]
+        _audiofeat_df = df[['track_id', 'time_signature', 'duration_ms', 'acousticness', 'danceability',
+                            'energy', 'instrumentalness', 'key', 'liveness', 'loudness', 'mode', 'speechiness',
+                            'tempo', 'valence']]
 
         # scale audio features (if desired)
         if normalize:
@@ -303,7 +303,8 @@ def generate_recommendation_playlists(workout_intensity='all', sport='all', norm
             # If we hit recommendation api 10 times and still don't have enough good results, move on as to not overload spotify api
             attempts = 0
             predict_df = pd.DataFrame()
-            track_uris = df[df['cluster'] == i]['track_id'].unique().tolist()
+            # Only choose tracks that were 'liked' in the cluster for seeds
+            track_uris = df[(df['cluster'] == i) & (df['skipped'] == 0)]['track_id'].unique().tolist()
             # artist_uris = df[df['cluster'] == i]['artist_id'].unique().tolist()
             while len(predict_df) < 50 and attempts < 10:
                 # Get 5 random tracks from the cluster to use as seeds for recommendation (spotify api can only take up to 5 seeds)
@@ -319,12 +320,12 @@ def generate_recommendation_playlists(workout_intensity='all', sport='all', norm
                 try:
                     rec_track_features = pd.DataFrame(
                         json.loads(spotify.tracks_audio_features([x.id for x in recommendations]).json()))
-
-                    predicting_df = predict_songs(
-                        rec_track_features, workout_intensity=workout_intensity, sport=sport, time_period=time_period
-                    )
-                    predicting_df = predicting_df[predicting_df['predictions'] == 1]
-                    predict_df = pd.concat([predict_df, predicting_df]).drop_duplicates()
+                    # Use all tracks in the same cluster (likes/dislikes) as train data set
+                    _predict_df = predict_songs(df_tracks=rec_track_features, df_train=df[df['cluster'] == i])
+                    # Only take predictions that were true
+                    _predict_df = _predict_df[_predict_df['predictions'] == 1]
+                    # add to predict dataframe and repeat loop until > 50 tracks to insert into the playlist
+                    predict_df = pd.concat([predict_df, _predict_df]).drop_duplicates()
                 except:
                     pass
 
@@ -433,23 +434,16 @@ class PModel(object):
         self.mlp_roc = roc_auc_score(self.y_test, y_pred_prob_mlp)
 
 
-def predict_songs(df_tracks, workout_intensity, sport, time_period):
+def predict_songs(df_tracks, df_train):
     '''
     Queiries spotify_play_history to train models on what songs you 'like'
     then predicts if user will like songs passed as an argument through 'df_tracks'
 
-    :param df: dataframe of tracks to do predictions on
-    :param workout_intensity: filter for 'train' dataset query
-    :param sport: filter for 'train' dataset query
-    :param time_period: filter for 'train' dataset query
+    :param df_tracks: dataframe of tracks to do predictions on
+    :param df_train: dataframe of tracks to train model on
     :return: df_tracks with 'predictions'
     '''
     run_time = datetime.utcnow()
-
-    # Query 'train' dataset
-    df_train = get_played_tracks(workout_intensity=workout_intensity, sport=sport,
-                                 pop_time_period=time_period).reset_index()
-    df_train = df_train[df_train['Period'] == 'Current']
 
     # Preprocess data to get a "target" column. If song is not skipped (within thresholds), 'liked'
     # df_train['explicit'] = df_train['explicit'].apply(lambda x: 1 if x == True else 0)
