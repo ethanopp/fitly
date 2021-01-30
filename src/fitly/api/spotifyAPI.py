@@ -9,6 +9,7 @@ from sqlalchemy import delete, func, extract
 from datetime import datetime, timedelta
 import ast
 import time
+import math
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 from sklearn.linear_model import SGDClassifier
@@ -586,7 +587,7 @@ def parse_stream(playback_feed):
         progress = float(track_last_state.progress_ms / 1000)
         duration_sec = float(track_last_state.item.duration_ms / 1000)
 
-        percentage_listened = secs_playing / duration_sec  # This uses true amount of time song was playing for.
+        percentage_listened = math.ceil(secs_playing / duration_sec)  # This uses true amount of time song was playing for.
         # percentage_listened = round(progress / duration_sec, 2) # this uses wheneve the song ended
 
         skipped = (skip_min_threshold <= percentage_listened <= skip_max_threshold)
