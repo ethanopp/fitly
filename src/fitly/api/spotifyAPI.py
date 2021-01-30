@@ -590,6 +590,7 @@ def parse_stream(playback_feed):
         percentage_listened = math.ceil(secs_playing / duration_sec)  # This uses true amount of time song was playing for.
         # percentage_listened = round(progress / duration_sec, 2) # this uses wheneve the song ended
 
+        # If song was only actually being played for 5% - 80% of its total length, it was 'skipped'
         skipped = (skip_min_threshold <= percentage_listened <= skip_max_threshold)
 
         # Was song rewound?
