@@ -122,7 +122,7 @@ def get_layout(**kwargs):
                                                  {'name': 'Artist Name', 'id': 'artist_name'},
                                                  {'name': 'Album Name', 'id': 'album_name'},
                                                  {'name': '% Listened', 'id': 'percentage_listened'},
-                                                 {'name': 'Skipped', 'id': 'skipped'}
+                                                 {'name': 'Liked', 'id': 'liked'}
                                              ],
                                              style_as_list_view=True,
                                              fixed_rows={'headers': True, 'data': 0},
@@ -175,8 +175,6 @@ def get_layout(**kwargs):
 
 def get_radar_chart(workout_intensity, sport, pop_time_period):
     df_tracks = get_played_tracks(workout_intensity=workout_intensity, sport=sport, pop_time_period=pop_time_period)
-
-    # Remove skipped tracks #TODO: Show 2 radars for liked v skipped?
 
     radar_features = ['danceability',  # Mood
                       'energy',  # Mood
@@ -335,11 +333,10 @@ def populate_history_table(*args):
                                   sport=ctx.states['music-sport-selector.value'],
                                   pop_time_period=ctx.states['music-time-selector.value'])
 
-    # tracks_df['timestamp'] = tracks_df.index.tz_localize('UTC').tz_convert(get_localzone()).strftime(
-    #     '%Y-%m-%d %I:%M %p')
-    tracks_df['timestamp'] = tracks_df.index.strftime('%Y-%m-%d %I:%M %p')
-    tracks_df['skipped'] = tracks_df['skipped'].astype('str').apply(
-        lambda x: 'True' if x.lower() == 'true' else 'False')
+    tracks_df['timestamp'] = tracks_df.index.tz_localize('UTC').tz_convert(get_localzone()).strftime(
+        '%Y-%m-%d %I:%M %p')
+    tracks_df['liked'] = tracks_df['skipped'].astype('str').apply(
+        lambda x: '👍🏼' if x.lower() == 'false' else '❌')
     tracks_df['percentage_listened'] = tracks_df['percentage_listened'].apply(lambda x: '{:.0f}%'.format(x * 100))
 
     return tracks_df[[
@@ -348,7 +345,7 @@ def populate_history_table(*args):
         'artist_name',
         'album_name',
         'percentage_listened',
-        'skipped'
+        'liked'
     ]].sort_index(
         ascending=False).to_dict(
         'records')
