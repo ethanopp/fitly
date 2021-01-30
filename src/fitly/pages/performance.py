@@ -841,7 +841,7 @@ def z_recommendation_chart(hrv_z_score, hr_z_score, hrv7_z_score, hr7_z_score, h
                               showgrid=False,
                           ),
                           showlegend=False,
-                          margin={'l': 35, 'b': 15, 't': 20, 'r': 35},
+                          margin={'l': 25, 'b': 12, 't': 12, 'r': 25},
                           hovermode='x'
                       )
                   }
