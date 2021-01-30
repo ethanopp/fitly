@@ -455,7 +455,7 @@ class ouraSleepSamples(Base):
 
 class spotifyPlayHistory(Base):
     __tablename__ = 'spotify_play_history'
-    timestamp = Column('timestamp', DateTime(), index=True, primary_key=True)
+    timestamp_utc = Column('timestamp_utc', DateTime(), index=True, primary_key=True)
     track_id = Column('track_id', String(255))
     track_name = Column('track_name', String(255))
     track_url = Column('track_url', String(255))

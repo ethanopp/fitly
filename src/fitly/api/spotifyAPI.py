@@ -34,7 +34,7 @@ redirect_uri = config.get('spotify', 'redirect_uri')
 min_secs_listened = int(config.get('spotify', 'min_secs_listened'))
 skip_min_threshold = float(config.get('spotify', 'skip_min_threshold'))
 skip_max_threshold = float(config.get('spotify', 'skip_max_threshold'))
-poll_interval_seconds = int(config.get('spotify', 'poll_interval_seconds'))
+poll_interval_seconds = float(config.get('spotify', 'poll_interval_seconds'))
 
 # Main queue that stream will add playback feeds to
 q = queue.Queue(maxsize=0)
@@ -129,7 +129,7 @@ def get_spotify_client():
 #             x = json.loads(x.track.json())
 #             if x['type'] == 'track':  # Only add tracks (no podcasts, etc.)
 #                 track_information.append({
-#                     "timestamp": pd.to_datetime(x.timestamp),
+#                     "timestamp_utc": datetime.utcfromtimestamp(float(x.timestamp_utc) / 1000),
 #                     "track_id": x["id"],
 #                     "track_name": x["name"],
 #                     "explicit": x["explicit"],
@@ -147,12 +147,12 @@ def get_spotify_client():
 #         track_info_df = pd.DataFrame(track_information)
 #         # Merge trackinfo with track features
 #         track_table = pd.merge(track_info_df, track_features, how='left', left_on='track_id', right_on='id').set_index(
-#             'timestamp')
+#             'timestamp_utc')
 #         track_table.drop_duplicates(inplace=True)
 #         track_table = track_table.drop(columns=['id', 'type', 'uri', 'track_href'])
 #
 #         # Filter to only new records and insert into DB
-#         latest = app.session.query(func.max(spotifyPlayHistory.timestamp)).first()[0]
+#         latest = app.session.query(func.max(spotifyPlayHistory.timestamp_utc)).first()[0]
 #         app.session.remove()
 #         if latest:
 #             track_table = track_table[track_table.index > latest]
@@ -176,20 +176,20 @@ def get_played_tracks(workout_intensity='all', sport='all', pop_time_period='all
 
     elif pop_time_period == 'ytd':
         df_tracks = pd.read_sql(sql=app.session.query(spotifyPlayHistory).filter(
-            extract('year', spotifyPlayHistory.timestamp) >= (datetime.utcnow().year - 1)).statement, con=engine)
+            extract('year', spotifyPlayHistory.timestamp_utc) >= (datetime.utcnow().year - 1)).statement, con=engine)
 
         df_tracks['Period'] = 'Current'
-        df_tracks.at[df_tracks['timestamp'].dt.year == (datetime.utcnow().date().year - 1), 'Period'] = 'Previous'
+        df_tracks.at[df_tracks['timestamp_utc'].dt.year == (datetime.utcnow().date().year - 1), 'Period'] = 'Previous'
 
     elif pop_time_period in ['l90d', 'l6w', 'l30d']:
         days = {'l90d': 180, 'l6w': 84, 'l30d': 60}
         df_tracks = pd.read_sql(sql=app.session.query(spotifyPlayHistory).filter(
-            spotifyPlayHistory.timestamp >= (
+            spotifyPlayHistory.timestamp_utc >= (
                     datetime.utcnow().date() - timedelta(days=days[pop_time_period]))).statement,
                                 con=engine)
         df_tracks['Period'] = 'Current'
         df_tracks.at[
-            df_tracks['timestamp'].dt.date <= (
+            df_tracks['timestamp_utc'].dt.date <= (
                     datetime.utcnow().date() - timedelta(days=days[pop_time_period] / 2)), 'Period'] = 'Previous'
 
     # Query workouts
@@ -205,9 +205,9 @@ def get_played_tracks(workout_intensity='all', sport='all', pop_time_period='all
     df_summary = df_summary.assign(join_key=1)
     df_merge = pd.merge(df_summary, df_tracks, on='join_key').drop('join_key', axis=1)
     # Filter only on tracks performed during workout times
-    df_merge = df_merge.query('timestamp >= start_date_utc and timestamp <= end_date_utc')
+    df_merge = df_merge.query('timestamp_utc >= start_date_utc and timestamp_utc <= end_date_utc')
     # Join back to original date range table and drop key column
-    df = df_tracks.merge(df_merge, on=['timestamp'], how='left').fillna('').drop('join_key', axis=1)
+    df = df_tracks.merge(df_merge, on=['timestamp_utc'], how='left').fillna('').drop('join_key', axis=1)
     # Days with no workout_intensity are rest days
     df.at[df['start_date_utc'] == '', 'workout_intensity'] = 'rest'
     # Cleanup the end resulting df
@@ -225,7 +225,7 @@ def get_played_tracks(workout_intensity='all', sport='all', pop_time_period='all
 
     df.drop(columns=['start_date_utc', 'end_date_utc'], inplace=True)
 
-    df.set_index('timestamp', inplace=True)
+    df.set_index('timestamp_utc', inplace=True)
 
     return df
 
@@ -586,7 +586,7 @@ def parse_stream(playback_feed):
         progress = float(track_last_state.progress_ms / 1000)
         duration_sec = float(track_last_state.item.duration_ms / 1000)
 
-        percentage_listened = secs_playing / duration_sec  # This uses true amount of time song was playing for
+        percentage_listened = secs_playing / duration_sec  # This uses true amount of time song was playing for.
         # percentage_listened = round(progress / duration_sec, 2) # this uses wheneve the song ended
 
         skipped = (skip_min_threshold <= percentage_listened <= skip_max_threshold)
@@ -614,7 +614,7 @@ def parse_stream(playback_feed):
                 old_progress = new_progress
 
         track_info_df = pd.DataFrame([{
-            "timestamp": datetime.fromtimestamp(float(playback_feed[0].timestamp) / 1000),
+            "timestamp_utc": datetime.utcfromtimestamp(float(playback_feed[0].timestamp) / 1000),
             "track_id": playback_feed[0].item.id,
             "track_url": playback_feed[0].item.href,
             "track_name": track_name,
@@ -643,6 +643,6 @@ def parse_stream(playback_feed):
 
         # Merge trackinfo with track features
         track_table = pd.merge(track_info_df, track_features, how='left', left_on='track_id', right_on='id').set_index(
-            'timestamp').drop(columns=['id'])
+            'timestamp_utc').drop(columns=['id'])
         # Insert into DB
         track_table.to_sql('spotify_play_history', engine, if_exists='append', index=True)
