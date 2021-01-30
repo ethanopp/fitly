@@ -16,8 +16,8 @@ skip_min_threshold = .05
 skip_max_threshold = .80
 # Min seconds song has to be on player for it to be inserted into db (ignore quick skips)
 min_secs_listened = 15
-# interval at which spotify 'currently_playing' will be polled
-poll_interval_seconds = .5  # .5 = 2 requests per second
+# interval at which spotify 'currently_playing' will be polled, .5 = 2 requests per second
+poll_interval_seconds = .5
 
 [peloton]
 username =
