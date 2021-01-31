@@ -49,7 +49,8 @@ with server.app_context():
                 # scheduler.add_job(func=save_spotify_play_history, trigger="cron", minute='*/20')
 
                 # Use this job for polling every second (much more precise data with this method can detect skips, etc.)
-                scheduler.add_job(stream, "interval", seconds=float(config.get('spotify', 'poll_interval_seconds')))
+                scheduler.add_job(stream, "interval", seconds=float(config.get('spotify', 'poll_interval_seconds')),
+                                  max_instances=2)
 
             app.server.logger.info('Starting cron jobs')
             scheduler.start()
