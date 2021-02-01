@@ -206,8 +206,7 @@ def get_radar_chart(workout_intensity, sport, pop_time_period):
 
                 hoverinfo='text',
                 fill='toself',
-                name='Skip All Time' if pop_time_period == 'all' else 'Skip Prev. YTD' if pop_time_period == 'ytd' else pop_time_period.upper().replace(
-                    'L', 'Skip Prev. '),
+                name='❌ Prev. YTD' if pop_time_period == 'ytd' else pop_time_period.upper().replace('L', '❌ Prev. '),
                 line=dict(color='rgba(0,0,0,0)'),
                 marker=dict(color='rgba(0,0,0,0)'),
                 fillcolor='rgba(217,100,43,.6)',
@@ -223,7 +222,8 @@ def get_radar_chart(workout_intensity, sport, pop_time_period):
 
                 hoverinfo='text',
                 fill='toself',
-                name='All Time' if pop_time_period == 'all' else pop_time_period.upper().replace('L', 'Prev. '),
+                name='👍🏼 Prev. YTD' if pop_time_period == 'ytd' else pop_time_period.upper().replace('L',
+                                                                                                       '👍🏼 Prev. '),
                 line=dict(color='rgba(0,0,0,0)'),
                 marker=dict(color='rgba(0,0,0,0)'),
                 fillcolor='rgba(220,220,220,.6)'
@@ -241,8 +241,8 @@ def get_radar_chart(workout_intensity, sport, pop_time_period):
                       zip(df_tracks_cur_disliked.mean() * 100, [x.title() for x in df_tracks_cur_disliked.columns])],
                 hoverinfo='text',
                 fill='toself',
-                name='Skip All Time' if pop_time_period == 'all' else 'Skip YTD' if pop_time_period == 'ytd' else pop_time_period.upper().replace(
-                    'L', 'Skip Last '),
+                name='❌ All Time' if pop_time_period == 'all' else '❌ YTD' if pop_time_period == 'ytd' else pop_time_period.upper().replace(
+                    'L', '❌ Last '),
                 # color=teal,
                 line=dict(color='rgba(0,0,0,0)'),
                 marker=dict(color='rgba(0,0,0,0)'),
@@ -258,7 +258,8 @@ def get_radar_chart(workout_intensity, sport, pop_time_period):
                       zip(df_tracks_cur.mean() * 100, [x.title() for x in df_tracks_cur.columns])],
                 hoverinfo='text',
                 fill='toself',
-                name='All Time' if pop_time_period == 'all' else pop_time_period.upper().replace('L', 'Last '),
+                name='👍🏼 All Time' if pop_time_period == 'all' else '👍🏼 YTD' if pop_time_period == 'ytd' else pop_time_period.upper().replace(
+                    'L', '👍🏼 Last '),
                 # color=teal,
                 line=dict(color='rgba(0,0,0,0)'),
                 marker=dict(color='rgba(0,0,0,0)'),

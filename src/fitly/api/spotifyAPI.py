@@ -593,6 +593,10 @@ def parse_stream(playback_feed):
 
         # percentage_listened = round(progress / duration, 2)  # this uses whenever the song ended
 
+        # If song 'finished' because of crossfade, mark as 100% listened
+        # Spotify max crossfade is 12 seconds, so assume it is set to the max
+        if percentage_listened >= .9 and ((duration - progress) / 1000) <= 12:
+            percentage_listened = 1
         # Song 'skipped' if only actually listened to for 5% - 80% (or overridden config values) of its total duration
         skipped = (skip_min_threshold <= percentage_listened <= skip_max_threshold)
 
