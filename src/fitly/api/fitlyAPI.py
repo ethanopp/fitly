@@ -955,7 +955,9 @@ def training_workflow(min_non_warmup_workout_time, metric='hrv_baseline', athlet
                     df = df[['athlete_id', 'date', 'workout_step', 'workout_step_desc', 'completed', 'rationale']]
                     df['date'] = df['date'].dt.date
                     df.to_sql('workout_step_log', engine, if_exists='append', index=False)
-
+                    # Bookmark peloton classes
+                    if peloton_credentials_supplied:
+                        set_peloton_workout_recommendations()
                     # Create spotify playlist based on workout intensity recommendation
                     athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1).first()
                     app.session.remove()
@@ -966,9 +968,7 @@ def training_workflow(min_non_warmup_workout_time, metric='hrv_baseline', athlet
                             normalize=True,
                             time_period=athlete_info.spotify_time_period,
                             num_playlists=athlete_info.spotify_num_playlists)
-                    # Bookmark peloton classes
-                    if peloton_credentials_supplied:
-                        set_peloton_workout_recommendations()
+
     except BaseException as e:  # If workflow fails be sure to turn off processing flag
         app.server.logger.error(e)
         db_process_flag(flag=False)
