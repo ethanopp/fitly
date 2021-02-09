@@ -959,6 +959,11 @@ def generate_contributor_bar(df, id, column_name, top_left_title, top_right_titl
         else:
             top_right_title = 'Optimal'
 
+    # Update bars for Oura Rest Mode
+    if score == 0:
+        top_right_title = 'Rest Mode'
+        textColor = None
+
     tooltipDict = {
         "previous-night": "How you slept last night can have a significant impact on your readiness to perform during the day.\n\nGetting enough good quality sleep is necessary for physical recovery, memory and learning, all part of your readiness to perform.\n\nFor a maximum positive contribution to your Readiness Score, your Sleep Score needs to be above 88%, and at the high end of your normal range.",
         "sleep-balance": "Sleep Balance shows if the sleep you've been getting over the past two weeks is in balance with your needs.\n\nSleep Balance is based on a long-term view on your sleep patterns. It's measured by comparing your total sleep time from the past two weeks to your long-term sleep history and the amount of sleep recommended for your age.\n\nTypically adults need 7-9 hours of sleep to stay healthy, alert, and to perform at their best both mentally and physically. Insufficient sleep can eventually lead to sleep debt. Paying back sleep debt and rebuilding Sleep Balance takes several nights of good sleep.",
