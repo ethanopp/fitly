@@ -1,6 +1,14 @@
 [logger]
 level = DEBUG
 
+# mysql/mariadb
+[database]
+host = localhost
+port = 3306
+db_name = Fitness
+user = username
+password = password
+
 [cron]
 hourly_pull = False
 

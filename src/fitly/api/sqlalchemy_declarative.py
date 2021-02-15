@@ -49,7 +49,7 @@ class athlete(Base):
     pmc_switch_settings = Column('pmc_switch_settings', String(9999),
                                  default='{"ride_status": true, "run_status": true, "all_status": true, "power_status": true, "hr_status": true, "atl_status": false}')
     recovery_metric = Column('recovery_metric', String(10), default='readiness')
-    peloton_auto_bookmark_ids = Column('peloton_auto_bookmark_ids', String(9999))
+    peloton_auto_bookmark_ids = Column('peloton_auto_bookmark_ids', String(9999), default='{}')
     use_run_power = Column('use_run_power', Boolean, default=True)
     use_cycle_power = Column('use_cycle_power', Boolean, default=True)
     spotify_playlists_switch = Column('spotify_playlists_switch', Boolean, default=False)
