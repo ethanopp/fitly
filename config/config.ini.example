@@ -15,6 +15,7 @@ hourly_pull = False
 [settings]
 password =
 
+# Restart is required after connecting to spotify via settings page for stream to start working
 [spotify]
 client_id =
 client_secret =

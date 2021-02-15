@@ -42,16 +42,18 @@ with server.app_context():
 
             # Add spotify job on 20 min schedule since API only allows grabbing the last 50 songs
             if spotify_credentials_supplied:
-                from .api.spotifyAPI import stream, get_spotify_client
+                from .api.spotifyAPI import stream, get_spotify_client, spotify_connected
 
-                app.server.logger.debug("Listening to Spotify stream...")
-                # Use this job to pull 'last 50' songs from spotify every 20 mins
-                # scheduler.add_job(func=save_spotify_play_history, trigger="cron", minute='*/20')
+                if spotify_connected():
+                    app.server.logger.debug("Listening to Spotify stream...")
+                    # Use this job to pull 'last 50' songs from spotify every 20 mins
+                    # scheduler.add_job(func=save_spotify_play_history, trigger="cron", minute='*/20')
 
-                # Use this job for polling every second (much more precise data with this method can detect skips, etc.)
-                scheduler.add_job(stream, "interval", seconds=float(config.get('spotify', 'poll_interval_seconds')),
-                                  max_instances=2)
-
+                    # Use this job for polling every second (much more precise data with this method can detect skips, etc.)
+                    scheduler.add_job(stream, "interval", seconds=float(config.get('spotify', 'poll_interval_seconds')),
+                                      max_instances=2)
+                else:
+                    app.server.logger.debug('Spotify not connected. Not listening to stream.')
             app.server.logger.info('Starting cron jobs')
             scheduler.start()
         except BaseException as e:
