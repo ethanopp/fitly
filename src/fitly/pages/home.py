@@ -20,13 +20,12 @@ from ..utils import calc_next_saturday, calc_prev_sunday, utc_to_local, config, 
 
 transition = int(config.get('dashboard', 'transition'))
 default_icon_color = 'rgb(220, 220, 220)'
-white = 'rgb(220, 220, 220)'
-teal = 'rgb(100, 217, 236)'
-light_blue = 'rgb(56, 128, 139)'
-dark_blue = 'rgb(39, 77, 86)'
-orange = 'rgb(217,100,43)'
+white = config.get('oura', 'white')
+teal = config.get('oura', 'teal')
+light_blue = config.get('oura', 'light_blue')
+dark_blue = config.get('oura', 'dark_blue')
+orange = config.get('oura', 'orange')
 grey = 'rgb(50,50,50)'
-
 chartHeight = 150
 
 
