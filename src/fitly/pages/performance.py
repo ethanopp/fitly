@@ -727,11 +727,11 @@ def z_recommendation_chart(hrv_z_score, hr_z_score, hrv7_z_score, hr7_z_score, h
         ## Rest ##
         dict(type='rect', xref='x',
              yref='y', x0=-3, x1=-1, y0=1.75, y1=3,
-             fillcolor=orange_faded, layer='below',
+             fillcolor=orange, layer='below',
              line=dict(width=0), ),
         dict(type='rect', xref='x',
              yref='y', x0=-3, x1=-1, y0=-3, y1=-2,
-             fillcolor=orange_faded, layer='below',
+             fillcolor=orange, layer='below',
              line=dict(width=0),
              ),
         ## Low ##
@@ -1476,7 +1476,7 @@ def create_daily_recommendations(plan_rec):
                                   # text=df['movement_tooltip'],
                                   hoverinfo='none',
                                   marker={
-                                      'color': [orange_faded, white, light_blue, teal]},
+                                      'color': [orange, white, light_blue, teal]},
                                   orientation='h',
                               ),
                           ],
@@ -1852,7 +1852,7 @@ def create_yoy_chart(metric, sport='all'):
     df[df.columns[-1]] = np.where(df.index.dayofyear > datetime.now().timetuple().tm_yday, np.nan, df[df.columns[-1]])
 
     data = []
-    colors = [teal, white, light_blue, dark_blue, ctl_color, atl_color, tsb_color, orange_faded, 'rgba(250, 47, 76,.7)',
+    colors = [teal, white, light_blue, dark_blue, ctl_color, atl_color, tsb_color, orange, 'rgba(250, 47, 76,.7)',
               orange]
 
     # Plot latest line first for most recent 10 years
