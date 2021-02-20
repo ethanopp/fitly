@@ -42,11 +42,11 @@ redirect_uri = http://127.0.0.1:8050/settings?oura
 client_id =
 client_secret =
 days_back = 7
-white = rgb(220,220,220)
-teal = rgb(134,201,250)
-light_blue = rgb(85,139,189)
-dark_blue = rgb(43,70,119)
-orange = rgb(234,109,95)
+white = rgb(220, 220, 220)
+teal = rgb(134, 201, 250)
+light_blue = rgb(85, 139, 189)
+dark_blue = rgb(43, 70, 119)
+orange = rgb(234, 109, 95)
 
 [withings]
 redirect_uri = http://127.0.0.1:8050/settings?withings
