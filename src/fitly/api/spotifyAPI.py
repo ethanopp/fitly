@@ -307,7 +307,8 @@ def generate_recommendation_playlists(workout_intensity='all', sport='all', norm
             # Only choose tracks that were 'liked' in the cluster for seeds
             track_uris = df[(df['cluster'] == i) & (df['skipped'] == 0)]['track_id'].unique().tolist()
             # artist_uris = df[df['cluster'] == i]['artist_id'].unique().tolist()
-            while len(predict_df) < 50 and attempts < 10:
+            while len(predict_df) < 50 and dup_check == False and attempts < 10:
+                dup_check = False
                 # Get 5 random tracks from the cluster to use as seeds for recommendation (spotify api can only take up to 5 seeds)
 
                 seed_tracks = random.sample(track_uris, 5 if len(track_uris) > 5 else len(track_uris))
@@ -327,7 +328,9 @@ def generate_recommendation_playlists(workout_intensity='all', sport='all', norm
                     _predict_df = _predict_df[_predict_df['predictions'] == 1]
                     # add to predict dataframe and repeat loop until > 50 tracks to insert into the playlist
                     predict_df = pd.concat([predict_df, _predict_df]).drop_duplicates()
+                    dup_check = True
                 except:
+                    dup_check = False
                     pass
 
                 time.sleep(1)  # Avoid spotify api limit
