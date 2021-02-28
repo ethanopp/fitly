@@ -307,6 +307,7 @@ def generate_recommendation_playlists(workout_intensity='all', sport='all', norm
             # Only choose tracks that were 'liked' in the cluster for seeds
             track_uris = df[(df['cluster'] == i) & (df['skipped'] == 0)]['track_id'].unique().tolist()
             # artist_uris = df[df['cluster'] == i]['artist_id'].unique().tolist()
+            dup_check = False
             while len(predict_df) < 50 and dup_check == False and attempts < 10:
                 dup_check = False
                 # Get 5 random tracks from the cluster to use as seeds for recommendation (spotify api can only take up to 5 seeds)
