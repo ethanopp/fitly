@@ -1,5 +1,5 @@
 from withings_api import WithingsApi
-from withings_api.common import get_measure_value, MeasureType, Credentials
+from withings_api.common import get_measure_value, MeasureType, Credentials2
 from ..api.sqlalchemy_declarative import apiTokens, withings
 from ..api.database import engine
 from sqlalchemy import func, delete
@@ -17,10 +17,8 @@ redirect_uri = config.get('withings', 'redirect_uri')
 
 def current_token_dict():
     try:
-
         token_dict = app.session.query(apiTokens.tokens).filter(apiTokens.service == 'Withings').first()
         token_dict = ast.literal_eval(token_dict[0]) if token_dict else {}
-
         app.session.remove()
     except BaseException as e:
         app.server.logger.error(e)
@@ -33,30 +31,13 @@ def current_token_dict():
 def save_withings_token(tokens):
     app.server.logger.debug('***** ATTEMPTING TO SAVE TOKENS *****')
 
-    # Withings API returns the following, when refreshing use this
-    try:
-        token_dict = {
-            'access_token': tokens['access_token'],
-            'token_expiry': int((datetime.utcnow() - datetime(1970, 1, 1)).total_seconds()) + int(
-                tokens['expires_in']),
-            'token_type': tokens['token_type'],
-            'userid': tokens['userid'],
-            'refresh_token': tokens['refresh_token']
-        }
+    token_dict = tokens.dict()
+    # Can't save arrow method to sqlite, so save it as timestamp
+    token_dict['created'] = round(int(token_dict['created'].timestamp()))
 
-    # NokiaCredentials is an object (not dict)... When running for the first time use this (no record in db)
-    except:
-        token_dict = {
-            'access_token': tokens.access_token,
-            'token_expiry': tokens.token_expiry,
-            'token_type': tokens.token_type,
-            'userid': tokens.userid,
-            'refresh_token': tokens.refresh_token
-        }
-
-    # Delete current key
+    # Delete current tokens
     app.session.execute(delete(apiTokens).where(apiTokens.service == 'Withings'))
-    # Insert new key
+    # Insert new tokens
     app.session.add(apiTokens(date_utc=datetime.utcnow(), service='Withings', tokens=str(token_dict)))
     app.session.commit()
 
@@ -69,13 +50,14 @@ def withings_creds(token_dict):
     :param token_dict:
     :return: Withings Credentials Object
     '''
-    return Credentials(client_id=client_id,
-                       consumer_secret=client_secret,
-                       access_token=token_dict['access_token'],
-                       token_expiry=token_dict['token_expiry'],
-                       token_type=token_dict['token_type'],
-                       userid=token_dict['userid'],
-                       refresh_token=token_dict['refresh_token'])
+    return Credentials2(client_id=client_id,
+                        consumer_secret=client_secret,
+                        access_token=token_dict['access_token'],
+                        expires_in=token_dict['expires_in'],
+                        created=token_dict['created'],
+                        token_type=token_dict['token_type'],
+                        userid=token_dict['userid'],
+                        refresh_token=token_dict['refresh_token'])
 
 
 def withings_connected():
