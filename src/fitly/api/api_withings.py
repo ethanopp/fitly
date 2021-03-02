@@ -1,5 +1,5 @@
 from withings_api import WithingsApi
-from withings_api.common import get_measure_value, MeasureType, Credentials2
+from withings_api.common import get_measure_value, MeasureType, Credentials
 from ..api.sqlalchemy_declarative import apiTokens, withings
 from ..api.database import engine
 from sqlalchemy import func, delete
@@ -33,7 +33,7 @@ def save_withings_token(tokens):
 
     token_dict = tokens.dict()
     # Can't save arrow method to sqlite, so save it as timestamp
-    token_dict['created'] = round(int(token_dict['created'].timestamp()))
+    token_dict['created'] = token_dict['created'].timestamp
 
     # Delete current tokens
     app.session.execute(delete(apiTokens).where(apiTokens.service == 'Withings'))
@@ -50,11 +50,10 @@ def withings_creds(token_dict):
     :param token_dict:
     :return: Withings Credentials Object
     '''
-    return Credentials2(client_id=client_id,
+    return Credentials(client_id=client_id,
                         consumer_secret=client_secret,
                         access_token=token_dict['access_token'],
-                        expires_in=token_dict['expires_in'],
-                        created=token_dict['created'],
+                        token_expiry=int(token_dict['expires_in'])+(token_dict['created']),
                         token_type=token_dict['token_type'],
                         userid=token_dict['userid'],
                         refresh_token=token_dict['refresh_token'])
