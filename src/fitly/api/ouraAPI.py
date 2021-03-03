@@ -10,6 +10,7 @@ from ..app import app
 import ast
 from ..utils import config
 from functools import reduce
+import pickle
 
 client_id = config.get('oura', 'client_id')
 client_secret = config.get('oura', 'client_secret')
@@ -18,17 +19,14 @@ redirect_uri = config.get('oura', 'redirect_uri')
 
 def current_token_dict():
     try:
-        # token_dict = ast.literal_eval(config.get('oura', 'token_dict'))
-
-        token_dict = app.session.query(apiTokens.tokens).filter(apiTokens.service == 'Oura').first()
-        token_dict = ast.literal_eval(token_dict[0]) if token_dict else {}
-
+        token_dict = app.session.query(apiTokens.tokens).filter(apiTokens.service == 'Oura').first().tokens
+        token_pickle = pickle.loads(token_dict)
         app.session.remove()
     except BaseException as e:
         app.server.logger.error(e)
-        token_dict = {}
+        token_pickle = {}
 
-    return token_dict
+    return token_pickle
 
 
 # Function for auto saving oura token_dict to db
@@ -37,13 +35,10 @@ def save_oura_token(token_dict):
     app.session.execute(delete(apiTokens).where(apiTokens.service == 'Oura'))
     # Insert new key
     try:
-        app.session.add(apiTokens(date_utc=datetime.utcnow(), service='Oura', tokens=str(token_dict)))
+        app.session.add(apiTokens(date_utc=datetime.utcnow(), service='Oura', tokens=pickle.dumps(token_dict)))
         app.session.commit()
     except:
         app.session.rollback()
-    # config.set("oura", "token_dict", str(token_dict))
-    # with open('config.ini', 'w') as configfile:
-    #     config.write(configfile)
 
     app.session.remove()
 

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Date, Float, BigInteger
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Date, Float, BigInteger, PickleType
 from .database import Base
 
 
@@ -490,7 +490,7 @@ class apiTokens(Base):
     __tablename__ = 'api_tokens'
     date_utc = Column('date_utc', DateTime(), index=True, primary_key=True)
     service = Column('service', String(255))
-    tokens = Column('tokens', String(255))
+    tokens = Column('tokens', PickleType)
 
 
 class dbRefreshStatus(Base):

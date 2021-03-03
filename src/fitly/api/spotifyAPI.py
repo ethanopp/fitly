@@ -28,6 +28,7 @@ import numpy as np
 import random
 import threading
 import queue
+import pickle
 
 client_id = config.get('spotify', 'client_id')
 client_secret = config.get('spotify', 'client_secret')
@@ -47,13 +48,13 @@ playback_feed = []
 # Retrieve current tokens from db
 def current_token_dict():
     try:
-        token_dict = app.session.query(apiTokens.tokens).filter(apiTokens.service == 'Spotify').first()
-        token_dict = ast.literal_eval(token_dict[0]) if token_dict else {}
+        token_dict = app.session.query(apiTokens.tokens).filter(apiTokens.service == 'Spotify').first().tokens
+        token_pickle = pickle.loads(token_dict)
         app.session.remove()
     except BaseException as e:
         app.server.logger.error(e)
-        token_dict = {}
-    return token_dict
+        token_pickle = {}
+    return token_pickle
 
 
 # Function for auto saving spotify token_dict to db
@@ -69,7 +70,7 @@ def save_spotify_token(token_dict):
     app.session.execute(delete(apiTokens).where(apiTokens.service == 'Spotify'))
     # Insert new key
     app.server.logger.debug('Inserting new strava tokens')
-    app.session.add(apiTokens(date_utc=datetime.utcnow(), service='Spotify', tokens=str(token_dict)))
+    app.session.add(apiTokens(date_utc=datetime.utcnow(), service='Spotify', tokens=pickle.dumps(token_dict)))
     app.session.commit()
     app.session.remove()
 

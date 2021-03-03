@@ -5,8 +5,8 @@ from sqlalchemy import delete
 from ..api.sqlalchemy_declarative import apiTokens
 from ..utils import config
 from ..app import app
-import ast
 import time
+import pickle
 
 client_id = config.get('strava', 'client_id')
 client_secret = config.get('strava', 'client_secret')
@@ -16,13 +16,13 @@ redirect_uri = config.get('strava', 'redirect_uri')
 # Retrieve current tokens from db
 def current_token_dict():
     try:
-        token_dict = app.session.query(apiTokens.tokens).filter(apiTokens.service == 'Strava').first()
-        token_dict = ast.literal_eval(token_dict[0]) if token_dict else {}
+        token_dict = app.session.query(apiTokens.tokens).filter(apiTokens.service == 'Strava').first().tokens
+        token_pickle = pickle.loads(token_dict)
         app.session.remove()
     except BaseException as e:
         app.server.logger.error(e)
-        token_dict = {}
-    return token_dict
+        token_pickle = {}
+    return token_pickle
 
 
 # Function for auto saving strava token_dict to db
@@ -32,7 +32,7 @@ def save_strava_token(token_dict):
     app.session.execute(delete(apiTokens).where(apiTokens.service == 'Strava'))
     # Insert new key
     app.server.logger.debug('Inserting new strava tokens')
-    app.session.add(apiTokens(date_utc=datetime.utcnow(), service='Strava', tokens=str(token_dict)))
+    app.session.add(apiTokens(date_utc=datetime.utcnow(), service='Strava', tokens=pickle.dumps(token_dict)))
     app.session.commit()
     app.session.remove()
 

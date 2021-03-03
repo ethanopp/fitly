@@ -1,5 +1,5 @@
 from withings_api import WithingsApi
-from withings_api.common import get_measure_value, MeasureType, Credentials
+from withings_api.common import get_measure_value, MeasureType, Credentials, CredentialsType
 from ..api.sqlalchemy_declarative import apiTokens, withings
 from ..api.database import engine
 from sqlalchemy import func, delete
@@ -9,65 +9,57 @@ import pandas as pd
 import numpy as np
 from ..app import app
 from ..utils import config
+import pickle
+from typing import cast
 
 client_id = config.get('withings', 'client_id')
 client_secret = config.get('withings', 'client_secret')
 redirect_uri = config.get('withings', 'redirect_uri')
 
 
-def current_token_dict():
-    try:
-        token_dict = app.session.query(apiTokens.tokens).filter(apiTokens.service == 'Withings').first()
-        token_dict = ast.literal_eval(token_dict[0]) if token_dict else {}
-        app.session.remove()
-    except BaseException as e:
-        app.server.logger.error(e)
-        token_dict = {}
-
-    return token_dict
-
-
-# Function for auto saving withings token_dict to db
-def save_withings_token(tokens):
+def save_withings_token(credentials: CredentialsType) -> None:
     app.server.logger.debug('***** ATTEMPTING TO SAVE TOKENS *****')
-
-    token_dict = tokens.dict()
-    # Can't save arrow method to sqlite, so save it as timestamp
-    token_dict['created'] = token_dict['created'].timestamp
-
+    token_pickle = pickle.dumps(credentials)
     # Delete current tokens
     app.session.execute(delete(apiTokens).where(apiTokens.service == 'Withings'))
     # Insert new tokens
-    app.session.add(apiTokens(date_utc=datetime.utcnow(), service='Withings', tokens=str(token_dict)))
+    app.session.add(apiTokens(date_utc=datetime.utcnow(), service='Withings', tokens=pickle.dumps(token_dict)))
     app.session.commit()
 
     app.session.remove()
     app.server.logger.debug('***** SAVED TOKENS *****')
 
 
-def withings_creds(token_dict):
-    '''
-    :param token_dict:
-    :return: Withings Credentials Object
-    '''
-    return Credentials(client_id=client_id,
-                        consumer_secret=client_secret,
-                        access_token=token_dict['access_token'],
-                        token_expiry=int(token_dict['expires_in'])+(token_dict['created']),
-                        token_type=token_dict['token_type'],
-                        userid=token_dict['userid'],
-                        refresh_token=token_dict['refresh_token'])
+def load_credentials() -> CredentialsType:
+    try:
+        token_pickle = app.session.query(apiTokens.tokens).filter(apiTokens.service == 'Withings').first().tokens
+        creds = cast(CredentialsType, pickle.loads(token_pickle))
+        app.session.remove()
+    except BaseException as e:
+        app.server.logger.error(e)
+        creds = None
+
+    return creds
+
+
+def current_token_dict():
+    try:
+        token_pickle = app.session.query(apiTokens.tokens).filter(apiTokens.service == 'Withings').first()
+        token_dict = pickle.loads(token_pickle.tokens)
+        app.session.remove()
+    except BaseException as e:
+        app.server.logger.error(e)
+        token_dict = None
+
+    return token_dict
 
 
 def withings_connected():
-    token_dict = current_token_dict()
     try:
-        if token_dict:
-            creds = withings_creds(token_dict)
-            client = WithingsApi(credentials=creds, refresh_cb=save_withings_token)
-            measures = client.measure_get_meas()
-            app.server.logger.debug('Withings Connected')
-            return True
+        client = WithingsApi(credentials=load_credentials(), refresh_cb=save_withings_token)
+        measures = client.measure_get_meas()
+        app.server.logger.debug('Withings Connected')
+        return True
     except BaseException as e:
         app.server.logger.error('Withings not connected')
         app.server.logger.error(e)
@@ -83,7 +75,7 @@ def connect_withings_link(auth_client):
 def pull_withings_data():
     # UTC dates will get sampled into daily
     if withings_connected():
-        client = WithingsApi(withings_creds(current_token_dict()), refresh_cb=save_withings_token)
+        client = WithingsApi(load_credentials(), refresh_cb=save_withings_token)
 
         df = pd.DataFrame(columns=['date_utc', 'weight', 'fat_ratio', 'hydration'])
         meas_result = client.measure_get_meas()
