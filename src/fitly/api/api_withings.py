@@ -19,11 +19,10 @@ redirect_uri = config.get('withings', 'redirect_uri')
 
 def save_withings_token(credentials: CredentialsType) -> None:
     app.server.logger.debug('***** ATTEMPTING TO SAVE TOKENS *****')
-    token_pickle = pickle.dumps(credentials)
     # Delete current tokens
     app.session.execute(delete(apiTokens).where(apiTokens.service == 'Withings'))
     # Insert new tokens
-    app.session.add(apiTokens(date_utc=datetime.utcnow(), service='Withings', tokens=pickle.dumps(token_dict)))
+    app.session.add(apiTokens(date_utc=datetime.utcnow(), service='Withings', tokens=pickle.dumps(credentials)))
     app.session.commit()
 
     app.session.remove()
@@ -40,18 +39,6 @@ def load_credentials() -> CredentialsType:
         creds = None
 
     return creds
-
-
-def current_token_dict():
-    try:
-        token_pickle = app.session.query(apiTokens.tokens).filter(apiTokens.service == 'Withings').first()
-        token_dict = pickle.loads(token_pickle.tokens)
-        app.session.remove()
-    except BaseException as e:
-        app.server.logger.error(e)
-        token_dict = None
-
-    return token_dict
 
 
 def withings_connected():
