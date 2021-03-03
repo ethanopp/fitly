@@ -188,15 +188,16 @@ def get_radar_chart(workout_intensity, sport, pop_time_period):
                       ]
 
     df_tracks_liked = df_tracks[df_tracks['skipped'] == 0]
-    df_tracks_disliked = df_tracks[df_tracks['skipped'] == 1]
     df_tracks_cur = df_tracks_liked[df_tracks_liked['Period'] == 'Current'][radar_features]
     df_tracks_prev = df_tracks_liked[df_tracks_liked['Period'] == 'Previous'][radar_features]
+    df_tracks_disliked = df_tracks[df_tracks['skipped'] == 1]
     df_tracks_cur_disliked = df_tracks_disliked[df_tracks_disliked['Period'] == 'Current'][radar_features]
     df_tracks_prev_disliked = df_tracks_disliked[df_tracks_disliked['Period'] == 'Previous'][radar_features]
     data = []
 
     if len(df_tracks_prev) > 0:
-        df_tracks_prev.loc[:] = MinMaxScaler().fit_transform(df_tracks_prev.loc[:])
+        # Scale all audio features from 0-1 so they can be compared on radar chart
+        df_tracks_prev_disliked.loc[:] = MinMaxScaler().fit_transform(df_tracks_prev_disliked.loc[:])
         data.append(
             go.Scatterpolar(
                 r=df_tracks_prev_disliked.mean() * 100,
@@ -213,6 +214,7 @@ def get_radar_chart(workout_intensity, sport, pop_time_period):
                 visible='legendonly'
             )
         )
+        df_tracks_prev.loc[:] = MinMaxScaler().fit_transform(df_tracks_prev.loc[:])
         data.append(
             go.Scatterpolar(
                 r=df_tracks_prev.mean() * 100,
@@ -231,8 +233,7 @@ def get_radar_chart(workout_intensity, sport, pop_time_period):
         )
     if len(df_tracks_cur) > 0:
         # Scale all audio features from 0-1 so they can be compared on radar chart
-        df_tracks_cur.loc[:] = MinMaxScaler().fit_transform(df_tracks_cur.loc[:])
-
+        df_tracks_cur_disliked.loc[:] = MinMaxScaler().fit_transform(df_tracks_cur_disliked.loc[:])
         data.append(
             go.Scatterpolar(
                 r=df_tracks_cur_disliked.mean() * 100,
@@ -250,6 +251,7 @@ def get_radar_chart(workout_intensity, sport, pop_time_period):
                 visible='legendonly'
             )
         )
+        df_tracks_cur.loc[:] = MinMaxScaler().fit_transform(df_tracks_cur.loc[:])
         data.append(
             go.Scatterpolar(
                 r=df_tracks_cur.mean() * 100,
