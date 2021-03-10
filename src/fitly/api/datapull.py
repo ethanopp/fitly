@@ -155,8 +155,11 @@ def refresh_database(refresh_method='system', truncate=False, truncateDate=None)
 
                 ### Pull Stryd Data ###
                 if stryd_credentials_supplied:
-                    app.server.logger.info('Pulling stryd data...')
-                    pull_stryd_data()
+                    try:
+                        app.server.logger.info('Pulling stryd data...')
+                        pull_stryd_data()
+                    except Exception as e:
+                        app.server.logger.error(f'Error puling stryd data {e}')
 
                 ### This has been moved to crontab as spotify refresh is required more frequently than hourly ###
                 # ### Pull Spotify Data ###
