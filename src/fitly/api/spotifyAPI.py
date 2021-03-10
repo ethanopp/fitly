@@ -289,59 +289,66 @@ def generate_recommendation_playlists(workout_intensity='all', sport='all', norm
         # Join cluster back to main track df
         df = df.merge(audiofeat_df[['track_id', 'cluster']], how='left', left_on='track_id', right_on='track_id')
 
-        ### Choose N (num_playlists) random clusters to get tracks to be used as seeds for getting recommendations as creating playlists
-        rand_clusters = np.random.choice(df['cluster'].unique(), num_playlists, False).tolist()
+        # drop clusters that don't have both likes and dislikes
+        df = df[df['cluster'].isin(
+            df.groupby('cluster').filter(lambda x: x['skipped'].nunique() == 2)['cluster'].unique().tolist())]
 
+        # Start with largest cluster and work through all until num_playlists have been generated
+        rand_clusters = df.groupby('cluster').size().sort_values(ascending=False).index.tolist()
         # Create the playlists!
-        for i in range(1, len(rand_clusters) + 1):
-            # Grab playlist id if it already exists otherwise create the playlist
-            playlist_id = playlists.get(f'Fitly Playlist {i}')
-            if not playlist_id:
-                playlist_id = spotify.playlist_create(user_id=user_id, name=f'Fitly Playlist {i}', public=False).id
+        playlist_number = 1
+        for cluster in rand_clusters:
+            if playlist_number < num_playlists + 1:
 
-            # Keep looping through cluster passing different tracks into spotify recommendation api
-            # Once enough tracks recived from spotify pass our prediction model, move to next cluster
-            # We want at least 50 tracks in each playlist
-            # If we hit recommendation api 10 times and still don't have enough good results, move on as to not overload spotify api
-            attempts = 0
-            predict_df = pd.DataFrame()
-            # Only choose tracks that were 'liked' in the cluster for seeds
-            track_uris = df[(df['cluster'] == i) & (df['skipped'] == 0)]['track_id'].unique().tolist()
-            # artist_uris = df[df['cluster'] == i]['artist_id'].unique().tolist()
-            dup_check = False
-            while len(predict_df) < 50 and dup_check == False and attempts < 10:
-                dup_check = False
-                # Get 5 random tracks from the cluster to use as seeds for recommendation (spotify api can only take up to 5 seeds)
+                # Keep looping through cluster passing different tracks into spotify recommendation api
+                # Once enough tracks recived from spotify pass our prediction model, move to next cluster
+                # We want at least 50 tracks in each playlist
+                # If we hit recommendation api 10 times and still don't have enough good results, move on as to not overload spotify api
+                attempts = 0
+                predict_df = pd.DataFrame()
+                # Only choose tracks that were 'liked' in the cluster for seeds
+                track_uris = df[(df['cluster'] == cluster) & (df['skipped'] == 0)]['track_id'].unique().tolist()
+                # artist_uris = df[df['cluster'] == i]['artist_id'].unique().tolist()
+                while len(predict_df) < 50 and attempts < 20:
+                    # Get 5 random tracks from the cluster to use as seeds for recommendation (spotify api can only take up to 5 seeds)
+                    seed_tracks = random.sample(track_uris, 5 if len(track_uris) > 5 else len(track_uris))
+                    # seed_artists = random.sample(artist_uris, 5 if len(artist_uris) > 5 else len(artist_uris))
 
-                seed_tracks = random.sample(track_uris, 5 if len(track_uris) > 5 else len(track_uris))
-                # seed_artists = random.sample(artist_uris, 5 if len(artist_uris) > 5 else len(artist_uris))
+                    # Get recommendations from spotify
+                    recommendations = spotify.recommendations(track_ids=seed_tracks, limit=50).tracks
+                    # recommendations = spotify.recommendations(artist_ids=artist_uris, limit=50).tracks
 
-                # Get recommendations from spotify
-                recommendations = spotify.recommendations(track_ids=seed_tracks, limit=50).tracks
-                # recommendations = spotify.recommendations(artist_ids=artist_uris, limit=50).tracks
+                    # Predict if you will like the songs spotify recommends, and if true add them to playlist
+                    try:
+                        rec_track_features = pd.DataFrame(
+                            json.loads(spotify.tracks_audio_features([x.id for x in recommendations]).json()))
+                        # Use all tracks in the same cluster (likes/dislikes) as train data set
+                        _predict_df = predict_songs(df_tracks=rec_track_features, df_train=df[df['cluster'] == cluster])
+                        if len(_predict_df) > 0:
+                            # Only take predictions that are positive
+                            _predict_df = _predict_df[_predict_df['predictions'] == 1]
+                            # add to predict dataframe and repeat loop until > 50 tracks to insert into the playlist
+                            predict_df = pd.concat([predict_df, _predict_df]).drop_duplicates()
+                    except Exception as e:
+                        app.server.logger.error(f'ERROR Creating Playlist: {e}')
 
-                # Predict if you will like the songs spotify recommends, and if true add them to playlist
-                try:
-                    rec_track_features = pd.DataFrame(
-                        json.loads(spotify.tracks_audio_features([x.id for x in recommendations]).json()))
-                    # Use all tracks in the same cluster (likes/dislikes) as train data set
-                    _predict_df = predict_songs(df_tracks=rec_track_features, df_train=df[df['cluster'] == i])
-                    # Only take predictions that were true
-                    _predict_df = _predict_df[_predict_df['predictions'] == 1]
-                    # add to predict dataframe and repeat loop until > 50 tracks to insert into the playlist
-                    predict_df = pd.concat([predict_df, _predict_df]).drop_duplicates()
-                    dup_check = True
-                except:
-                    dup_check = False
-                    pass
+                    # time.sleep(1)  # Avoid spotify api limit
+                    attempts += 1
 
-                time.sleep(1)  # Avoid spotify api limit
-                attempts += 1
-
-            predict_df['track_uri'] = 'spotify:track:' + predict_df['id']
-            # Add recommended tracks to the playlist
-            spotify.playlist_add(playlist_id=playlist_id, uris=predict_df['track_uri'].tolist())
-            app.server.logger.debug(f'Fitly Playlist {i} refreshed')
+                if len(predict_df) > 0:
+                    # Grab playlist id if it already exists otherwise create the playlist
+                    playlist_id = playlists.get(f'Fitly Playlist {playlist_number}')
+                    if not playlist_id:
+                        playlist_id = spotify.playlist_create(user_id=user_id, name=f'Fitly Playlist {playlist_number}',
+                                                              public=False).id
+                    predict_df['track_uri'] = 'spotify:track:' + predict_df['id']
+                    # Add recommended tracks to the playlist
+                    app.server.logger.debug(f'Refreshing Fitly Playlist {playlist_number}...')
+                    spotify.playlist_add(playlist_id=playlist_id, uris=predict_df['track_uri'].tolist())
+                    app.server.logger.debug(f'Fitly Playlist {playlist_number} refreshed')
+                    playlist_number += 1
+                else:
+                    continue
 
     else:
         app.server.logger.debug(
@@ -499,6 +506,7 @@ def predict_songs(df_tracks, df_train):
 
     else:
         app.server.logger.info('Could not run prediction with any models')
+        return pd.DataFrame()
 
 
 ### Spotify Stream ###
