@@ -946,7 +946,7 @@ def get_hrv_df():
     return hrv_df
 
 
-def get_trend_controls(selected=None, sport='Run'):
+def get_trend_controls(selected=None, sport='run'):
     athlete_info = app.session.query(athlete).filter(athlete.athlete_id == 1).first()
     use_run_power = True if athlete_info.use_run_power else False
     use_cycle_power = True if athlete_info.use_cycle_power else False
@@ -967,13 +967,13 @@ def get_trend_controls(selected=None, sport='Run'):
     if not selected:
         selected = 'average_heartrate' if not use_power else 'average_watts'
 
-    if sport == 'Run':
+    if sport.lower() == 'run':
         if not use_run_power:
-            hide.extend(['average-watts', 'tss'])
-        if not stryd_credentials_supplied:
-            hide.extend(['average-ground-time', 'average-oscillation', 'average-leg-spring'])
+            hide.extend(['average-watts', 'tss', 'average-ground-time', 'average-oscillation', 'average-leg-spring'])
+        # if not stryd_credentials_supplied:
+        #     hide.extend(['average-ground-time', 'average-oscillation', 'average-leg-spring'])
 
-    elif sport == 'Ride':
+    elif sport.lower() == 'ride':
         hide.extend(['average-ground-time', 'average-oscillation', 'average-leg-spring'])
         if not use_cycle_power:
             hide.extend(['average-watts', 'tss'])
