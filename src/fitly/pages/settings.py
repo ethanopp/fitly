@@ -1230,6 +1230,7 @@ def update_tokens(n_clicks, search):
         save_strava_token(token_response)
 
     if 'withings' in search:
+        query_params = urlparse.urlparse(search.replace('withings&', ''))
         if not withings_connected():
             creds = withings_auth_client.get_credentials(parse_qs(query_params.query)['code'][0])
             save_withings_token(creds)
