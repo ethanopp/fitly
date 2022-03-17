@@ -1,8 +1,8 @@
 APScheduler
 configparser
-dash
+dash==2.0.0
 dash-daq
-dash-bootstrap-components
+dash-bootstrap-components==0.12.2
 configparser
 withings-api
 numpy
