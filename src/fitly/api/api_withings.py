@@ -63,9 +63,8 @@ def pull_withings_data():
     # UTC dates will get sampled into daily
     if withings_connected():
         client = WithingsApi(load_credentials(), refresh_cb=save_withings_token)
-
         df = pd.DataFrame(columns=['date_utc', 'weight', 'fat_ratio', 'hydration'])
-        meas_result = client.measure_get_meas()
+        meas_result = client.measure_get_meas(startdate=None, enddate=None, lastupdate=None)
         for x in meas_result.measuregrps:
             date = pd.to_datetime(str(x.date))
             weight = get_measure_value(x, with_measure_type=MeasureType.WEIGHT)
@@ -77,6 +76,7 @@ def pull_withings_data():
                                ignore_index=True)
 
         df = df.set_index(df['date_utc'].apply(lambda x: x.replace(tzinfo=None)))
+
         df = df[['weight', 'fat_ratio', 'hydration']]
         # Convert to lbs
         df['weight'] *= 2.20462
