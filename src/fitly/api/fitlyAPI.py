@@ -124,7 +124,7 @@ class FitlyActivity(stravalib.model.Activity):
             app.server.logger.debug('Activity id "{}": Writing df_summary and df_samples to DB'.format(self.id))
             self.write_dfs_to_db()
         else:
-            app.server.logger.degubg(f'No streams data returned for activity {self.id}')
+            app.server.logger.debug(f'No streams data returned for activity {self.id}')
 
     def assign_athlete(self, athlete_id):
 
