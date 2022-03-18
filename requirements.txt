@@ -19,3 +19,4 @@ stravalib==0.10.4
 sweat==0.4.0
 tekore==4.3.0
 withings-api==2.4.0
+greenlet<0.5,>=0.4.5
