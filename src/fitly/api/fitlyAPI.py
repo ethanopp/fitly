@@ -796,7 +796,7 @@ def training_workflow(min_non_warmup_workout_time, metric='hrv_baseline', athlet
                 #     metric_df['within_swc'] = metric_df['within_zscore_swc']
 
                 # Wait for today's hrv to be loaded into cloud
-                if metric_df.index.max() == datetime.today().date():  # or (datetime.now() - timedelta(hours=12)) > pd.to_datetime(datetime.today().date()):
+                if metric_df.index.max().date() == datetime.today().date():  # or (datetime.now() - timedelta(hours=12)) > pd.to_datetime(datetime.today().date()):
                     step_log_df = pd.read_sql(
                         sql=app.session.query(workoutStepLog.date, workoutStepLog.workout_step,
                                               workoutStepLog.completed).filter(

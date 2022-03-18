@@ -1276,7 +1276,6 @@ def query_peloton_bookmark_settings(fitness_discipline, effort):
         # Query athlete table for current peloton settings to show in value of dropdown
         athlete_bookmarks = json.loads(app.session.query(athlete.peloton_auto_bookmark_ids).filter(
             athlete.athlete_id == 1).first().peloton_auto_bookmark_ids)
-
         app.session.remove()
         if athlete_bookmarks:
             try:
