@@ -16,7 +16,6 @@ dash-daq==0.5.0
 dash-html-components==1.1.2
 dash-renderer==1.9.0
 dash-table==4.11.2
--e git+https://github.com/ethanopp/fitly@dfcb5b9841420ad5f8f2b369e0e4c0d385c8ccc8#egg=Fit.ly
 fitparse==1.2.0
 Flask==2.0.3
 Flask-Compress==1.11
