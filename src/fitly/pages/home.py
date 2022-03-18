@@ -1,9 +1,7 @@
 import pandas as pd
 import numpy as np
 import dash
-import dash_table
-import dash_core_components as dcc
-import dash_html_components as html
+from dash import html, dcc, dash_table
 import plotly.figure_factory as ff
 import plotly.graph_objs as go
 from ..app import app
