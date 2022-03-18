@@ -367,7 +367,7 @@ def get_layout(**kwargs):
                                                             style={'fontSize': '1.5rem', 'display': 'inline-block'}),
                                                      daq.ToggleSwitch(id='performance-activity-type-toggle',
                                                                       className='mr-2 ml-2',
-                                                                      style={'display': 'inline-block'}, value=False),
+                                                                      style={'display': 'inline-block'}, value=True),
 
                                                      html.I(id='performance-trend-bicycle-icon',
                                                             className='fa fa-bicycle',
@@ -1003,7 +1003,7 @@ def get_trend_controls(selected=None, sport='run'):
     return html.Div(className='row', children=controls)
 
 
-def get_trend_chart(metric, sport='Run', days=90, intensity='all'):
+def get_trend_chart(metric, sport='Ride', days=90, intensity='all'):
     date = datetime.now().date() - timedelta(days=days)
     df = pd.read_sql(
         sql=app.session.query(stravaSummary).filter(
@@ -2757,7 +2757,7 @@ def create_fitness_chart(run_status, ride_status, all_status, power_status, hr_s
     return figure, hoverData
 
 
-def workout_distribution(sport='Run', days=90, intensity='all'):
+def workout_distribution(sport='Ride', days=90, intensity='all'):
     min_non_warmup_workout_time = app.session.query(athlete).filter(
         athlete.athlete_id == 1).first().min_non_warmup_workout_time
 
