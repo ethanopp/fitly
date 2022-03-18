@@ -3,7 +3,7 @@ from functools import wraps
 from urllib.parse import parse_qs
 
 import dash
-from dash import html
+import dash_html_components as html
 import dash_bootstrap_components as dbc
 from dash.dependencies import Output, Input
 from dash.exceptions import PreventUpdate
